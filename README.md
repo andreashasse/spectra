@@ -1,6 +1,12 @@
 # Spectra
 
-A data validation library for Erlang inspired by Pydantic. Point it to your erlang types (records and type specs) and it will validate and convert JSON data to/from your types, generate json schemas and help you generate openapi schemas.
+A data validation library for Erlang inspired by Pydantic.
+Spectra provides type-safe data serialization and deserialization for Erlang records and types. Currently the focus is on JSON.
+
+- **Type-safe conversion**: Convert typed Erlang values to/from external formats such as JSON, making sure the data conforms to the type.
+- **Detailed errors**: Get error messages with location information when validation fails
+- **Support for complex scenarios**: Handles unions, records, atoms, nested structures, ...
+
 
 ## Installation
 
@@ -13,14 +19,6 @@ Add spectra to your rebar.config dependencies:
 ```
 
 ## Data (de)serialization
-
-Spectra provides type-safe data serialization and deserialization for Erlang records and all Erlang types that can be converted to that type. Currently the focus is on JSON.
-
-- **Type-safe conversion**: Convert typed erlang values to/from external formats such as JSON, making sure the data conforms to the type.
-- **Detailed errors**: Get error messages with location information when validation fails
-- **Support for complex scenarios**: Handles unions, records, atoms, nested structures, ...
-
-### Basic Usage
 
 Here's how to use spectra for JSON serialization and deserialization:
 
