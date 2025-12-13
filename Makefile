@@ -59,7 +59,7 @@ release:
 	@echo "Last 5 tags:"
 	@git tag --sort=-version:refname | head -n 5
 	@echo ""
-	@read -r -p "Enter the next tag (e.g., v1.0.0): " tag && [ -n "$$tag" ] || { echo "Tag cannot be empty. Aborted."; exit 1; }; \
+	@read -r -p "Enter the next tag (e.g., 1.0.0): " tag && [ -n "$$tag" ] || { echo "Tag cannot be empty. Aborted."; exit 1; }; \
 	read -r -p "Did you update the README install instructions? (Y/N) " a && [ "$$a" = "Y" ] || { echo "Aborted."; exit 1; }; \
 	git tag "$$tag" && \
 	git push origin "$$tag" && \
