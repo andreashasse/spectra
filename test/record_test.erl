@@ -46,24 +46,19 @@ missing_test() ->
 
 extra_fields_test() ->
     ?assertMatch(
-        {error, [
-            #sp_error{type = not_matched_fields, ctx = #{key := <<"extra">>, value := <<"field">>}}
-        ]},
+        {ok, #person{name = "John", age = 30}},
         spectra_json:from_json(?MODULE, {record, person}, #{
             <<"name">> => <<"John">>, <<"age">> => 30, <<"extra">> => <<"field">>
         }),
-        "Extra fields in JSON should cause an error"
+        "Extra fields in JSON should be ignored"
     ),
     ?assertMatch(
-        {error, [
-            #sp_error{type = not_matched_fields, ctx = #{key := <<"extra1">>}},
-            #sp_error{type = not_matched_fields, ctx = #{key := <<"extra2">>}}
-        ]},
+        {ok, #person{name = "John", age = 30}},
         spectra_json:from_json(?MODULE, {record, person}, #{
             <<"name">> => <<"John">>,
             <<"age">> => 30,
             <<"extra1">> => <<"value1">>,
             <<"extra2">> => <<"value2">>
         }),
-        "Multiple extra fields in JSON should all be reported"
+        "Multiple extra fields in JSON should be ignored"
     ).

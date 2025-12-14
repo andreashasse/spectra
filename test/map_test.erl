@@ -363,13 +363,7 @@ map_in_map_value_test() ->
 
 map_in_map_value_bad_test() ->
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [hej],
-                type = not_matched_fields,
-                ctx = #{key => <<"key1">>, value => <<"not_integer">>}
-            }
-        ]},
+        {ok, #{<<"hej">> => #{}}},
         to_json_map_in_map_value(#{hej => #{<<"key1">> => <<"not_integer">>}})
     ),
     ?assertMatch(
@@ -425,13 +419,8 @@ from_json_map_in_map_value_bad_test() ->
     ).
 
 from_json_map_in_map_key_test() ->
-    ?assertMatch(
-        {error, [
-            #sp_error{
-                type = not_matched_fields,
-                ctx = #{value := <<"value">>, key := <<"key">>}
-            }
-        ]},
+    ?assertEqual(
+        {ok, #{}},
         from_json_map_in_map_key(#{<<"key">> => <<"value">>})
     ).
 
