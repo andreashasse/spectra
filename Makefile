@@ -56,6 +56,11 @@ doc:
 	rebar3 ex_doc
 
 release:
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: There are uncommitted changes. Please commit or stash them before releasing."; \
+		git status --short; \
+		exit 1; \
+	fi
 	@echo "Last 5 tags:"
 	@git tag --sort=-version:refname | head -n 5
 	@echo ""
