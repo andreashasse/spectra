@@ -638,6 +638,10 @@ do_from_json(_TypeInfo, Type, Value) ->
     Value :: term()
 ) -> {ok, integer() | atom() | []} | false.
 try_convert_to_literal(
+    #sp_literal{value = LiteralValue}, null
+) when LiteralValue =:= nil orelse LiteralValue =:= undefined ->
+    {ok, LiteralValue};
+try_convert_to_literal(
     #sp_literal{value = LiteralValue, binary_value = BinaryLiteralValue}, Value
 ) when Value =:= BinaryLiteralValue ->
     {ok, LiteralValue};

@@ -219,11 +219,21 @@ These errors indicate a problem with your application's configuration or type de
 
 ### `undefined` and `nil` Values
 
-In records and mandatory map fields (with the `:=` operator), the values `undefined` or `nil` will be used when the value is missing, if the type includes that literal value.
+The atoms `undefined` and `nil` have special handling in JSON serialization to represent missing or null values.
 
-For example, `integer() | undefined` will become `undefined` in records and mandatory map fields if the value is missing, and the value will not be present in the JSON. When decoding JSON to Erlang types, the value will become `undefined` if the field is missing. Similarly, `integer() | nil` will become `nil` when the value is missing.
+**Encoding (Erlang → JSON):**
+- Fields with `undefined` or `nil` values are omitted from the JSON output
+- Example: `#{name => <<"John">>, email => undefined}` encodes to `{"name":"John"}`
 
-**Note**: If a union type includes both `undefined` and `nil` (e.g., `integer() | undefined | nil`), the selection of which missing value to use depends on the order they appear in the type definition. The last one encountered will be used. For predictable behavior, include only one missing value literal in your type definitions.
+**Decoding (JSON → Erlang):**
+- Missing JSON fields decode to `undefined` or `nil` if the type includes that literal
+- Explicit JSON `null` values also decode to `undefined` or `nil` if the type includes that literal
+- Example with type `#{email := binary() | undefined}`:
+  - `{}` (missing field) → `#{email => undefined}`
+  - `{"email": null}` → `#{email => undefined}`
+  - `{"email": "test@example.com"}` → `#{email => <<"test@example.com">>}`
+
+**Note**: If a union type includes both `undefined` and `nil` (e.g., `integer() | undefined | nil`), the selection of which missing value to use depends on the order they appear in the type definition. The last one encountered will be used. For predictable behavior, include only one missing value literal in your type definitions. The `nil` atom is primarily for Elixir interoperability.
 
 ### `term()` | `any()`
 
