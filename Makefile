@@ -62,10 +62,11 @@ release:
 	@read -r -p "Enter the next tag (e.g., v1.0.0): " tag && [ -n "$$tag" ] || { echo "Tag cannot be empty. Aborted."; exit 1; }; \
 	read -r -p "Did you update the README install instructions? (Y/N) " a && [ "$$a" = "Y" ] || { echo "Aborted."; exit 1; }; \
 	git tag "$$tag" && \
-	git push origin "$$tag" && \
 	rebar3 compile && \
 	rebar3 hex build && \
 	rebar3 hex publish && \
+	git push origin "$$tag" && \
+	gh release create "$$tag" --title "v$$tag" --notes "$$(sed -n "/## \[$$tag\]/,/## \[/p" CHANGELOG.md | sed '$$d' | tail -n +2)" && \
 	echo "Released and tagged as $$tag"\
 
 perf: compile
