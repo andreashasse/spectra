@@ -327,23 +327,25 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
             end
     end,
     case spectra_util:fold_until_error(Fun, {[], Data}, MapFieldTypes) of
-        {ok, {MapFields, FinalData}} ->
-            case maps:to_list(FinalData) of
-                [] ->
-                    {ok, MapFields};
-                L ->
-                    {error,
-                        lists:map(
-                            fun({Key, Value}) ->
-                                #sp_error{
-                                    type = not_matched_fields,
-                                    location = [],
-                                    ctx = #{key => Key, value => Value}
-                                }
-                            end,
-                            L
-                        )}
-            end;
+        {ok, {MapFields, _FinalData}} ->
+            {ok, MapFields};
+        % TODO: Add config option to optionally error on extra fields
+        % case maps:to_list(FinalData) of
+        %     [] ->
+        %         {ok, MapFields};
+        %     L ->
+        %         {error,
+        %             lists:map(
+        %                 fun({Key, Value}) ->
+        %                     #sp_error{
+        %                         type = not_matched_fields,
+        %                         location = [],
+        %                         ctx = #{key => Key, value => Value}
+        %                     }
+        %                 end,
+        %                 L
+        %             )}
+        % end;
         {error, _} = Err ->
             Err
     end.
@@ -1010,23 +1012,25 @@ map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
     end,
 
     case spectra_util:fold_until_error(Fun, {[], Json}, MapFieldType) of
-        {ok, {Fields, NotMapped}} ->
-            case maps:size(NotMapped) of
-                0 ->
-                    {ok, maps:from_list(Fields)};
-                _ ->
-                    {error,
-                        lists:map(
-                            fun({Key, Value}) ->
-                                #sp_error{
-                                    type = not_matched_fields,
-                                    location = [],
-                                    ctx = #{key => Key, value => Value}
-                                }
-                            end,
-                            maps:to_list(NotMapped)
-                        )}
-            end;
+        {ok, {Fields, _NotMapped}} ->
+            {ok, maps:from_list(Fields)};
+        % TODO: Add config option to optionally error on extra fields
+        % case maps:size(NotMapped) of
+        %     0 ->
+        %         {ok, maps:from_list(Fields)};
+        %     _ ->
+        %         {error,
+        %             lists:map(
+        %                 fun({Key, Value}) ->
+        %                     #sp_error{
+        %                         type = not_matched_fields,
+        %                         location = [],
+        %                         ctx = #{key => Key, value => Value}
+        %                     }
+        %                 end,
+        %                 maps:to_list(NotMapped)
+        %             )}
+        % end;
         {error, _} = Err ->
             Err
     end;
@@ -1125,23 +1129,25 @@ do_record_from_json(TypeInfo, RecordName, RecordInfo, Json) when is_map(Json) ->
         end
     end,
     case spectra_util:fold_until_error(Fun, {[], Json}, RecordInfo) of
-        {ok, {Fields, NotMapped}} ->
-            case maps:size(NotMapped) of
-                0 ->
-                    {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
-                _ ->
-                    {error,
-                        lists:map(
-                            fun({Key, Value}) ->
-                                #sp_error{
-                                    type = not_matched_fields,
-                                    location = [],
-                                    ctx = #{key => Key, value => Value}
-                                }
-                            end,
-                            maps:to_list(NotMapped)
-                        )}
-            end;
+        {ok, {Fields, _NotMapped}} ->
+            {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
+        % TODO: Add config option to optionally error on extra fields
+        % case maps:size(NotMapped) of
+        %     0 ->
+        %         {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
+        %     _ ->
+        %         {error,
+        %             lists:map(
+        %                 fun({Key, Value}) ->
+        %                     #sp_error{
+        %                         type = not_matched_fields,
+        %                         location = [],
+        %                         ctx = #{key => Key, value => Value}
+        %                     }
+        %                 end,
+        %                 maps:to_list(NotMapped)
+        %             )}
+        % end;
         {error, Errs} ->
             {error, Errs}
     end;

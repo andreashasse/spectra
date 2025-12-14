@@ -35,9 +35,11 @@ validate_weird_union_test() ->
         to_json_weird_union(ValidMap)
     ),
 
-    % Test with invalid data
-    {error, Errors} = to_json_weird_union(InvalidData),
-    ?assertMatch([#sp_error{type = no_match}], Errors),
+    % Test with extra fields (now ignored)
+    ?assertEqual(
+        {ok, #{}},
+        to_json_weird_union(InvalidData)
+    ),
 
     % Test JSON conversion using from_json
     ValidRecordJson = #{<<"street">> => <<"Main St">>, <<"city">> => <<"New York">>},
@@ -67,9 +69,11 @@ validate_weird_union_test() ->
         from_json_weird_union(ValidMapJson)
     ),
 
-    % Test from_json with invalid data
-    {error, FromErrors} = from_json_weird_union(InvalidJson),
-    ?assertMatch([#sp_error{type = no_match}], FromErrors).
+    % Test from_json with extra fields (now ignored)
+    ?assertEqual(
+        {ok, #{}},
+        from_json_weird_union(InvalidJson)
+    ).
 
 -spec to_json_weird_union(weird_union()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
