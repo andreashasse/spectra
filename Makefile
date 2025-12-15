@@ -56,16 +56,22 @@ doc:
 	rebar3 ex_doc
 
 release:
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: There are uncommitted changes. Please commit or stash them before releasing."; \
+		git status --short; \
+		exit 1; \
+	fi
 	@echo "Last 5 tags:"
 	@git tag --sort=-version:refname | head -n 5
 	@echo ""
 	@read -r -p "Enter the next tag (e.g., v1.0.0): " tag && [ -n "$$tag" ] || { echo "Tag cannot be empty. Aborted."; exit 1; }; \
 	read -r -p "Did you update the README install instructions? (Y/N) " a && [ "$$a" = "Y" ] || { echo "Aborted."; exit 1; }; \
 	git tag "$$tag" && \
-	git push origin "$$tag" && \
 	rebar3 compile && \
 	rebar3 hex build && \
 	rebar3 hex publish && \
+	git push origin "$$tag" && \
+	gh release create "$$tag" --title "v$$tag" --notes "$$(sed -n "/## \[$$tag\]/,/## \[/p" CHANGELOG.md | sed '$$d' | tail -n +2)" && \
 	echo "Released and tagged as $$tag"\
 
 perf: compile
