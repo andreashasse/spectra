@@ -224,13 +224,14 @@ Updated response builder with body schema added
 -spec response_with_body(
     Response :: response_spec(),
     Module :: module(),
-    Schema :: spectra:sp_type_or_ref()
+    Schema :: atom() | spectra:sp_type_or_ref()
 ) ->
     response_spec().
 response_with_body(Response, Module, Schema) when
     is_map(Response) andalso is_atom(Module)
 ->
-    Response#{schema => Schema, module => Module}.
+    NormalizedSchema = normalize_schema_ref(Module, Schema),
+    Response#{schema => NormalizedSchema, module => Module}.
 
 -doc """
 Adds a response body with custom content type to a response builder.
@@ -255,15 +256,16 @@ Updated response builder with body schema and content type added
 -spec response_with_body(
     Response :: response_spec(),
     Module :: module(),
-    Schema :: spectra:sp_type_or_ref(),
+    Schema :: atom() | spectra:sp_type_or_ref(),
     ContentType :: binary()
 ) ->
     response_spec().
 response_with_body(Response, Module, Schema, ContentType) when
     is_map(Response) andalso is_atom(Module) andalso is_binary(ContentType)
 ->
+    NormalizedSchema = normalize_schema_ref(Module, Schema),
     Response#{
-        schema => Schema,
+        schema => NormalizedSchema,
         module => Module,
         content_type => ContentType
     }.
@@ -301,7 +303,11 @@ response_with_header(Response, HeaderName, Module, HeaderSpec) when
         is_map(HeaderSpec)
 ->
     Headers = maps:get(headers, Response, #{}),
-    HeaderSpecWithModule = HeaderSpec#{module => Module},
+    %% Normalize the schema in HeaderSpec
+    Schema = maps:get(schema, HeaderSpec),
+    NormalizedSchema = normalize_schema_ref(Module, Schema),
+    NormalizedHeaderSpec = HeaderSpec#{schema => NormalizedSchema},
+    HeaderSpecWithModule = NormalizedHeaderSpec#{module => Module},
     Response#{headers => Headers#{HeaderName => HeaderSpecWithModule}}.
 
 -doc """
@@ -325,13 +331,14 @@ Updated endpoint map with request body set
 -spec with_request_body(
     Endpoint :: endpoint_spec(),
     Module :: module(),
-    Schema :: spectra:sp_type_or_ref()
+    Schema :: atom() | spectra:sp_type_or_ref()
 ) ->
     endpoint_spec().
 with_request_body(Endpoint, Module, Schema) when
     is_map(Endpoint) andalso is_atom(Module)
 ->
-    Endpoint#{request_body => #{schema => Schema, module => Module}}.
+    NormalizedSchema = normalize_schema_ref(Module, Schema),
+    Endpoint#{request_body => #{schema => NormalizedSchema, module => Module}}.
 
 -doc """
 Adds a request body specification with custom content type to an endpoint.
@@ -356,17 +363,18 @@ Updated endpoint map with request body set
 -spec with_request_body(
     Endpoint :: endpoint_spec(),
     Module :: module(),
-    Schema :: spectra:sp_type_or_ref(),
+    Schema :: atom() | spectra:sp_type_or_ref(),
     ContentType :: binary()
 ) ->
     endpoint_spec().
 with_request_body(Endpoint, Module, Schema, ContentType) when
     is_map(Endpoint) andalso is_atom(Module) andalso is_binary(ContentType)
 ->
+    NormalizedSchema = normalize_schema_ref(Module, Schema),
     Endpoint#{
         request_body =>
             #{
-                schema => Schema,
+                schema => NormalizedSchema,
                 module => Module,
                 content_type => ContentType
             }
@@ -787,3 +795,26 @@ capitalize_word([]) ->
     [];
 capitalize_word([First | Rest]) ->
     [string:to_upper(First) | Rest].
+
+%% Helper function to normalize schema references
+%% If Schema is an atom, resolve it to a proper type reference {type, Name, 0} or {record, Name}
+%% Otherwise, return it as-is
+-spec normalize_schema_ref(Module :: module(), Schema :: atom() | spectra:sp_type_or_ref()) ->
+    spectra:sp_type_or_ref().
+normalize_schema_ref(Module, Schema) when is_atom(Schema) ->
+    TypeInfo = spectra_abstract_code:types_in_module(Module),
+    %% First try to find it as a type with arity 0
+    case spectra_type_info:get_type(TypeInfo, Schema, 0) of
+        {ok, _Type} ->
+            {type, Schema, 0};
+        error ->
+            %% Otherwise try as a record
+            case spectra_type_info:get_record(TypeInfo, Schema) of
+                {ok, _Rec} ->
+                    {record, Schema};
+                error ->
+                    erlang:error({type_or_record_not_found, Schema})
+            end
+    end;
+normalize_schema_ref(_Module, Schema) ->
+    Schema.

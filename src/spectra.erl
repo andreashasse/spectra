@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, encode/4, schema/3]).
+-export([decode/4, encode/4, schema/3, get_type_from_atom/2]).
 
--ignore_xref([decode/4, encode/4, schema/3]).
+-ignore_xref([decode/4, encode/4, schema/3, get_type_from_atom/2]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -30,6 +30,7 @@
     | #sp_nonempty_list{}
     | #sp_maybe_improper_list{}
     | #sp_nonempty_improper_list{}
+    | #sp_kvlist{}
     | #sp_remote_type{}.
 -type map_field() :: #literal_map_field{} | #typed_map_field{}.
 -type sp_type_reference() ::
