@@ -33,7 +33,7 @@ map1_bad_test() ->
         to_json_atom_map(#{a1 => hej})
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         to_json_atom_map(<<"not_a_map">>)
     ).
 
@@ -72,7 +72,7 @@ map3_test() ->
 
 map3_bad_test() ->
     ?assertMatch(
-        {error, [#sp_error{location = [a1], type = missing_data}]},
+        {error, [#sp_error{location = [a1], type = missing_field}]},
         to_json_atom_map3(#{not_a1 => kalle})
     ).
 
@@ -153,7 +153,7 @@ from_json_map1_bad_test() ->
         from_json_atom_map(#{<<"a1">> => <<"not_an_integer">>})
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         from_json_atom_map(<<"not_a_map">>)
     ).
 
@@ -180,7 +180,7 @@ from_json_map3_test() ->
 
 from_json_map3_bad_test() ->
     ?assertMatch(
-        {error, [#sp_error{location = [a1], type = missing_data}]},
+        {error, [#sp_error{location = [a1], type = missing_field}]},
         from_json_atom_map3(#{<<"not_a1">> => <<"kalle">>})
     ).
 
@@ -367,7 +367,7 @@ map_in_map_value_bad_test() ->
         to_json_map_in_map_value(#{hej => #{<<"key1">> => <<"not_integer">>}})
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         to_json_map_in_map_value(not_a_map)
     ).
 
@@ -414,7 +414,7 @@ from_json_map_in_map_value_bad_test() ->
         from_json_map_in_map_value(#{<<"hej">> => #{<<"key1">> => <<"not_integer">>}})
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         from_json_map_in_map_value(not_a_map)
     ).
 

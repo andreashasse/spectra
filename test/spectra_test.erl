@@ -58,14 +58,14 @@ decode_type_json_range_test() ->
 
     % Invalid age - out of range
     {error, Errors1} = spectra:decode(json, ?MODULE, age, <<"151">>),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors1),
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], Errors1),
 
     % Valid port in range
     ?assertEqual({ok, 8080}, spectra:decode(json, ?MODULE, port_number, <<"8080">>)),
 
     % Invalid port - out of range
     {error, Errors2} = spectra:decode(json, ?MODULE, port_number, <<"70000">>),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors2).
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], Errors2).
 
 decode_type_json_nonempty_list_test() ->
     % Valid non-empty list
@@ -82,7 +82,7 @@ decode_type_json_nonempty_list_test() ->
     % Empty list should fail
     JsonEmpty = <<"[]">>,
     {error, Errors} = spectra:decode(json, ?MODULE, tags, JsonEmpty),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors).
+    ?assertMatch([#sp_error{type = {type_error, nonempty_list}}], Errors).
 
 decode_type_json_map_test() ->
     % Simple map with all required fields
@@ -123,7 +123,7 @@ decode_type_json_map_with_nonempty_list_test() ->
     % Empty members should fail
     JsonEmptyMembers = <<"{\"name\":\"Team B\",\"members\":[]}">>,
     {error, MemberErrors} = spectra:decode(json, ?MODULE, group_map, JsonEmptyMembers),
-    ?assertMatch([#sp_error{type = type_mismatch}], MemberErrors).
+    ?assertMatch([#sp_error{type = {type_error, nonempty_list}}], MemberErrors).
 
 decode_type_json_nested_map_test() ->
     % Nested maps with non-empty list
@@ -145,7 +145,7 @@ decode_type_json_error_test() ->
     % Invalid value - negative number for pos_integer
     JsonInvalid = <<"-5">>,
     {error, Errors} = spectra:decode(json, ?MODULE, user_id, JsonInvalid),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors).
+    ?assertMatch([#sp_error{type = {type_error, _}}], Errors).
 
 %%====================================================================
 %% decode_record/4 tests - JSON format
@@ -195,7 +195,7 @@ encode_type_json_range_test() ->
 
     % Out of range should error
     {error, Errors} = spectra:encode(json, ?MODULE, age, 200),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors).
+    ?assertMatch([#sp_error{type = {type_error, _}}], Errors).
 
 encode_type_json_nonempty_list_test() ->
     % Valid non-empty list
@@ -206,7 +206,7 @@ encode_type_json_nonempty_list_test() ->
 
     % Empty list should error
     {error, Errors} = spectra:encode(json, ?MODULE, tags, []),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors).
+    ?assertMatch([#sp_error{type = {type_error, _}}], Errors).
 
 encode_type_json_map_test() ->
     Data =
@@ -261,7 +261,7 @@ encode_type_json_nested_map_test() ->
 encode_type_json_error_test() ->
     % Invalid data - atom that doesn't match status type
     {error, Errors} = spectra:encode(json, ?MODULE, status, invalid_status),
-    ?assertMatch([#sp_error{type = no_match}], Errors).
+    ?assertMatch([#sp_error{type = union_no_match}], Errors).
 
 %%====================================================================
 %% encode_record/4 tests - JSON format
@@ -418,12 +418,12 @@ error_handling_decode_test() ->
     % Type mismatch - string where integer expected
     JsonString = <<"\"not_a_number\"">>,
     {error, Errors1} = spectra:decode(json, ?MODULE, user_id, JsonString),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors1),
+    ?assertMatch([#sp_error{type = {type_error, _}}], Errors1),
 
     % Invalid enum value
     JsonInvalidStatus = <<"\"invalid\"">>,
     {error, Errors2} = spectra:decode(json, ?MODULE, status, JsonInvalidStatus),
-    ?assertMatch([#sp_error{type = no_match}], Errors2),
+    ?assertMatch([#sp_error{type = union_no_match}], Errors2),
 
     % Missing required field
     JsonMissingField = <<"{\"id\":1,\"name\":\"Alice\"}">>,
@@ -454,11 +454,11 @@ error_handling_invalid_json_test() ->
 error_handling_encode_test() ->
     % Wrong type for status
     {error, Errors1} = spectra:encode(json, ?MODULE, status, wrong_atom),
-    ?assertMatch([#sp_error{type = no_match}], Errors1),
+    ?assertMatch([#sp_error{type = union_no_match}], Errors1),
 
     % Negative number for pos_integer
     {error, Errors2} = spectra:encode(json, ?MODULE, user_id, -5),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors2),
+    ?assertMatch([#sp_error{type = {type_error, _}}], Errors2),
 
     % Missing required field in map
 
@@ -516,7 +516,7 @@ decode_binary_string_simple_types_test() ->
 
     % Out of range
     {error, RangeErrors} = spectra:decode(binary_string, ?MODULE, age, <<"200">>),
-    ?assertMatch([#sp_error{type = type_mismatch}], RangeErrors),
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], RangeErrors),
 
     % Port number
     ?assertEqual(
@@ -537,11 +537,11 @@ decode_binary_string_simple_types_test() ->
 decode_binary_string_error_test() ->
     % Invalid integer
     {error, Errors1} = spectra:decode(binary_string, ?MODULE, user_id, <<"not_a_number">>),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors1),
+    ?assertMatch([#sp_error{type = {parse_error, int}}], Errors1),
 
     % Invalid atom for status
     {error, Errors2} = spectra:decode(binary_string, ?MODULE, status, <<"invalid_status">>),
-    ?assertMatch([#sp_error{type = no_match}], Errors2).
+    ?assertMatch([#sp_error{type = union_no_match}], Errors2).
 
 encode_binary_string_simple_types_test() ->
     % Integer
@@ -554,7 +554,7 @@ encode_binary_string_simple_types_test() ->
 
     % Out of range
     {error, RangeErrors} = spectra:encode(binary_string, ?MODULE, age, 200),
-    ?assertMatch([#sp_error{type = type_mismatch}], RangeErrors),
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], RangeErrors),
 
     % Port number
     ?assertEqual(
@@ -606,7 +606,7 @@ decode_string_simple_types_test() ->
 
     % Out of range
     {error, RangeErrors} = spectra:decode(string, ?MODULE, age, "200"),
-    ?assertMatch([#sp_error{type = type_mismatch}], RangeErrors),
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], RangeErrors),
 
     % Port number
     ?assertEqual({ok, 8080}, spectra:decode(string, ?MODULE, port_number, "8080")),
@@ -618,11 +618,11 @@ decode_string_simple_types_test() ->
 decode_string_error_test() ->
     % Invalid integer
     {error, Errors1} = spectra:decode(string, ?MODULE, user_id, "not_a_number"),
-    ?assertMatch([#sp_error{type = type_mismatch}], Errors1),
+    ?assertMatch([#sp_error{type = {parse_error, int}}], Errors1),
 
     % Invalid atom for status
     {error, Errors2} = spectra:decode(string, ?MODULE, status, "invalid_status"),
-    ?assertMatch([#sp_error{type = no_match}], Errors2).
+    ?assertMatch([#sp_error{type = union_no_match}], Errors2).
 
 encode_string_simple_types_test() ->
     % Integer
@@ -635,7 +635,7 @@ encode_string_simple_types_test() ->
 
     % Out of range
     {error, RangeErrors} = spectra:encode(string, ?MODULE, age, 200),
-    ?assertMatch([#sp_error{type = type_mismatch}], RangeErrors),
+    ?assertMatch([#sp_error{type = {constraint_error, too_large}}], RangeErrors),
 
     % Port number
     ?assertEqual({ok, "8080"}, spectra:encode(string, ?MODULE, port_number, 8080)),

@@ -26,6 +26,77 @@ to_json(TypeInfo, Type, Data) ->
             {error, Errs}
     end.
 
+%% ERROR HELPERS
+
+%% Helper to create type error
+%% PrimType: atom like int, float, binary, etc.
+%% Input: the actual value that failed
+%% ExpectedType: the sp_type() record
+%% Location: path to the error
+-spec type_error(atom(), term(), spectra:sp_type(), [atom() | integer()]) -> spectra:error().
+type_error(PrimType, Input, ExpectedType, Location) ->
+    #sp_error{
+        type = {type_error, PrimType},
+        location = Location,
+        msg = undefined,
+        input = Input,
+        ctx = #{expected_type => ExpectedType},
+        url = undefined
+    }.
+
+%% Helper to create parse error (TODO: use in json decode and parsing functions)
+%%  -spec parse_error(atom(), term(), spectra:sp_type(), [atom() | integer()]) -> spectra:error().
+%% parse_error(PrimType, Input, ExpectedType, Location) ->
+%%     #sp_error{
+%%         type = {parse_error, PrimType},
+%%         location = Location,
+%%         msg = undefined,
+%%         input = Input,
+%%         ctx = #{expected_type => ExpectedType},
+%%         url = undefined
+%%     }.
+
+%% Helper to create constraint error (TODO: use in range validation)
+%% -spec constraint_error(atom(), term(), spectra:sp_type(), [atom() | integer()]) -> spectra:error().
+%% constraint_error(ConstraintType, Input, ExpectedType, Location) ->
+%%     #sp_error{
+%%         type = {constraint_error, ConstraintType},
+%%         location = Location,
+%%         msg = undefined,
+%%         input = Input,
+%%         ctx = #{expected_type => ExpectedType},
+%%         url = undefined
+%%     }.
+
+%% Helper to create missing field error
+-spec missing_field_error(atom(), [atom() | integer()]) -> spectra:error().
+missing_field_error(FieldName, Location) ->
+    #sp_error{
+        type = missing_field,
+        location = Location ++ [FieldName],
+        msg = undefined,
+        input = undefined,
+        ctx = #{field_name => FieldName},
+        url = undefined
+    }.
+
+%% Helper to convert simple type atom to primitive type atom for errors
+-spec simple_type_to_prim_atom(atom()) -> atom().
+simple_type_to_prim_atom(integer) -> int;
+simple_type_to_prim_atom(non_neg_integer) -> int;
+simple_type_to_prim_atom(pos_integer) -> int;
+simple_type_to_prim_atom(neg_integer) -> int;
+simple_type_to_prim_atom(float) -> float;
+simple_type_to_prim_atom(number) -> float;
+simple_type_to_prim_atom(boolean) -> bool;
+simple_type_to_prim_atom(binary) -> binary;
+simple_type_to_prim_atom(nonempty_binary) -> nonempty_binary;
+simple_type_to_prim_atom(string) -> string;
+simple_type_to_prim_atom(nonempty_string) -> nonempty_string;
+simple_type_to_prim_atom(atom) -> atom;
+simple_type_to_prim_atom(map) -> map;
+simple_type_to_prim_atom(Other) -> Other.
+
 %% INTERNAL
 -spec do_to_json(
     TypeInfo :: spectra:type_info(),
@@ -103,9 +174,12 @@ do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
                 _ ->
                     {error, [
                         #sp_error{
-                            type = type_mismatch,
+                            type = {type_error, struct},
                             location = [],
-                            ctx = #{expected_struct => StructName, value => Data}
+                            msg = undefined,
+                            input = Data,
+                            ctx = #{expected_struct => StructName},
+                            url = undefined
                         }
                     ]}
             end
@@ -125,12 +199,16 @@ do_to_json(_TypeInfo, #sp_tuple{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
 do_to_json(_TypeInfo, #sp_function{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
-do_to_json(_TypeInfo, Type, OtherValue) ->
+do_to_json(_TypeInfo, _Type, OtherValue) ->
+    %% Generic fallback type error - use old format for type references
     {error, [
         #sp_error{
-            type = type_mismatch,
+            type = {type_error, unknown},
             location = [],
-            ctx = #{type => Type, value => OtherValue}
+            msg = undefined,
+            input = OtherValue,
+            ctx = #{},
+            url = undefined
         }
     ]}.
 
@@ -143,25 +221,15 @@ prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
         {error, Reason} ->
             {error, Reason};
         false ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => T, value => Value}
-                }
-            ]}
+            PrimType = simple_type_to_prim_atom(Type),
+            {error, [type_error(PrimType, Value, T, [])]}
     end.
 
 nonempty_list_to_json(TypeInfo, Type, Data) when is_list(Data) andalso Data =/= [] ->
     list_to_json(TypeInfo, Type, Data);
 nonempty_list_to_json(_TypeInfo, Type, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => {nonempty_list, Type}, value => Data}
-        }
-    ]}.
+    NonEmptyListType = #sp_nonempty_list{type = Type},
+    {error, [type_error(nonempty_list, Data, NonEmptyListType, [])]}.
 
 -spec list_to_json(
     TypeInfo :: spectra:type_info(),
@@ -211,13 +279,7 @@ map_to_json(TypeInfo, #sp_map{fields = Fields}, Data) when
             {error, Errors}
     end;
 map_to_json(_TypeInfo, _MapFieldTypes, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = map}, value => Data}
-        }
-    ]}.
+    {error, [type_error(map, Data, #sp_simple_type{type = map}, [])]}.
 
 -spec map_fields_to_json(
     TypeInfo :: spectra:type_info(),
@@ -272,16 +334,17 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
         ) ->
             case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc) of
                 {ok, {[], _}} ->
+                    ExpectedFieldType = #typed_map_field{
+                        kind = exact, key_type = KeyType, val_type = ValueType
+                    },
                     NoExactMatch =
                         #sp_error{
-                            type = not_matched_fields,
+                            type = exact_field_mismatch,
                             location = [],
-                            ctx =
-                                #{
-                                    type => #typed_map_field{
-                                        kind = exact, key_type = KeyType, val_type = ValueType
-                                    }
-                                }
+                            msg = undefined,
+                            input = undefined,
+                            ctx = #{expected_type => ExpectedFieldType},
+                            url = undefined
                         },
                     {error, [NoExactMatch]};
                 {ok, {NewFields, NewDataAcc}} ->
@@ -317,12 +380,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
                         {true, _} ->
                             {ok, {FieldsAcc, DataAcc}};
                         false ->
-                            {error, [
-                                #sp_error{
-                                    type = missing_data,
-                                    location = [FieldName]
-                                }
-                            ]}
+                            {error, [missing_field_error(FieldName, [])]}
                     end
             end
     end,
@@ -412,17 +470,15 @@ record_to_json(
     RecFieldTypes = record_replace_vars(Fields, TypeArgs),
     RecFieldTypesWithData = lists:zip(RecFieldTypes, FieldsData),
     do_record_to_json(TypeInfo, RecFieldTypesWithData);
-record_to_json(_TypeInfo, RecordName, Record, TypeArgs) ->
+record_to_json(_TypeInfo, RecordName, Record, _TypeArgs) ->
     {error, [
         #sp_error{
-            type = type_mismatch,
+            type = {type_error, record},
             location = [],
-            ctx =
-                #{
-                    record_name => RecordName,
-                    record => Record,
-                    type_args => TypeArgs
-                }
+            msg = undefined,
+            input = Record,
+            ctx = #{record_name => RecordName},
+            url = undefined
         }
     ]}.
 
@@ -560,13 +616,8 @@ do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = T, Json) ->
         {error, Reason} ->
             {error, Reason};
         false ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => T, value => Json}
-                }
-            ]}
+            PrimType = simple_type_to_prim_atom(PrimaryType),
+            {error, [type_error(PrimType, Json, T, [])]}
     end;
 do_from_json(_TypeInfo, #sp_literal{value = Literal}, Literal) ->
     {ok, Literal};
@@ -577,9 +628,12 @@ do_from_json(_TypeInfo, #sp_literal{} = Type, Value) ->
         false ->
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = literal_no_match,
                     location = [],
-                    ctx = #{type => Type, value => Value}
+                    msg = undefined,
+                    input = Value,
+                    ctx = #{expected_type => Type},
+                    url = undefined
                 }
             ]}
     end;
@@ -603,19 +657,30 @@ do_from_json(
     _TypeInfo,
     #sp_range{
         type = integer,
-        lower_bound = _Min,
-        upper_bound = _Max
+        lower_bound = Min,
+        upper_bound = Max
     } =
         Range,
     Value
 ) when
     is_integer(Value)
 ->
+    %% Value is an integer but out of range
+    ErrorType =
+        if
+            Value < Min -> {constraint_error, too_small};
+            Value > Max -> {constraint_error, too_large};
+            % Shouldn't happen but fallback
+            true -> {type_error, int}
+        end,
     {error, [
         #sp_error{
-            type = type_mismatch,
+            type = ErrorType,
             location = [],
-            ctx = #{type => Range, value => Value}
+            msg = undefined,
+            input = Value,
+            ctx = #{expected_type => Range},
+            url = undefined
         }
     ]};
 do_from_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Value) ->
@@ -626,12 +691,16 @@ do_from_json(_TypeInfo, #sp_function{} = Type, _Value) ->
     erlang:error({type_not_supported, Type});
 do_from_json(_TypeInfo, #sp_tuple{} = Type, _Value) ->
     erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, Type, Value) ->
+do_from_json(_TypeInfo, _Type, Value) ->
+    %% Generic fallback error
     {error, [
         #sp_error{
-            type = type_mismatch,
+            type = {type_error, unknown},
             location = [],
-            ctx = #{type => Type, value => Value}
+            msg = undefined,
+            input = Value,
+            ctx = #{},
+            url = undefined
         }
     ]}.
 
@@ -653,13 +722,8 @@ try_convert_to_literal(#sp_literal{}, _Value) ->
 nonempty_list_from_json(TypeInfo, Type, Data) when is_list(Data) andalso Data =/= [] ->
     list_from_json(TypeInfo, Type, Data);
 nonempty_list_from_json(_TypeInfo, Type, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => {nonempty_list, Type}, value => Data}
-        }
-    ]}.
+    NonEmptyListType = #sp_nonempty_list{type = Type},
+    {error, [type_error(nonempty_list, Data, NonEmptyListType, [])]}.
 
 list_from_json(TypeInfo, Type, Data) when is_list(Data) ->
     Fun = fun({Nr, Item}) ->
@@ -674,29 +738,23 @@ list_from_json(TypeInfo, Type, Data) when is_list(Data) ->
     end,
     spectra_util:map_until_error(Fun, lists:enumerate(Data));
 list_from_json(_TypeInfo, Type, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => {list, Type}, value => Data}
-        }
-    ]}.
+    ListType = #sp_list{type = Type},
+    {error, [type_error(list, Data, ListType, [])]}.
 
 string_from_json(Type, Json) ->
     case unicode:characters_to_list(Json) of
         StringValue when is_list(StringValue) ->
             {true, StringValue};
         _Other ->
+            ExpectedType = #sp_simple_type{type = Type},
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = {parse_error, string},
                     location = [],
-                    ctx =
-                        #{
-                            type => #sp_simple_type{type = Type},
-                            value => Json,
-                            comment => "unicode conversion failed"
-                        }
+                    msg = undefined,
+                    input = Json,
+                    ctx = #{expected_type => ExpectedType},
+                    url = undefined
                 }
             ]}
     end.
@@ -728,16 +786,15 @@ check_type_to_json(iolist, Json) when is_list(Json) ->
 check_type_to_json(nonempty_string, Json) when is_list(Json), Json =/= [] ->
     case unicode:characters_to_binary(Json) of
         {Err, _, _} when Err =:= error orelse Err =:= incomplete ->
+            ExpectedType = #sp_simple_type{type = nonempty_string},
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = {parse_error, string},
                     location = [],
-                    ctx =
-                        #{
-                            type => #sp_simple_type{type = string},
-                            value => Json,
-                            comment => "non printable"
-                        }
+                    msg = undefined,
+                    input = Json,
+                    ctx = #{expected_type => ExpectedType},
+                    url = undefined
                 }
             ]};
         Bin when is_binary(Bin) ->
@@ -746,16 +803,15 @@ check_type_to_json(nonempty_string, Json) when is_list(Json), Json =/= [] ->
 check_type_to_json(string, Json) when is_list(Json) ->
     case unicode:characters_to_binary(Json) of
         {Err, _, _} when Err =:= error orelse Err =:= incomplete ->
+            ExpectedType = #sp_simple_type{type = string},
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = {parse_error, string},
                     location = [],
-                    ctx =
-                        #{
-                            type => #sp_simple_type{type = string},
-                            value => Json,
-                            comment => "non printable"
-                        }
+                    msg = undefined,
+                    input = Json,
+                    ctx = #{expected_type => ExpectedType},
+                    url = undefined
                 }
             ]};
         Bin when is_binary(Bin) ->
@@ -789,14 +845,17 @@ check_type(term, Json) ->
 check_type(_Type, _Json) ->
     false.
 
-union(Fun, TypeInfo, #sp_union{types = Types} = T, Json) ->
+union(Fun, TypeInfo, #sp_union{types = Types} = UnionType, Json) ->
     case do_first(Fun, TypeInfo, Types, Json) of
         {error, no_match} ->
             {error, [
                 #sp_error{
-                    type = no_match,
+                    type = union_no_match,
                     location = [],
-                    ctx = #{type => T, value => Json}
+                    msg = undefined,
+                    input = Json,
+                    ctx = #{expected_type => UnionType},
+                    url = undefined
                 }
             ]};
         Result ->
@@ -962,12 +1021,7 @@ map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
                         {true, MissingValue} ->
                             {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
                         false ->
-                            {error, [
-                                #sp_error{
-                                    type = missing_data,
-                                    location = [FieldName]
-                                }
-                            ]}
+                            {error, [missing_field_error(FieldName, [])]}
                     end
             end;
         (
@@ -988,19 +1042,19 @@ map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
                 {ok, {NewFields, NewJsonAcc}} ->
                     case NewFields of
                         [] ->
+                            ExpectedFieldType = #typed_map_field{
+                                kind = exact,
+                                key_type = KeyType,
+                                val_type = ValueType
+                            },
                             NoExactMatch =
                                 #sp_error{
-                                    type = not_matched_fields,
+                                    type = exact_field_mismatch,
                                     location = [],
-                                    ctx =
-                                        #{
-                                            type =>
-                                                #typed_map_field{
-                                                    kind = exact,
-                                                    key_type = KeyType,
-                                                    val_type = ValueType
-                                                }
-                                        }
+                                    msg = undefined,
+                                    input = undefined,
+                                    ctx = #{expected_type => ExpectedFieldType},
+                                    url = undefined
                                 },
                             {error, [NoExactMatch]};
                         _ ->
@@ -1036,13 +1090,8 @@ map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
     end;
 map_from_json(_TypeInfo, _MapFieldType, Json) ->
     %% Return error when Json is not a map
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = map}, value => Json}
-        }
-    ]}.
+    ExpectedType = #sp_simple_type{type = map},
+    {error, [type_error(map, Json, ExpectedType, [])]}.
 
 map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
     spectra_util:fold_until_error(
@@ -1119,12 +1168,7 @@ do_record_from_json(TypeInfo, RecordName, RecordInfo, Json) when is_map(Json) ->
                     {true, MissingValue} ->
                         {ok, {[MissingValue | FieldsAcc], JsonAcc}};
                     false ->
-                        {error, [
-                            #sp_error{
-                                type = missing_data,
-                                location = [FieldName]
-                            }
-                        ]}
+                        {error, [missing_field_error(FieldName, [])]}
                 end
         end
     end,
@@ -1152,10 +1196,5 @@ do_record_from_json(TypeInfo, RecordName, RecordInfo, Json) when is_map(Json) ->
             {error, Errs}
     end;
 do_record_from_json(_TypeInfo, RecordName, _RecordInfo, Json) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{record_name => RecordName, record => Json}
-        }
-    ]}.
+    ExpectedType = #sp_rec{name = RecordName, fields = [], arity = 0},
+    {error, [type_error(record, Json, ExpectedType, [])]}.

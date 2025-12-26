@@ -60,7 +60,7 @@ to_json_person_record_test() ->
 
 to_json_person_record_bad_test() ->
     NotPersonArity = {person, "John"},
-    ?assertMatch({error, [#sp_error{type = type_mismatch}]}, to_json_person(NotPersonArity)).
+    ?assertMatch({error, [#sp_error{type = {type_error, _}}]}, to_json_person(NotPersonArity)).
 
 from_json_person_record_test() ->
     Person = #{<<"name">> => <<"John">>, <<"age">> => 30},

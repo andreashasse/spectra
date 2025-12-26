@@ -39,7 +39,7 @@ missing_test() ->
         "Default value for age picked up when constructing the record, no change needed for to_json"
     ),
     ?assertMatch(
-        {error, [#sp_error{location = [age], type = missing_data}]},
+        {error, [#sp_error{location = [age], type = missing_field}]},
         spectra_json:from_json(?MODULE, {record, person}, #{<<"name">> => <<"John">>}),
         "Default value not picked up here, should it?"
     ).
