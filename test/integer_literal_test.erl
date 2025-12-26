@@ -32,8 +32,9 @@ bor_t_to_json_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = type_mismatch,
-                ctx = #{type := #sp_literal{value = 7}, value := 6}
+                type = literal_no_match,
+                input = 6,
+                ctx = #{expected_type := #sp_literal{value = 7}}
             }
         ],
         Errors
@@ -51,8 +52,9 @@ bor_t_from_json_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = type_mismatch,
-                ctx = #{type := #sp_literal{value = 7}, value := 6}
+                type = literal_no_match,
+                input = 6,
+                ctx = #{expected_type := #sp_literal{value = 7}}
             }
         ],
         Errors
@@ -93,8 +95,9 @@ validate_integer_literal_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = type_mismatch,
-                ctx = #{type := #sp_literal{value = 1}, value := 2}
+                type = literal_no_match,
+                input = 2,
+                ctx = #{expected_type := #sp_literal{value = 1}}
             }
         ],
         OneErrors
@@ -108,10 +111,11 @@ validate_integer_literal_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = no_match,
+                type = union_no_match,
+                input = 3,
                 ctx =
                     #{
-                        type :=
+                        expected_type :=
                             #sp_union{
                                 types =
                                     [
@@ -122,8 +126,7 @@ validate_integer_literal_test() ->
                                         #sp_literal{value = 2},
                                         #sp_literal{value = 5}
                                     ]
-                            },
-                        value := 3
+                            }
                     }
             }
         ],
@@ -146,16 +149,16 @@ validate_integer_literal_test() ->
         [
             #sp_error{
                 location = [lives],
-                type = type_mismatch,
+                type = {constraint_error, too_large},
+                input = 4,
                 ctx =
                     #{
-                        type :=
+                        expected_type :=
                             #sp_range{
                                 type = integer,
                                 lower_bound = 1,
                                 upper_bound = 3
-                            },
-                        value := 4
+                            }
                     }
             }
         ],
@@ -168,10 +171,11 @@ validate_integer_literal_test() ->
         [
             #sp_error{
                 location = [level],
-                type = no_match,
+                type = union_no_match,
+                input = 4,
                 ctx =
                     #{
-                        type :=
+                        expected_type :=
                             #sp_union{
                                 types =
                                     [
@@ -182,8 +186,7 @@ validate_integer_literal_test() ->
                                         #sp_literal{value = 2},
                                         #sp_literal{value = 5}
                                     ]
-                            },
-                        value := 4
+                            }
                     }
             }
         ],
@@ -215,8 +218,9 @@ validate_integer_literal_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = type_mismatch,
-                ctx = #{type := #sp_literal{value = 1}, value := 2}
+                type = literal_no_match,
+                input = 2,
+                ctx = #{expected_type := #sp_literal{value = 1}}
             }
         ],
         OneFromErrors
@@ -232,8 +236,9 @@ validate_integer_literal_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = no_match,
-                ctx = #{type := #sp_union{types = [_, _, _]}, value := 3}
+                type = union_no_match,
+                input = 3,
+                ctx = #{expected_type := #sp_union{types = [_, _, _]}}
             }
         ],
         CoursesFromErrors
@@ -256,8 +261,9 @@ validate_integer_literal_test() ->
         [
             #sp_error{
                 location = [level],
-                type = no_match,
-                ctx = #{type := #sp_union{types = [_, _, _]}, value := 6}
+                type = union_no_match,
+                input = 6,
+                ctx = #{expected_type := #sp_union{types = [_, _, _]}}
             }
         ],
         GameFromErrors

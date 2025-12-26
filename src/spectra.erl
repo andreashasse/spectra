@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, encode/4, schema/3]).
+-export([decode/4, encode/4, schema/3, format_error/1, format_errors/1]).
 
--ignore_xref([decode/4, encode/4, schema/3]).
+-ignore_xref([decode/4, encode/4, schema/3, format_error/1, format_errors/1]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -223,7 +223,44 @@ json_decode(Binary) ->
                 #sp_error{
                     location = [],
                     type = decode_error,
-                    ctx = #{type => ErrType, reason => Reason}
+                    ctx = #{type => ErrType, reason => Reason},
+                    msg = undefined,
+                    input = Binary,
+                    url = undefined
                 }
             ]}
     end.
+
+-doc """
+Formats a validation error into a human-readable string.
+
+Returns a binary string in the format:
+`"field.path  Error message [type=error_type, input=value, ...]"`
+
+### Example:
+```
+1> {error, [Err]} = spectra:decode(json, my_mod, user_id, <<"\"abc\"">>).
+2> spectra:format_error(Err).
+<<\"  Input should be a valid integer [type={parse_error, int}, input=\\\"abc\\\", expected=integer]\">>
+```
+""".
+-spec format_error(error()) -> binary().
+format_error(Error) ->
+    spectra_error:format(Error).
+
+-doc """
+Formats a list of validation errors, one per line.
+
+Each error is formatted on a separate line.
+
+### Example:
+```
+1> {error, Errs} = spectra:decode(json, my_mod, user, Json).
+2> io:format(\"~s~n\", [spectra:format_errors(Errs)]).
+user.id  Input should be a valid integer [type={type_error, int}, ...]
+user.age  Input should be at most 150 [type={constraint_error, too_large}, ...]
+```
+""".
+-spec format_errors([error()]) -> binary().
+format_errors(Errors) ->
+    spectra_error:format_errors(Errors).

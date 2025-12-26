@@ -2,6 +2,8 @@
 
 -export([from_binary_string/3, to_binary_string/3]).
 
+-compile(nowarn_unused_function).
+
 -ignore_xref([
     {spectra_binary_string, from_binary_string, 3},
     {spectra_binary_string, to_binary_string, 3}
@@ -76,11 +78,20 @@ from_binary_string(
         {ok, Value} when Min =< Value, Value =< Max ->
             {ok, Value};
         {ok, Value} when is_integer(Value) ->
+            ErrorType =
+                if
+                    Value < Min -> {constraint_error, too_small};
+                    Value > Max -> {constraint_error, too_large};
+                    true -> {type_error, int}
+                end,
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = ErrorType,
                     location = [],
-                    ctx = #{type => Range, value => Value}
+                    msg = undefined,
+                    input = Value,
+                    ctx = #{expected_type => Range},
+                    url = undefined
                 }
             ]};
         {error, Reason} ->
@@ -169,11 +180,20 @@ to_binary_string(
         {ok, BinaryString} when Min =< Data, Data =< Max ->
             {ok, BinaryString};
         {ok, _BinaryString} when is_integer(Data) ->
+            ErrorType =
+                if
+                    Data < Min -> {constraint_error, too_small};
+                    Data > Max -> {constraint_error, too_large};
+                    true -> {type_error, int}
+                end,
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = ErrorType,
                     location = [],
-                    ctx = #{type => Range, value => Data}
+                    msg = undefined,
+                    input = Data,
+                    ctx = #{expected_type => Range},
+                    url = undefined
                 }
             ]};
         {error, Reason} ->
@@ -218,11 +238,15 @@ do_convert_binary_string_to_type(integer, BinaryString) ->
         {ok, binary_to_integer(BinaryString)}
     catch
         error:badarg ->
+            ExpectedType = #sp_simple_type{type = integer},
             {error, [
                 #sp_error{
-                    type = type_mismatch,
+                    type = {parse_error, int},
                     location = [],
-                    ctx = #{type => #sp_simple_type{type = integer}, value => BinaryString}
+                    msg = undefined,
+                    input = BinaryString,
+                    ctx = #{expected_type => ExpectedType},
+                    url = undefined
                 }
             ]}
     end;
@@ -427,14 +451,17 @@ try_convert_binary_string_to_literal(Literal, BinaryString) ->
         }
     ]}.
 
-union(Fun, TypeInfo, #sp_union{types = Types} = T, BinaryString) ->
+union(Fun, TypeInfo, #sp_union{types = Types} = UnionType, BinaryString) ->
     case do_first(Fun, TypeInfo, Types, BinaryString) of
         {error, no_match} ->
             {error, [
                 #sp_error{
-                    type = no_match,
+                    type = union_no_match,
                     location = [],
-                    ctx = #{type => T, value => BinaryString}
+                    msg = undefined,
+                    input = BinaryString,
+                    ctx = #{expected_type => UnionType},
+                    url = undefined
                 }
             ]};
         Result ->
@@ -678,14 +705,17 @@ try_convert_literal_to_binary_string(Literal, Data) ->
         }
     ]}.
 
-union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
+union_to_binary_string(TypeInfo, #sp_union{types = Types} = UnionType, Data) ->
     case do_first_to_binary_string(TypeInfo, Types, Data) of
         {error, no_match} ->
             {error, [
                 #sp_error{
-                    type = no_match,
+                    type = union_no_match,
                     location = [],
-                    ctx = #{type => T, value => Data}
+                    msg = undefined,
+                    input = Data,
+                    ctx = #{expected_type => UnionType},
+                    url = undefined
                 }
             ]};
         Result ->
@@ -701,3 +731,36 @@ do_first_to_binary_string(TypeInfo, [Type | Rest], Data) ->
         {error, _} ->
             do_first_to_binary_string(TypeInfo, Rest, Data)
     end.
+
+%% Helper functions for creating errors
+type_error(PrimType, Input, ExpectedType, Location) ->
+    #sp_error{
+        type = {type_error, PrimType},
+        location = Location,
+        msg = undefined,
+        input = Input,
+        ctx = #{expected_type => ExpectedType},
+        url = undefined
+    }.
+
+simple_type_to_prim_atom(integer) -> int;
+simple_type_to_prim_atom(pos_integer) -> int;
+simple_type_to_prim_atom(neg_integer) -> int;
+simple_type_to_prim_atom(non_neg_integer) -> int;
+simple_type_to_prim_atom(float) -> float;
+simple_type_to_prim_atom(number) -> float;
+simple_type_to_prim_atom(boolean) -> bool;
+simple_type_to_prim_atom(binary) -> binary;
+simple_type_to_prim_atom(nonempty_binary) -> binary;
+simple_type_to_prim_atom(bitstring) -> binary;
+simple_type_to_prim_atom(nonempty_bitstring) -> binary;
+simple_type_to_prim_atom(string) -> string;
+simple_type_to_prim_atom(nonempty_string) -> string;
+simple_type_to_prim_atom(atom) -> atom;
+simple_type_to_prim_atom(list) -> list;
+simple_type_to_prim_atom(nonempty_list) -> nonempty_list;
+simple_type_to_prim_atom(map) -> map;
+simple_type_to_prim_atom(term) -> term;
+simple_type_to_prim_atom(iolist) -> list;
+simple_type_to_prim_atom(iodata) -> binary;
+simple_type_to_prim_atom(_) -> unknown.

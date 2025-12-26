@@ -26,11 +26,11 @@ encode_int_literal_key_test() ->
 
 encode_int_literal_key_missing_required_test() ->
     ?assertMatch(
-        {error, [#sp_error{location = [1], type = missing_data}]},
+        {error, [#sp_error{location = [1], type = missing_field}]},
         spectra_json:to_json(?MODULE, {type, int_literal_key_map, 0}, #{2 => <<"value2">>})
     ),
     ?assertMatch(
-        {error, [#sp_error{location = [2], type = missing_data}]},
+        {error, [#sp_error{location = [2], type = missing_field}]},
         spectra_json:to_json(?MODULE, {type, int_literal_key_map, 0}, #{1 => <<"value1">>})
     ).
 
@@ -94,11 +94,11 @@ decode_int_literal_key_test() ->
 
 decode_int_literal_key_missing_required_test() ->
     ?assertMatch(
-        {error, [#sp_error{location = [1], type = missing_data}]},
+        {error, [#sp_error{location = [1], type = missing_field}]},
         spectra_json:from_json(?MODULE, {type, int_literal_key_map, 0}, #{<<"2">> => <<"value2">>})
     ),
     ?assertMatch(
-        {error, [#sp_error{location = [2], type = missing_data}]},
+        {error, [#sp_error{location = [2], type = missing_field}]},
         spectra_json:from_json(?MODULE, {type, int_literal_key_map, 0}, #{<<"1">> => <<"value1">>})
     ).
 
@@ -112,7 +112,7 @@ decode_int_literal_key_wrong_value_test() ->
 
 decode_int_literal_key_wrong_key_test() ->
     ?assertMatch(
-        {error, [#sp_error{location = [1], type = missing_data}]},
+        {error, [#sp_error{location = [1], type = missing_field}]},
         spectra_json:from_json(?MODULE, {type, int_literal_key_map, 0}, #{
             <<"3">> => <<"value">>, <<"2">> => <<"value2">>
         })

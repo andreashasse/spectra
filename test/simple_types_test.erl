@@ -125,7 +125,7 @@ missing_test() ->
         MyTimeoutType
     ),
     ?assertMatch(
-        {error, [#sp_error{type = no_match}]},
+        {error, [#sp_error{type = union_no_match}]},
         spectra_json:to_json(?MODULE, {type, my_timeout, 0}, <<"infinity">>)
     ),
     ?assertEqual(
@@ -194,7 +194,7 @@ missing_test() ->
         spectra_json:to_json(?MODULE, {type, my_iolist, 0}, IoList3)
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         spectra_json:to_json(?MODULE, {type, my_iolist, 0}, <<"helloworld">>)
     ),
     ?assertEqual(
@@ -292,7 +292,7 @@ missing_test() ->
         spectra_json:to_json(?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3])
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         spectra_json:to_json(?MODULE, {type, my_nonempty_list, 0}, [])
     ),
     ?assertEqual(
@@ -300,7 +300,7 @@ missing_test() ->
         spectra_json:from_json(?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3])
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         spectra_json:from_json(?MODULE, {type, my_nonempty_list, 0}, [])
     ),
 
@@ -325,7 +325,7 @@ missing_test() ->
         spectra_json:to_json(?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>)
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         spectra_json:to_json(?MODULE, {type, my_nonempty_binary, 0}, <<>>)
     ),
     ?assertEqual(
@@ -333,7 +333,7 @@ missing_test() ->
         spectra_json:from_json(?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>)
     ),
     ?assertMatch(
-        {error, [#sp_error{type = type_mismatch}]},
+        {error, [#sp_error{type = {type_error, _}}]},
         spectra_json:from_json(?MODULE, {type, my_nonempty_binary, 0}, <<>>)
     ),
 

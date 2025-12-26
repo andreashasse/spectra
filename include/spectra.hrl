@@ -1,5 +1,8 @@
 -record(sp_error, {
-    location :: [string() | atom()],
-    type :: decode_error | type_mismatch | no_match | missing_data | not_matched_fields,
-    ctx :: term()
+    location :: [atom() | integer()],
+    type :: term(),
+    msg :: binary() | undefined,
+    input :: term(),
+    ctx :: map(),
+    url :: binary() | undefined
 }).
