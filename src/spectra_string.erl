@@ -199,7 +199,7 @@ convert_string_to_type(Type, NotString) ->
         }
     ]}.
 
--spec do_convert_string_to_type(Type :: atom(), String :: string()) ->
+-spec do_convert_string_to_type(Type :: spectra:simple_types(), String :: string()) ->
     {ok, term()} | {error, [spectra:error()]}.
 do_convert_string_to_type(integer, String) ->
     try
@@ -333,11 +333,11 @@ do_convert_string_to_type(Type, String) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => String}
+            ctx = #{type => #sp_simple_type{type = Type}, value => String}
         }
     ]}.
 
--spec try_convert_string_to_literal(Literal :: term(), String :: string()) ->
+-spec try_convert_string_to_literal(Literal :: spectra:literal_value(), String :: string()) ->
     {ok, term()} | {error, [spectra:error()]}.
 try_convert_string_to_literal(Literal, String) when is_boolean(Literal) ->
     case convert_string_to_type(boolean, String) of
@@ -405,7 +405,7 @@ try_convert_string_to_literal(Literal, String) ->
             type = type_mismatch,
             location = [],
             ctx = #{
-                literal => Literal,
+                type => #sp_literal{value = Literal, binary_value = <<>>},
                 value => String
             }
         }
@@ -632,7 +632,7 @@ lits_to_charlist(Data) ->
             {ok, Data}
     end.
 
--spec try_convert_literal_to_string(Literal :: term(), Data :: term()) ->
+-spec try_convert_literal_to_string(Literal :: spectra:literal_value(), Data :: term()) ->
     {ok, string()} | {error, [spectra:error()]}.
 try_convert_literal_to_string(Literal, Literal) when is_atom(Literal) ->
     {ok, atom_to_list(Literal)};
@@ -651,7 +651,10 @@ try_convert_literal_to_string(Literal, Data) ->
             type = type_mismatch,
             location = [],
             ctx = #{
-                literal => Literal,
+                type => #sp_literal{
+                    value = Literal,
+                    binary_value = <<>>
+                },
                 value => Data
             }
         }

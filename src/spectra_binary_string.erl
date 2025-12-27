@@ -185,8 +185,8 @@ to_binary_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, 
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     to_binary_string(TypeInfo, TypeWithoutVars, Data);
-to_binary_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
-    try_convert_literal_to_binary_string(Literal, Data);
+to_binary_string(_TypeInfo, #sp_literal{} = Type, Data) ->
+    try_convert_literal_to_binary_string(Type, Data);
 to_binary_string(TypeInfo, #sp_union{} = Type, Data) ->
     union_to_binary_string(TypeInfo, Type, Data);
 to_binary_string(_TypeInfo, Type, Data) ->
@@ -211,7 +211,7 @@ convert_binary_string_to_type(Type, NonBinary) ->
         }
     ]}.
 
--spec do_convert_binary_string_to_type(Type :: atom(), BinaryString :: binary()) ->
+-spec do_convert_binary_string_to_type(Type :: spectra:simple_types(), BinaryString :: binary()) ->
     {ok, term()} | {error, [spectra:error()]}.
 do_convert_binary_string_to_type(integer, BinaryString) ->
     try
@@ -349,11 +349,11 @@ do_convert_binary_string_to_type(Type, BinaryString) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => BinaryString}
+            ctx = #{type => #sp_simple_type{type = Type}, value => BinaryString}
         }
     ]}.
 
--spec try_convert_binary_string_to_literal(Literal :: term(), BinaryString :: binary()) ->
+-spec try_convert_binary_string_to_literal(Literal :: spectra:literal_value(), BinaryString :: binary()) ->
     {ok, term()} | {error, [spectra:error()]}.
 try_convert_binary_string_to_literal(Literal, BinaryString) when is_boolean(Literal) ->
     case convert_binary_string_to_type(boolean, BinaryString) of
@@ -421,7 +421,7 @@ try_convert_binary_string_to_literal(Literal, BinaryString) ->
             type = type_mismatch,
             location = [],
             ctx = #{
-                literal => Literal,
+                type => #sp_literal{value = Literal, binary_value = <<>>},
                 value => BinaryString
             }
         }
@@ -655,24 +655,28 @@ convert_type_to_binary_string(Type, Data) ->
 
 -spec try_convert_literal_to_binary_string(Literal :: term(), Data :: term()) ->
     {ok, binary()} | {error, [spectra:error()]}.
-try_convert_literal_to_binary_string(Literal, Literal) when is_atom(Literal) ->
+try_convert_literal_to_binary_string(#sp_literal{value = Literal}, Literal) when is_atom(Literal) ->
     {ok, atom_to_binary(Literal, utf8)};
-try_convert_literal_to_binary_string(Literal, Literal) when is_integer(Literal) ->
+try_convert_literal_to_binary_string(#sp_literal{value = Literal}, Literal) when
+    is_integer(Literal)
+->
     {ok, integer_to_binary(Literal)};
-try_convert_literal_to_binary_string(Literal, Literal) when is_boolean(Literal) ->
+try_convert_literal_to_binary_string(#sp_literal{value = Literal}, Literal) when
+    is_boolean(Literal)
+->
     if
         Literal ->
             {ok, <<"true">>};
         true ->
             {ok, <<"false">>}
     end;
-try_convert_literal_to_binary_string(Literal, Data) ->
+try_convert_literal_to_binary_string(#sp_literal{} = Type, Data) ->
     {error, [
         #sp_error{
             type = type_mismatch,
             location = [],
             ctx = #{
-                literal => Literal,
+                type => Type,
                 value => Data
             }
         }

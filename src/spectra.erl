@@ -39,7 +39,32 @@
 -type sp_function_spec() :: #sp_function_spec{}.
 %undefined in erlang, nil in elixir
 -type missing_value() :: undefined | nil.
+-type literal_value() :: integer() | atom() | [].
 %% Internal type definitions moved from spectra_internal.hrl
+
+-type simple_types() ::
+    string
+    | nonempty_string
+    | integer
+    | non_neg_integer
+    | neg_integer
+    | pos_integer
+    | float
+    | number
+    | boolean
+    | binary
+    | nonempty_binary
+    | bitstring
+    | nonempty_bitstring
+    | atom
+    | term
+    | reference
+    | pid
+    | port
+    | iolist
+    | iodata
+    | none
+    | map.
 
 -export_type([
     sp_type/0,
@@ -52,7 +77,9 @@
     map_field/0,
     user_type_name/0,
     sp_function_spec/0,
-    missing_value/0
+    missing_value/0,
+    simple_types/0,
+    literal_value/0
 ]).
 
 -doc """
@@ -223,7 +250,7 @@ json_decode(Binary) ->
                 #sp_error{
                     location = [],
                     type = decode_error,
-                    ctx = #{type => ErrType, reason => Reason}
+                    ctx = #{err_type => ErrType, err_reason => Reason}
                 }
             ]}
     end.
