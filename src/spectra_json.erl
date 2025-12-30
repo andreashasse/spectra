@@ -528,9 +528,9 @@ do_from_json(
 ->
     record_from_json(TypeInfo, RecordName, Json, TypeArgs);
 do_from_json(
-    TypeInfo, #sp_map{fields = Fields, struct_name = StructName}, Json
+    TypeInfo, #sp_map{struct_name = StructName} = Type, Json
 ) ->
-    case map_from_json(TypeInfo, Fields, Json) of
+    case map_from_json(TypeInfo, Type, Json) of
         {ok, MapResult} when StructName =/= undefined ->
             %% Add back the __struct__ field for Elixir structs
             {ok, maps:put('__struct__', StructName, MapResult)};
@@ -903,12 +903,12 @@ type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
 
 -spec map_from_json(
     spectra:type_info(),
-    [spectra:map_field()],
+    #sp_map{},
     json:decode_value()
 ) ->
     {ok, #{json:encode_value() => json:encode_value()}}
     | {error, [spectra:error()]}.
-map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
+map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) ->
     Fun = fun
         (
             #literal_map_field{
@@ -1029,13 +1029,13 @@ map_from_json(TypeInfo, MapFieldType, Json) when is_map(Json) ->
         {error, _} = Err ->
             Err
     end;
-map_from_json(_TypeInfo, _MapFieldType, Json) ->
+map_from_json(_TypeInfo, MapType, Json) ->
     %% Return error when Json is not a map
     {error, [
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => #sp_simple_type{type = map}, value => Json}
+            ctx = #{type => MapType, value => Json}
         }
     ]}.
 
