@@ -127,7 +127,8 @@ mandatory_type_map_bad_test() ->
                                 val_type = #sp_simple_type{
                                     type = atom
                                 }
-                            }
+                            },
+                        value => #{}
                     }
             }
         ]},
@@ -247,7 +248,22 @@ empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => not_a_map}
+                ctx =
+                    #{
+                        type =>
+                            #sp_map{
+                                fields =
+                                    [
+                                        #typed_map_field{
+                                            kind = assoc,
+                                            key_type = #sp_simple_type{type = term},
+                                            val_type = #sp_simple_type{type = term}
+                                        }
+                                    ],
+                                struct_name = undefined
+                            },
+                        value => not_a_map
+                    }
             }
         ]},
         to_json_empty_map(not_a_map)
@@ -257,7 +273,22 @@ empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => []}
+                ctx =
+                    #{
+                        type =>
+                            #sp_map{
+                                fields =
+                                    [
+                                        #typed_map_field{
+                                            kind = assoc,
+                                            key_type = #sp_simple_type{type = term},
+                                            val_type = #sp_simple_type{type = term}
+                                        }
+                                    ],
+                                struct_name = undefined
+                            },
+                        value => []
+                    }
             }
         ]},
         to_json_empty_map([])
@@ -285,7 +316,11 @@ from_json_empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => not_a_map}
+                ctx =
+                    #{
+                        type => #sp_simple_type{type = map},
+                        value => not_a_map
+                    }
             }
         ]},
         from_json_empty_map(not_a_map)
@@ -295,7 +330,11 @@ from_json_empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => []}
+                ctx =
+                    #{
+                        type => #sp_simple_type{type = map},
+                        value => []
+                    }
             }
         ]},
         from_json_empty_map([])
@@ -383,7 +422,33 @@ map_in_map_key_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => not_a_map}
+                ctx =
+                    #{
+                        type =>
+                            #sp_map{
+                                fields =
+                                    [
+                                        #typed_map_field{
+                                            kind = assoc,
+                                            key_type =
+                                                #sp_map{
+                                                    fields =
+                                                        [
+                                                            #typed_map_field{
+                                                                kind = assoc,
+                                                                key_type = #sp_simple_type{type = string},
+                                                                val_type = #sp_simple_type{type = integer}
+                                                            }
+                                                        ],
+                                                    struct_name = undefined
+                                                },
+                                            val_type = #sp_simple_type{type = integer}
+                                        }
+                                    ],
+                                struct_name = undefined
+                            },
+                        value => not_a_map
+                    }
             }
         ]},
         to_json_map_in_map_key(not_a_map)
