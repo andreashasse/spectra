@@ -40,6 +40,7 @@
 %undefined in erlang, nil in elixir
 -type missing_value() :: undefined | nil.
 -type literal_value() :: integer() | atom() | [].
+-type record_field() :: #sp_rec_field{}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -79,7 +80,8 @@
     sp_function_spec/0,
     missing_value/0,
     simple_types/0,
-    literal_value/0
+    literal_value/0,
+    record_field/0
 ]).
 
 -doc """
