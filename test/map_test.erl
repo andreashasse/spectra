@@ -196,7 +196,9 @@ from_json_type_shaddow_literal_map_test() ->
 
 from_json_type_shaddow_literal_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, TypeShadowLiteralMapType} = spectra_type_info:get_type(TypeInfo, type_shaddow_literal_map, 0),
+    {ok, TypeShadowLiteralMapType} = spectra_type_info:get_type(
+        TypeInfo, type_shaddow_literal_map, 0
+    ),
     ?assertEqual(
         {error, [
             #sp_error{
@@ -406,8 +408,12 @@ map_in_map_key_bad_test() ->
                                                         [
                                                             #typed_map_field{
                                                                 kind = assoc,
-                                                                key_type = #sp_simple_type{type = string},
-                                                                val_type = #sp_simple_type{type = integer}
+                                                                key_type = #sp_simple_type{
+                                                                    type = string
+                                                                },
+                                                                val_type = #sp_simple_type{
+                                                                    type = integer
+                                                                }
                                                             }
                                                         ],
                                                     struct_name = undefined

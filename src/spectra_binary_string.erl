@@ -200,6 +200,8 @@ to_binary_string(_TypeInfo, Type, Data) ->
 
 %% INTERNAL
 
+-spec convert_binary_string_to_type(Type :: spectra:simple_types(), BinaryString :: binary()) ->
+    {ok, term()} | {error, [spectra:error()]}.
 convert_binary_string_to_type(Type, BinaryString) when is_binary(BinaryString) ->
     do_convert_binary_string_to_type(Type, BinaryString);
 convert_binary_string_to_type(Type, NonBinary) ->
@@ -207,7 +209,7 @@ convert_binary_string_to_type(Type, NonBinary) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => NonBinary}
+            ctx = #{type => #sp_simple_type{type = Type}, value => NonBinary}
         }
     ]}.
 
@@ -353,7 +355,9 @@ do_convert_binary_string_to_type(Type, BinaryString) ->
         }
     ]}.
 
--spec try_convert_binary_string_to_literal(Literal :: spectra:literal_value(), BinaryString :: binary()) ->
+-spec try_convert_binary_string_to_literal(
+    Literal :: spectra:literal_value(), BinaryString :: binary()
+) ->
     {ok, term()} | {error, [spectra:error()]}.
 try_convert_binary_string_to_literal(Literal, BinaryString) when is_boolean(Literal) ->
     case convert_binary_string_to_type(boolean, BinaryString) of
@@ -649,7 +653,7 @@ convert_type_to_binary_string(Type, Data) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => Data}
+            ctx = #{type => #sp_simple_type{type = Type}, value => Data}
         }
     ]}.
 

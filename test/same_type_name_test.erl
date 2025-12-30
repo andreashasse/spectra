@@ -88,38 +88,45 @@ map1_to_json_bad_test() ->
                         value => #{a1 => hej},
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>},
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_literal{value = error, binary_value = <<"error">>},
-                                             value => #{a1 => hej}
-                                         }
-                                 }]},
-                                {#sp_map{
-                                     fields =
-                                         [
-                                             #typed_map_field{
-                                                 kind = assoc,
-                                                 key_type = #sp_simple_type{type = atom},
-                                                 val_type = #sp_simple_type{
-                                                     type =
-                                                         integer
-                                                 }
-                                             }
-                                         ]
-                                 },
-                                 [#sp_error{
-                                     location = [a1],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_simple_type{type = integer},
-                                             value => hej
-                                         }
-                                 }]}
+                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                    #sp_error{
+                                        location = [],
+                                        type = type_mismatch,
+                                        ctx =
+                                            #{
+                                                type => #sp_literal{
+                                                    value = error, binary_value = <<"error">>
+                                                },
+                                                value => #{a1 => hej}
+                                            }
+                                    }
+                                ]},
+                                {
+                                    #sp_map{
+                                        fields =
+                                            [
+                                                #typed_map_field{
+                                                    kind = assoc,
+                                                    key_type = #sp_simple_type{type = atom},
+                                                    val_type = #sp_simple_type{
+                                                        type =
+                                                            integer
+                                                    }
+                                                }
+                                            ]
+                                    },
+                                    [
+                                        #sp_error{
+                                            location = [a1],
+                                            type = type_mismatch,
+                                            ctx =
+                                                #{
+                                                    type => #sp_simple_type{type = integer},
+                                                    value => hej
+                                                }
+                                        }
+                                    ]
+                                }
                             ]
                     }
             }
@@ -156,50 +163,59 @@ map1_to_json_bad_test() ->
                         value => pelle,
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>},
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_literal{value = error, binary_value = <<"error">>},
-                                             value => pelle
-                                         }
-                                 }]},
-                                {#sp_map{
-                                     fields =
-                                         [
-                                             #typed_map_field{
-                                                 kind = assoc,
-                                                 key_type = #sp_simple_type{type = atom},
-                                                 val_type = #sp_simple_type{
-                                                     type =
-                                                         integer
-                                                 }
-                                             }
-                                         ]
-                                 },
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_map{
-                                                 fields =
-                                                     [
-                                                         #typed_map_field{
-                                                             kind = assoc,
-                                                             key_type = #sp_simple_type{type = atom},
-                                                             val_type = #sp_simple_type{
-                                                                 type =
-                                                                     integer
-                                                             }
-                                                         }
-                                                     ]
-                                             },
-                                             value => pelle
-                                         }
-                                 }]}
+                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                    #sp_error{
+                                        location = [],
+                                        type = type_mismatch,
+                                        ctx =
+                                            #{
+                                                type => #sp_literal{
+                                                    value = error, binary_value = <<"error">>
+                                                },
+                                                value => pelle
+                                            }
+                                    }
+                                ]},
+                                {
+                                    #sp_map{
+                                        fields =
+                                            [
+                                                #typed_map_field{
+                                                    kind = assoc,
+                                                    key_type = #sp_simple_type{type = atom},
+                                                    val_type = #sp_simple_type{
+                                                        type =
+                                                            integer
+                                                    }
+                                                }
+                                            ]
+                                    },
+                                    [
+                                        #sp_error{
+                                            location = [],
+                                            type = type_mismatch,
+                                            ctx =
+                                                #{
+                                                    type => #sp_map{
+                                                        fields =
+                                                            [
+                                                                #typed_map_field{
+                                                                    kind = assoc,
+                                                                    key_type = #sp_simple_type{
+                                                                        type = atom
+                                                                    },
+                                                                    val_type = #sp_simple_type{
+                                                                        type =
+                                                                            integer
+                                                                    }
+                                                                }
+                                                            ]
+                                                    },
+                                                    value => pelle
+                                                }
+                                        }
+                                    ]
+                                }
                             ]
                     }
             }
@@ -238,38 +254,45 @@ map1_from_json_bad_test() ->
                         value => #{a1 => hej},
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>},
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_literal{value = error, binary_value = <<"error">>},
-                                             value => #{a1 => hej}
-                                         }
-                                 }]},
-                                {#sp_map{
-                                     fields =
-                                         [
-                                             #typed_map_field{
-                                                 kind = assoc,
-                                                 key_type = #sp_simple_type{type = atom},
-                                                 val_type = #sp_simple_type{
-                                                     type =
-                                                         integer
-                                                 }
-                                             }
-                                         ]
-                                 },
-                                 [#sp_error{
-                                     location = [a1],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_simple_type{type = integer},
-                                             value => hej
-                                         }
-                                 }]}
+                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                    #sp_error{
+                                        location = [],
+                                        type = type_mismatch,
+                                        ctx =
+                                            #{
+                                                type => #sp_literal{
+                                                    value = error, binary_value = <<"error">>
+                                                },
+                                                value => #{a1 => hej}
+                                            }
+                                    }
+                                ]},
+                                {
+                                    #sp_map{
+                                        fields =
+                                            [
+                                                #typed_map_field{
+                                                    kind = assoc,
+                                                    key_type = #sp_simple_type{type = atom},
+                                                    val_type = #sp_simple_type{
+                                                        type =
+                                                            integer
+                                                    }
+                                                }
+                                            ]
+                                    },
+                                    [
+                                        #sp_error{
+                                            location = [a1],
+                                            type = type_mismatch,
+                                            ctx =
+                                                #{
+                                                    type => #sp_simple_type{type = integer},
+                                                    value => hej
+                                                }
+                                        }
+                                    ]
+                                }
                             ]
                     }
             }
@@ -306,51 +329,60 @@ map1_from_json_bad_test() ->
                         value => pelle,
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>},
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type => #sp_literal{value = error, binary_value = <<"error">>},
-                                             value => pelle
-                                         }
-                                 }]},
-                                {#sp_map{
-                                     fields =
-                                         [
-                                             #typed_map_field{
-                                                 kind = assoc,
-                                                 key_type = #sp_simple_type{type = atom},
-                                                 val_type = #sp_simple_type{
-                                                     type =
-                                                         integer
-                                                 }
-                                             }
-                                         ]
-                                 },
-                                 [#sp_error{
-                                     location = [],
-                                     type = type_mismatch,
-                                     ctx =
-                                         #{
-                                             type =>
-                                                 #sp_map{
-                                                     fields =
-                                                         [
-                                                             #typed_map_field{
-                                                                 kind = assoc,
-                                                                 key_type = #sp_simple_type{type = atom},
-                                                                 val_type = #sp_simple_type{
-                                                                     type =
-                                                                         integer
-                                                                 }
-                                                             }
-                                                         ]
-                                                 },
-                                             value => pelle
-                                         }
-                                 }]}
+                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                    #sp_error{
+                                        location = [],
+                                        type = type_mismatch,
+                                        ctx =
+                                            #{
+                                                type => #sp_literal{
+                                                    value = error, binary_value = <<"error">>
+                                                },
+                                                value => pelle
+                                            }
+                                    }
+                                ]},
+                                {
+                                    #sp_map{
+                                        fields =
+                                            [
+                                                #typed_map_field{
+                                                    kind = assoc,
+                                                    key_type = #sp_simple_type{type = atom},
+                                                    val_type = #sp_simple_type{
+                                                        type =
+                                                            integer
+                                                    }
+                                                }
+                                            ]
+                                    },
+                                    [
+                                        #sp_error{
+                                            location = [],
+                                            type = type_mismatch,
+                                            ctx =
+                                                #{
+                                                    type =>
+                                                        #sp_map{
+                                                            fields =
+                                                                [
+                                                                    #typed_map_field{
+                                                                        kind = assoc,
+                                                                        key_type = #sp_simple_type{
+                                                                            type = atom
+                                                                        },
+                                                                        val_type = #sp_simple_type{
+                                                                            type =
+                                                                                integer
+                                                                        }
+                                                                    }
+                                                                ]
+                                                        },
+                                                    value => pelle
+                                                }
+                                        }
+                                    ]
+                                }
                             ]
                     }
             }

@@ -26,7 +26,9 @@ validate_nonempty_list_test() ->
                 ctx =
                     #{
                         type =>
-                            #sp_nonempty_list{type = #sp_user_type_ref{type_name = item, variables = []}},
+                            #sp_nonempty_list{
+                                type = #sp_user_type_ref{type_name = item, variables = []}
+                            },
                         value => []
                     }
             }
@@ -50,7 +52,9 @@ validate_nonempty_list_test() ->
                 ctx =
                     #{
                         type =>
-                            #sp_nonempty_list{type = #sp_user_type_ref{type_name = item, variables = []}},
+                            #sp_nonempty_list{
+                                type = #sp_user_type_ref{type_name = item, variables = []}
+                            },
                         value => []
                     }
             }

@@ -36,12 +36,12 @@ and converts it to the corresponding Erlang value.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
-from_string(_TypeInfo, {record, RecordName}, String) when is_atom(RecordName) ->
+from_string(_TypeInfo, {record, RecordName} = RecRef, String) when is_atom(RecordName) ->
     {error, [
         #sp_error{
             type = no_match,
             location = [],
-            ctx = #{type => {record, RecordName}, value => String}
+            ctx = #{type => RecRef, value => String}
         }
     ]};
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
@@ -188,6 +188,11 @@ to_string(_TypeInfo, Type, Data) ->
     ]}.
 
 %% INTERNAL
+-spec convert_string_to_type(
+    Type :: spectra:simple_types(),
+    String :: string()
+) ->
+    {ok, term()} | {error, [spectra:error()]}.
 convert_string_to_type(Type, String) when is_atom(Type), is_list(String) ->
     do_convert_string_to_type(Type, String);
 convert_string_to_type(Type, NotString) ->
@@ -195,7 +200,7 @@ convert_string_to_type(Type, NotString) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => NotString}
+            ctx = #{type => #sp_simple_type{type = Type}, value => NotString}
         }
     ]}.
 
@@ -609,7 +614,7 @@ convert_type_to_string(Type, Data) ->
         #sp_error{
             type = type_mismatch,
             location = [],
-            ctx = #{type => Type, value => Data}
+            ctx = #{type => #sp_simple_type{type = Type}, value => Data}
         }
     ]}.
 
