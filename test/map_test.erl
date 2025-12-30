@@ -195,12 +195,14 @@ from_json_type_shaddow_literal_map_test() ->
     ).
 
 from_json_type_shaddow_literal_map_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, TypeShadowLiteralMapType} = spectra_type_info:get_type(TypeInfo, type_shaddow_literal_map, 0),
     ?assertEqual(
         {error, [
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => not_a_map}
+                ctx = #{type => TypeShadowLiteralMapType, value => not_a_map}
             }
         ]},
         from_json_type_shaddow_literal_map(not_a_map)
@@ -221,12 +223,14 @@ from_json_mandatory_type_map_test() ->
     ).
 
 from_json_mandatory_type_map_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, MandatoryTypeMapType} = spectra_type_info:get_type(TypeInfo, mandatory_type_map, 0),
     ?assertEqual(
         {error, [
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = map}, value => []}
+                ctx = #{type => MandatoryTypeMapType, value => []}
             }
         ]},
         from_json_mandatory_type_map([])
@@ -243,27 +247,14 @@ empty_map_test() ->
     ).
 
 empty_map_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
         {error, [
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx =
-                    #{
-                        type =>
-                            #sp_map{
-                                fields =
-                                    [
-                                        #typed_map_field{
-                                            kind = assoc,
-                                            key_type = #sp_simple_type{type = term},
-                                            val_type = #sp_simple_type{type = term}
-                                        }
-                                    ],
-                                struct_name = undefined
-                            },
-                        value => not_a_map
-                    }
+                ctx = #{type => EmptyMapType, value => not_a_map}
             }
         ]},
         to_json_empty_map(not_a_map)
@@ -273,22 +264,7 @@ empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx =
-                    #{
-                        type =>
-                            #sp_map{
-                                fields =
-                                    [
-                                        #typed_map_field{
-                                            kind = assoc,
-                                            key_type = #sp_simple_type{type = term},
-                                            val_type = #sp_simple_type{type = term}
-                                        }
-                                    ],
-                                struct_name = undefined
-                            },
-                        value => []
-                    }
+                ctx = #{type => EmptyMapType, value => []}
             }
         ]},
         to_json_empty_map([])
@@ -311,16 +287,14 @@ from_json_empty_map_test() ->
     ).
 
 from_json_empty_map_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
         {error, [
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = map},
-                        value => not_a_map
-                    }
+                ctx = #{type => EmptyMapType, value => not_a_map}
             }
         ]},
         from_json_empty_map(not_a_map)
@@ -330,11 +304,7 @@ from_json_empty_map_bad_test() ->
             #sp_error{
                 location = [],
                 type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = map},
-                        value => []
-                    }
+                ctx = #{type => EmptyMapType, value => []}
             }
         ]},
         from_json_empty_map([])

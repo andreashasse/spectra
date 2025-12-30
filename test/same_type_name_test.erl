@@ -334,7 +334,20 @@ map1_from_json_bad_test() ->
                                      type = type_mismatch,
                                      ctx =
                                          #{
-                                             type => #sp_simple_type{type = map},
+                                             type =>
+                                                 #sp_map{
+                                                     fields =
+                                                         [
+                                                             #typed_map_field{
+                                                                 kind = assoc,
+                                                                 key_type = #sp_simple_type{type = atom},
+                                                                 val_type = #sp_simple_type{
+                                                                     type =
+                                                                         integer
+                                                                 }
+                                                             }
+                                                         ]
+                                                 },
                                              value => pelle
                                          }
                                  }]}
