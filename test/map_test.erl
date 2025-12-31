@@ -389,6 +389,8 @@ map_in_map_key_test() ->
     ).
 
 map_in_map_key_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, MapInMapKeyType} = spectra_type_info:get_type(TypeInfo, map_in_map_key, 0),
     ?assertEqual(
         {error, [
             #sp_error{
@@ -396,33 +398,7 @@ map_in_map_key_bad_test() ->
                 type = type_mismatch,
                 ctx =
                     #{
-                        type =>
-                            #sp_map{
-                                fields =
-                                    [
-                                        #typed_map_field{
-                                            kind = assoc,
-                                            key_type =
-                                                #sp_map{
-                                                    fields =
-                                                        [
-                                                            #typed_map_field{
-                                                                kind = assoc,
-                                                                key_type = #sp_simple_type{
-                                                                    type = string
-                                                                },
-                                                                val_type = #sp_simple_type{
-                                                                    type = integer
-                                                                }
-                                                            }
-                                                        ],
-                                                    struct_name = undefined
-                                                },
-                                            val_type = #sp_simple_type{type = integer}
-                                        }
-                                    ],
-                                struct_name = undefined
-                            },
+                        type => MapInMapKeyType,
                         value => not_a_map
                     }
             }
