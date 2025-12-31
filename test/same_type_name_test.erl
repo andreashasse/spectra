@@ -58,6 +58,14 @@ map1_from_json_test() ->
     ?assertEqual({ok, error}, from_json_result_1(<<"error">>)).
 
 map1_to_json_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
+    % _UnionType1 is OkType (var), UnionType2 is error literal
+    MapType = OkType,
+    ErrorLiteral = UnionType2,
     ?assertEqual(
         {error, [
             #sp_error{
@@ -67,54 +75,24 @@ map1_to_json_bad_test() ->
                     #{
                         type =>
                             #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
+                                types = [MapType, ErrorLiteral]
                             },
                         value => #{a1 => hej},
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                {ErrorLiteral, [
                                     #sp_error{
                                         location = [],
                                         type = type_mismatch,
                                         ctx =
                                             #{
-                                                type => #sp_literal{
-                                                    value = error, binary_value = <<"error">>
-                                                },
+                                                type => ErrorLiteral,
                                                 value => #{a1 => hej}
                                             }
                                     }
                                 ]},
                                 {
-                                    #sp_map{
-                                        fields =
-                                            [
-                                                #typed_map_field{
-                                                    kind = assoc,
-                                                    key_type = #sp_simple_type{type = atom},
-                                                    val_type = #sp_simple_type{
-                                                        type =
-                                                            integer
-                                                    }
-                                                }
-                                            ]
-                                    },
+                                    MapType,
                                     [
                                         #sp_error{
                                             location = [a1],
@@ -142,75 +120,31 @@ map1_to_json_bad_test() ->
                     #{
                         type =>
                             #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
+                                types = [MapType, ErrorLiteral]
                             },
                         value => pelle,
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                {ErrorLiteral, [
                                     #sp_error{
                                         location = [],
                                         type = type_mismatch,
                                         ctx =
                                             #{
-                                                type => #sp_literal{
-                                                    value = error, binary_value = <<"error">>
-                                                },
+                                                type => ErrorLiteral,
                                                 value => pelle
                                             }
                                     }
                                 ]},
                                 {
-                                    #sp_map{
-                                        fields =
-                                            [
-                                                #typed_map_field{
-                                                    kind = assoc,
-                                                    key_type = #sp_simple_type{type = atom},
-                                                    val_type = #sp_simple_type{
-                                                        type =
-                                                            integer
-                                                    }
-                                                }
-                                            ]
-                                    },
+                                    MapType,
                                     [
                                         #sp_error{
                                             location = [],
                                             type = type_mismatch,
                                             ctx =
                                                 #{
-                                                    type => #sp_map{
-                                                        fields =
-                                                            [
-                                                                #typed_map_field{
-                                                                    kind = assoc,
-                                                                    key_type = #sp_simple_type{
-                                                                        type = atom
-                                                                    },
-                                                                    val_type = #sp_simple_type{
-                                                                        type =
-                                                                            integer
-                                                                    }
-                                                                }
-                                                            ]
-                                                    },
+                                                    type => MapType,
                                                     value => pelle
                                                 }
                                         }
@@ -224,6 +158,14 @@ map1_to_json_bad_test() ->
     ).
 
 map1_from_json_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
+    % _UnionType1 is OkType (var), UnionType2 is error literal
+    MapType = OkType,
+    ErrorLiteral = UnionType2,
     ?assertEqual(
         {error, [
             #sp_error{
@@ -233,54 +175,24 @@ map1_from_json_bad_test() ->
                     #{
                         type =>
                             #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
+                                types = [MapType, ErrorLiteral]
                             },
                         value => #{a1 => hej},
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                {ErrorLiteral, [
                                     #sp_error{
                                         location = [],
                                         type = type_mismatch,
                                         ctx =
                                             #{
-                                                type => #sp_literal{
-                                                    value = error, binary_value = <<"error">>
-                                                },
+                                                type => ErrorLiteral,
                                                 value => #{a1 => hej}
                                             }
                                     }
                                 ]},
                                 {
-                                    #sp_map{
-                                        fields =
-                                            [
-                                                #typed_map_field{
-                                                    kind = assoc,
-                                                    key_type = #sp_simple_type{type = atom},
-                                                    val_type = #sp_simple_type{
-                                                        type =
-                                                            integer
-                                                    }
-                                                }
-                                            ]
-                                    },
+                                    MapType,
                                     [
                                         #sp_error{
                                             location = [a1],
@@ -308,76 +220,31 @@ map1_from_json_bad_test() ->
                     #{
                         type =>
                             #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
+                                types = [MapType, ErrorLiteral]
                             },
                         value => pelle,
                         errors =>
                             [
-                                {#sp_literal{value = error, binary_value = <<"error">>}, [
+                                {ErrorLiteral, [
                                     #sp_error{
                                         location = [],
                                         type = type_mismatch,
                                         ctx =
                                             #{
-                                                type => #sp_literal{
-                                                    value = error, binary_value = <<"error">>
-                                                },
+                                                type => ErrorLiteral,
                                                 value => pelle
                                             }
                                     }
                                 ]},
                                 {
-                                    #sp_map{
-                                        fields =
-                                            [
-                                                #typed_map_field{
-                                                    kind = assoc,
-                                                    key_type = #sp_simple_type{type = atom},
-                                                    val_type = #sp_simple_type{
-                                                        type =
-                                                            integer
-                                                    }
-                                                }
-                                            ]
-                                    },
+                                    MapType,
                                     [
                                         #sp_error{
                                             location = [],
                                             type = type_mismatch,
                                             ctx =
                                                 #{
-                                                    type =>
-                                                        #sp_map{
-                                                            fields =
-                                                                [
-                                                                    #typed_map_field{
-                                                                        kind = assoc,
-                                                                        key_type = #sp_simple_type{
-                                                                            type = atom
-                                                                        },
-                                                                        val_type = #sp_simple_type{
-                                                                            type =
-                                                                                integer
-                                                                        }
-                                                                    }
-                                                                ]
-                                                        },
+                                                    type => MapType,
                                                     value => pelle
                                                 }
                                         }
