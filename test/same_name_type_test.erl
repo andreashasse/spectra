@@ -49,11 +49,10 @@ result_0_to_json_test() ->
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [result],
-                type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = integer}, value => pelle}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, pelle),
+                result
+            )
         ]},
         to_json_result_0(#{result => pelle, errors => []})
     ).
@@ -65,12 +64,10 @@ result_0_from_json_test() ->
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [result],
-                type = type_mismatch,
-                ctx =
-                    #{type => #sp_simple_type{type = integer}, value => <<"hej">>}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"hej">>),
+                result
+            )
         ]},
         from_json_result_0(#{<<"result">> => <<"hej">>, <<"errors">> => []})
     ).

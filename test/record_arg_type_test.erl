@@ -50,11 +50,10 @@ map1_to_json_test() ->
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [value],
-                type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = integer}, value => pelle}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, pelle),
+                value
+            )
         ]},
         to_json_result_1(#result{value = pelle, errors = []})
     ).
@@ -66,12 +65,10 @@ map1_from_json_test() ->
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [value],
-                type = type_mismatch,
-                ctx =
-                    #{type => #sp_simple_type{type = integer}, value => <<"hej">>}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"hej">>),
+                value
+            )
         ]},
         from_json_result_1(#{<<"value">> => <<"hej">>, <<"errors">> => []})
     ).

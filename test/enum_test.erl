@@ -10,6 +10,9 @@
 
 %% Test function to validate non_atom_enum type
 validate_non_atom_enum_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, NonAtomEnumType} = spectra_type_info:get_type(TypeInfo, non_atom_enum, 0),
+
     % Test JSON conversion using to_json
     ValidData1 = 1,
     ValidData2 = 3,
@@ -22,23 +25,7 @@ validate_non_atom_enum_test() ->
     % Test with invalid data
     {error, Errors} = to_json_non_atom_enum(InvalidData),
     ?assertMatch(
-        [
-            #sp_error{
-                type = no_match,
-                ctx =
-                    #{
-                        type :=
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_literal{value = 1},
-                                        #sp_literal{value = 3}
-                                    ]
-                            },
-                        value := 2
-                    }
-            }
-        ],
+        [#sp_error{type = no_match, ctx = #{type := NonAtomEnumType, value := InvalidData}}],
         Errors
     ),
 
@@ -54,28 +41,15 @@ validate_non_atom_enum_test() ->
     % Test from_json with invalid data
     {error, FromErrors} = from_json_non_atom_enum(InvalidJson),
     ?assertMatch(
-        [
-            #sp_error{
-                type = no_match,
-                ctx =
-                    #{
-                        type :=
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_literal{value = 1},
-                                        #sp_literal{value = 3}
-                                    ]
-                            },
-                        value := 2
-                    }
-            }
-        ],
+        [#sp_error{type = no_match, ctx = #{type := NonAtomEnumType, value := InvalidJson}}],
         FromErrors
     ).
 
 %% Test function to validate role type
 validate_role_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, RoleType} = spectra_type_info:get_type(TypeInfo, role, 0),
+
     % Test JSON conversion using to_json
     ValidData1 = admin,
     ValidData2 = user,
@@ -90,24 +64,7 @@ validate_role_test() ->
     % Test with invalid data
     {error, Errors} = to_json_role(InvalidData),
     ?assertMatch(
-        [
-            #sp_error{
-                type = no_match,
-                ctx =
-                    #{
-                        type :=
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_literal{value = admin},
-                                        #sp_literal{value = user},
-                                        #sp_literal{value = guest}
-                                    ]
-                            },
-                        value := moderator
-                    }
-            }
-        ],
+        [#sp_error{type = no_match, ctx = #{type := RoleType, value := InvalidData}}],
         Errors
     ),
 
@@ -125,24 +82,7 @@ validate_role_test() ->
     % Test from_json with invalid data
     {error, FromErrors} = from_json_role(InvalidJson),
     ?assertMatch(
-        [
-            #sp_error{
-                type = no_match,
-                ctx =
-                    #{
-                        type :=
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_literal{value = admin},
-                                        #sp_literal{value = user},
-                                        #sp_literal{value = guest}
-                                    ]
-                            },
-                        value := <<"moderator">>
-                    }
-            }
-        ],
+        [#sp_error{type = no_match, ctx = #{type := RoleType, value := InvalidJson}}],
         FromErrors
     ).
 
