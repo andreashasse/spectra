@@ -24,11 +24,10 @@ map1_test() ->
 map1_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = integer}, value => hej}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, hej),
+                a1
+            )
         ]},
         to_json_atom_map(#{a1 => hej})
     ),
@@ -46,13 +45,12 @@ map2_test() ->
 map2_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx = #{
-                    type => #sp_literal{value = 1, binary_value = <<"1">>}, value => should_not_work
-                }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(
+                    #sp_literal{value = 1, binary_value = <<"1">>}, should_not_work
+                ),
+                a1
+            )
         ]},
         to_json_atom_map2(#{a1 => should_not_work, other => value2})
     ),
@@ -85,11 +83,10 @@ type_shaddow_literal_map_test() ->
 type_shaddow_literal_map_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = atom}, value => 1}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = atom}, 1),
+                a1
+            )
         ]},
         to_json_type_shaddow_literal_map(#{a1 => 1, some_atom => some_value})
     ).
@@ -105,32 +102,23 @@ mandatory_type_map_test() ->
 mandatory_type_map_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx = #{type => #sp_simple_type{type = atom}, value => 1}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = atom}, 1),
+                a1
+            )
         ]},
         to_json_mandatory_type_map(#{a1 => 1})
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [],
-                type = not_matched_fields,
-                ctx =
-                    #{
-                        type =>
-                            #typed_map_field{
-                                kind = exact,
-                                key_type = #sp_simple_type{type = atom},
-                                val_type = #sp_simple_type{
-                                    type = atom
-                                }
-                            },
-                        value => #{}
-                    }
-            }
+            sp_error:not_matched_fields(
+                #typed_map_field{
+                    kind = exact,
+                    key_type = #sp_simple_type{type = atom},
+                    val_type = #sp_simple_type{type = atom}
+                },
+                #{}
+            )
         ]},
         to_json_mandatory_type_map(#{})
     ).
@@ -141,15 +129,10 @@ from_json_map1_test() ->
 from_json_map1_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = integer},
-                        value => <<"not_an_integer">>
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"not_an_integer">>),
+                a1
+            )
         ]},
         from_json_atom_map(#{<<"a1">> => <<"not_an_integer">>})
     ),
@@ -167,11 +150,10 @@ from_json_map2_test() ->
 from_json_map2_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [a1],
-                type = type_mismatch,
-                ctx = #{type => #sp_literal{value = 1, binary_value = <<"1">>}, value => 2}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_literal{value = 1, binary_value = <<"1">>}, 2),
+                a1
+            )
         ]},
         from_json_atom_map2(#{<<"a1">> => 2, <<"other">> => <<"value2">>})
     ).
@@ -200,13 +182,7 @@ from_json_type_shaddow_literal_map_bad_test() ->
         TypeInfo, type_shaddow_literal_map, 0
     ),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => TypeShadowLiteralMapType, value => not_a_map}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(TypeShadowLiteralMapType, not_a_map)]},
         from_json_type_shaddow_literal_map(not_a_map)
     ).
 
@@ -228,13 +204,7 @@ from_json_mandatory_type_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     {ok, MandatoryTypeMapType} = spectra_type_info:get_type(TypeInfo, mandatory_type_map, 0),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => MandatoryTypeMapType, value => []}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(MandatoryTypeMapType, [])]},
         from_json_mandatory_type_map([])
     ).
 
@@ -252,23 +222,11 @@ empty_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => EmptyMapType, value => not_a_map}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(EmptyMapType, not_a_map)]},
         to_json_empty_map(not_a_map)
     ),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => EmptyMapType, value => []}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(EmptyMapType, [])]},
         to_json_empty_map([])
     ).
 
@@ -292,23 +250,11 @@ from_json_empty_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => EmptyMapType, value => not_a_map}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(EmptyMapType, not_a_map)]},
         from_json_empty_map(not_a_map)
     ),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx = #{type => EmptyMapType, value => []}
-            }
-        ]},
+        {error, [sp_error:type_mismatch(EmptyMapType, [])]},
         from_json_empty_map([])
     ).
 
@@ -408,15 +354,13 @@ from_json_map_in_map_value_test() ->
 from_json_map_in_map_value_bad_test() ->
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [hej, <<"key1">>],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = integer},
-                        value => <<"not_integer">>
-                    }
-            }
+            sp_error:append_location(
+                sp_error:append_location(
+                    sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"not_integer">>),
+                    <<"key1">>
+                ),
+                hej
+            )
         ]},
         from_json_map_in_map_value(#{<<"hej">> => #{<<"key1">> => <<"not_integer">>}})
     ),
