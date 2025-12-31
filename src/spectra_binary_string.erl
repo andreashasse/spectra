@@ -308,21 +308,21 @@ try_convert_binary_string_to_literal(Literal, BinaryString) ->
     ]}.
 
 union(Fun, TypeInfo, #sp_union{types = Types} = T, BinaryString) ->
-    case do_first(Fun, TypeInfo, Types, BinaryString) of
-        {error, no_match} ->
-            {error, [sp_error:no_match(T, BinaryString)]};
+    case do_first(Fun, TypeInfo, Types, BinaryString, []) of
+        {error, UnionErrors} ->
+            {error, [sp_error:no_match(T, BinaryString, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first(_Fun, _TypeInfo, [], _BinaryString) ->
-    {error, no_match};
-do_first(Fun, TypeInfo, [Type | Rest], BinaryString) ->
+do_first(_Fun, _TypeInfo, [], _BinaryString, Errors) ->
+    {error, Errors};
+do_first(Fun, TypeInfo, [Type | Rest], BinaryString, ErrorsAcc) ->
     case Fun(TypeInfo, Type, BinaryString) of
         {ok, Result} ->
             {ok, Result};
-        {error, _} ->
-            do_first(Fun, TypeInfo, Rest, BinaryString)
+        {error, Errors} ->
+            do_first(Fun, TypeInfo, Rest, BinaryString, [{Type, Errors} | ErrorsAcc])
     end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->

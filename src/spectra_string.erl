@@ -293,21 +293,21 @@ try_convert_string_to_literal(Literal, String) ->
     ]}.
 
 union(Fun, TypeInfo, #sp_union{types = Types} = T, String) ->
-    case do_first(Fun, TypeInfo, Types, String) of
-        {error, no_match} ->
-            {error, [sp_error:no_match(T, String)]};
+    case do_first(Fun, TypeInfo, Types, String, []) of
+        {error, UnionErrors} ->
+            {error, [sp_error:no_match(T, String, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first(_Fun, _TypeInfo, [], _String) ->
-    {error, no_match};
-do_first(Fun, TypeInfo, [Type | Rest], String) ->
+do_first(_Fun, _TypeInfo, [], _String, Errors) ->
+    {error, Errors};
+do_first(Fun, TypeInfo, [Type | Rest], String, ErrorsAcc) ->
     case Fun(TypeInfo, Type, String) of
         {ok, Result} ->
             {ok, Result};
-        {error, _} ->
-            do_first(Fun, TypeInfo, Rest, String)
+        {error, Errors} ->
+            do_first(Fun, TypeInfo, Rest, String, [{Type, Errors} | ErrorsAcc])
     end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
