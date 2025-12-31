@@ -101,7 +101,7 @@ do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
                 StructName ->
                     map_to_json(TypeInfo, Map, Data);
                 _ ->
-                    {error, [sp_error:type_mismatch(Map, Data, #{message => "Struct missmatch"})]}
+                    {error, [sp_error:type_mismatch(Map, Data, #{message => "Struct mismatch"})]}
             end
     end;
 do_to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
