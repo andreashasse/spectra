@@ -392,17 +392,7 @@ map_in_map_key_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     {ok, MapInMapKeyType} = spectra_type_info:get_type(TypeInfo, map_in_map_key, 0),
     ?assertEqual(
-        {error, [
-            #sp_error{
-                location = [],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => MapInMapKeyType,
-                        value => not_a_map
-                    }
-            }
-        ]},
+        {error, [sp_error:type_mismatch(MapInMapKeyType, not_a_map)]},
         to_json_map_in_map_key(not_a_map)
     ).
 
