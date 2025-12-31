@@ -4,7 +4,7 @@
     ctx :: #{
         type => spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
         value => term(),
-        errors => [{spectra:sp_type(), #sp_error{}}],
+        errors => [{spectra:sp_type(), [#sp_error{}]}],
         message => string(),
         type_args => [{atom(), spectra:sp_type()}],
         err_type => atom(),

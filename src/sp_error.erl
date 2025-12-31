@@ -64,7 +64,7 @@ no_match(Type, Value) ->
 -spec no_match(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     term(),
-    [{spectra:sp_type(), #sp_error{}}]
+    [{spectra:sp_type(), [#sp_error{}]}]
 ) -> #sp_error{}.
 no_match(Type, Value, Errors) ->
     #sp_error{
