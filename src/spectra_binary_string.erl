@@ -41,10 +41,10 @@ from_binary_string(TypeInfo, {type, TypeName, TypeArity}, BinaryString) when
 ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_binary_string(TypeInfo, Type, BinaryString);
-from_binary_string(_TypeInfo, {record, RecordName}, BinaryString) when
+from_binary_string(_TypeInfo, {record, RecordName}, _BinaryString) when
     is_atom(RecordName)
 ->
-    {error, [sp_error:no_match({record, RecordName}, BinaryString)]};
+    erlang:error({type_not_supported, {record, RecordName}});
 from_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryString) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -118,8 +118,8 @@ and converts it to a binary string representation.
 to_binary_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_binary_string(TypeInfo, Type, Data);
-to_binary_string(_TypeInfo, {record, RecordName}, Data) when is_atom(RecordName) ->
-    {error, [sp_error:no_match({record, RecordName}, Data)]};
+to_binary_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
+    erlang:error({type_not_supported, {record, RecordName}});
 to_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse

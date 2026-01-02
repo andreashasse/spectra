@@ -36,8 +36,8 @@ and converts it to the corresponding Erlang value.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
-from_string(_TypeInfo, {record, RecordName} = RecRef, String) when is_atom(RecordName) ->
-    {error, [sp_error:no_match(RecRef, String)]};
+from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
+    erlang:error({type_not_supported, {record, RecordName}});
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -107,8 +107,8 @@ and converts it to a string representation.
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_string(TypeInfo, Type, Data);
-to_string(_TypeInfo, {record, RecordName}, Data) when is_atom(RecordName) ->
-    {error, [sp_error:no_match({record, RecordName}, Data)]};
+to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
+    erlang:error({type_not_supported, {record, RecordName}});
 to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse

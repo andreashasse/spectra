@@ -5,7 +5,6 @@
     type_mismatch/3,
     missing_data/3,
     not_matched_fields/2,
-    no_match/2,
     no_match/3,
     append_location/2
 ]).
@@ -53,13 +52,6 @@ not_matched_fields(Type, Value) ->
         location = [],
         ctx = #{type => Type, value => Value}
     }.
-
--spec no_match(
-    spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term()
-) -> #sp_error{}.
-no_match(Type, Value) ->
-    no_match(Type, Value, []).
 
 -spec no_match(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),

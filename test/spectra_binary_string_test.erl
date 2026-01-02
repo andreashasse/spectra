@@ -674,8 +674,8 @@ unsupported_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Record types are not supported for binary string conversion
-    ?assertMatch(
-        {error, [#sp_error{type = no_match}]},
+    ?assertError(
+        {type_not_supported, _},
         spectra_binary_string:from_binary_string(
             TypeInfo,
             {record, some_record},
@@ -1312,7 +1312,7 @@ to_binary_string_union_error_accumulation_test() ->
     ),
     ActualErrors = [
         {Type, [#sp_error{type = ErrorType} || #sp_error{type = ErrorType} <- Errors]}
-        || {Type, Errors} <- maps:get(errors, Ctx)
+     || {Type, Errors} <- maps:get(errors, Ctx)
     ],
     ?assertEqual(
         [
@@ -1434,8 +1434,8 @@ to_binary_string_unsupported_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Record types are not supported for binary string conversion
-    ?assertMatch(
-        {error, [#sp_error{type = no_match}]},
+    ?assertError(
+        {type_not_supported, _},
         spectra_binary_string:to_binary_string(
             TypeInfo,
             {record, some_record},
