@@ -458,19 +458,19 @@ try_convert_literal_to_binary_string(#sp_literal{} = Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
-    case do_first_to_binary_string(TypeInfo, Types, Data) of
-        {error, no_match} ->
-            {error, [sp_error:no_match(T, Data)]};
+    case do_first_to_binary_string(TypeInfo, Types, Data, []) of
+        {error, UnionErrors} ->
+            {error, [sp_error:no_match(T, Data, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first_to_binary_string(_TypeInfo, [], _Data) ->
-    {error, no_match};
-do_first_to_binary_string(TypeInfo, [Type | Rest], Data) ->
+do_first_to_binary_string(_TypeInfo, [], _Data, Errors) ->
+    {error, Errors};
+do_first_to_binary_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
     case to_binary_string(TypeInfo, Type, Data) of
         {ok, Result} ->
             {ok, Result};
-        {error, _} ->
-            do_first_to_binary_string(TypeInfo, Rest, Data)
+        {error, Errors} ->
+            do_first_to_binary_string(TypeInfo, Rest, Data, [{Type, Errors} | ErrorsAcc])
     end.

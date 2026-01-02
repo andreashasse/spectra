@@ -1302,6 +1302,27 @@ to_binary_string_union_test() ->
 
     ok.
 
+to_binary_string_union_error_accumulation_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Union = #sp_union{types = [#sp_simple_type{type = integer}, #sp_simple_type{type = boolean}]},
+    {error, [#sp_error{type = no_match, ctx = Ctx}]} = spectra_binary_string:to_binary_string(
+        TypeInfo,
+        Union,
+        "not_matching"
+    ),
+    ActualErrors = [
+        {Type, [#sp_error{type = ErrorType} || #sp_error{type = ErrorType} <- Errors]}
+        || {Type, Errors} <- maps:get(errors, Ctx)
+    ],
+    ?assertEqual(
+        [
+            {#sp_simple_type{type = boolean}, [#sp_error{type = type_mismatch}]},
+            {#sp_simple_type{type = integer}, [#sp_error{type = type_mismatch}]}
+        ],
+        ActualErrors
+    ),
+    ok.
+
 %% Test to_binary_string/3 function - Type references
 to_binary_string_type_reference_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
