@@ -437,7 +437,7 @@ convert_type_to_binary_string(neg_integer, Data) ->
 convert_type_to_binary_string(Type, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
 
--spec try_convert_literal_to_binary_string(Literal :: term(), Data :: term()) ->
+-spec try_convert_literal_to_binary_string(Literal :: #sp_literal{}, Data :: term()) ->
     {ok, binary()} | {error, [spectra:error()]}.
 try_convert_literal_to_binary_string(#sp_literal{value = Literal}, Literal) when is_atom(Literal) ->
     {ok, atom_to_binary(Literal, utf8)};
