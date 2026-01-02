@@ -74,15 +74,10 @@ to_json_person_alias_bad_test() ->
     Person = #person{name = "John", age = "not_an_integer"},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [age],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = integer},
-                        value => "not_an_integer"
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, "not_an_integer"),
+                age
+            )
         ]},
         to_json_person_alias(Person)
     ).
@@ -95,12 +90,10 @@ to_json_person_new_age_bad_test() ->
     Person = #person{name = "John", age = -1},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [age],
-                type = type_mismatch,
-                ctx =
-                    #{type => #sp_simple_type{type = non_neg_integer}, value => -1}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = non_neg_integer}, -1),
+                age
+            )
         ]},
         to_json_person_new_age(Person)
     ).
@@ -117,15 +110,10 @@ from_json_person_alias_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => <<"not_an_integer">>},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [age],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = integer},
-                        value => <<"not_an_integer">>
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"not_an_integer">>),
+                age
+            )
         ]},
         from_json_person_alias(Json)
     ).
@@ -138,12 +126,10 @@ from_json_person_new_age_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => -1},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [age],
-                type = type_mismatch,
-                ctx =
-                    #{type => #sp_simple_type{type = non_neg_integer}, value => -1}
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = non_neg_integer}, -1),
+                age
+            )
         ]},
         from_json_person_new_age(Json)
     ).
@@ -156,15 +142,10 @@ from_json_person_t_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => <<"not_an_integer">>},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [age],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type => #sp_simple_type{type = integer},
-                        value => <<"not_an_integer">>
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(#sp_simple_type{type = integer}, <<"not_an_integer">>),
+                age
+            )
         ]},
         from_json_person_t(Json)
     ).

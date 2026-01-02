@@ -11,6 +11,9 @@
 
 %% Test function to validate nonempty_list
 validate_nonempty_list_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, NonemptyItemsType} = spectra_type_info:get_type(TypeInfo, nonempty_items, 0),
+
     % Test JSON conversion using to_json
     ValidUser = #{name => "John", items => [1, 2, 3]},
     InvalidUser = #{name => "John", items => []},
@@ -20,16 +23,10 @@ validate_nonempty_list_test() ->
     {error, Errors} = to_json(InvalidUser),
     ?assertEqual(
         [
-            #sp_error{
-                location = [items],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type =>
-                            {nonempty_list, #sp_user_type_ref{type_name = item, variables = []}},
-                        value => []
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(NonemptyItemsType, []),
+                items
+            )
         ],
         Errors
     ),
@@ -44,16 +41,10 @@ validate_nonempty_list_test() ->
     {error, FromErrors} = from_json(InvalidJson),
     ?assertEqual(
         [
-            #sp_error{
-                location = [items],
-                type = type_mismatch,
-                ctx =
-                    #{
-                        type =>
-                            {nonempty_list, #sp_user_type_ref{type_name = item, variables = []}},
-                        value => []
-                    }
-            }
+            sp_error:append_location(
+                sp_error:type_mismatch(NonemptyItemsType, []),
+                items
+            )
         ],
         FromErrors
     ).

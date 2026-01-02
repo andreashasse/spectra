@@ -36,14 +36,8 @@ and converts it to the corresponding Erlang value.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
-from_string(_TypeInfo, {record, RecordName}, String) when is_atom(RecordName) ->
-    {error, [
-        #sp_error{
-            type = no_match,
-            location = [],
-            ctx = #{type => {record, RecordName}, value => String}
-        }
-    ]};
+from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
+    erlang:error({type_not_supported, {record, RecordName}});
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -69,13 +63,7 @@ from_string(
         {ok, Value} when Min =< Value, Value =< Max ->
             {ok, Value};
         {ok, Value} when is_integer(Value) ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => Range, value => Value}
-                }
-            ]};
+            {error, [sp_error:type_mismatch(Range, Value)]};
         {error, Reason} ->
             {error, Reason}
     end;
@@ -90,13 +78,7 @@ from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
 from_string(TypeInfo, #sp_union{} = Type, String) ->
     union(fun from_string/3, TypeInfo, Type, String);
 from_string(_TypeInfo, Type, String) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => Type, value => String}
-        }
-    ]}.
+    {error, [sp_error:type_mismatch(Type, String)]}.
 
 -doc """
 Converts an Erlang value to a string based on a type specification.
@@ -125,14 +107,8 @@ and converts it to a string representation.
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_string(TypeInfo, Type, Data);
-to_string(_TypeInfo, {record, RecordName}, Data) when is_atom(RecordName) ->
-    {error, [
-        #sp_error{
-            type = no_match,
-            location = [],
-            ctx = #{type => {record, RecordName}, value => Data}
-        }
-    ]};
+to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
+    erlang:error({type_not_supported, {record, RecordName}});
 to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -158,13 +134,7 @@ to_string(
         {ok, String} when Min =< Data, Data =< Max ->
             {ok, String};
         {ok, _String} when is_integer(Data) ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => Range, value => Data}
-                }
-            ]};
+            {error, [sp_error:type_mismatch(Range, Data)]};
         {error, Reason} ->
             {error, Reason}
     end;
@@ -179,53 +149,34 @@ to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
 to_string(TypeInfo, #sp_union{} = Type, Data) ->
     union_to_string(TypeInfo, Type, Data);
 to_string(_TypeInfo, Type, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => Type, value => Data}
-        }
-    ]}.
+    {error, [sp_error:type_mismatch(Type, Data)]}.
 
 %% INTERNAL
+-spec convert_string_to_type(
+    Type :: spectra:simple_types(),
+    String :: string()
+) ->
+    {ok, term()} | {error, [spectra:error()]}.
 convert_string_to_type(Type, String) when is_atom(Type), is_list(String) ->
     do_convert_string_to_type(Type, String);
 convert_string_to_type(Type, NotString) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => Type, value => NotString}
-        }
-    ]}.
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, NotString)]}.
 
--spec do_convert_string_to_type(Type :: atom(), String :: string()) ->
+-spec do_convert_string_to_type(Type :: spectra:simple_types(), String :: string()) ->
     {ok, term()} | {error, [spectra:error()]}.
 do_convert_string_to_type(integer, String) ->
     try
         {ok, list_to_integer(String)}
     catch
         error:badarg ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = integer}, value => String}
-                }
-            ]}
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = integer}, String)]}
     end;
 do_convert_string_to_type(float, String) ->
     try
         {ok, list_to_float(String)}
     catch
         error:badarg ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = float}, value => String}
-                }
-            ]}
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = float}, String)]}
     end;
 do_convert_string_to_type(number, String) ->
     case do_convert_string_to_type(integer, String) of
@@ -239,62 +190,32 @@ do_convert_string_to_type(boolean, "true") ->
 do_convert_string_to_type(boolean, "false") ->
     {ok, false};
 do_convert_string_to_type(boolean, String) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = boolean}, value => String}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = boolean}, String)]};
 do_convert_string_to_type(atom, String) ->
     try
         {ok, list_to_existing_atom(String)}
     catch
         error:badarg ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = atom}, value => String}
-                }
-            ]}
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = atom}, String)]}
     end;
 do_convert_string_to_type(string, String) ->
     {ok, String};
 do_convert_string_to_type(nonempty_string, String) when String =/= [] ->
     {ok, String};
 do_convert_string_to_type(nonempty_string, []) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = nonempty_string}, value => []}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, [])]};
 do_convert_string_to_type(binary, String) ->
     {ok, list_to_binary(String)};
 do_convert_string_to_type(nonempty_binary, String) when String =/= [] ->
     {ok, list_to_binary(String)};
 do_convert_string_to_type(nonempty_binary, []) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = nonempty_binary}, value => []}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, [])]};
 do_convert_string_to_type(non_neg_integer, String) ->
     case do_convert_string_to_type(integer, String) of
         {ok, Value} when Value >= 0 ->
             {ok, Value};
         {ok, Value} ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = non_neg_integer}, value => Value}
-                }
-            ]};
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = non_neg_integer}, Value)]};
         {error, Reason} ->
             {error, Reason}
     end;
@@ -303,13 +224,7 @@ do_convert_string_to_type(pos_integer, String) ->
         {ok, Value} when Value > 0 ->
             {ok, Value};
         {ok, Value} ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = pos_integer}, value => Value}
-                }
-            ]};
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = pos_integer}, Value)]};
         {error, Reason} ->
             {error, Reason}
     end;
@@ -318,26 +233,14 @@ do_convert_string_to_type(neg_integer, String) ->
         {ok, Value} when Value < 0 ->
             {ok, Value};
         {ok, Value} ->
-            {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{type => #sp_simple_type{type = neg_integer}, value => Value}
-                }
-            ]};
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = neg_integer}, Value)]};
         {error, Reason} ->
             {error, Reason}
     end;
 do_convert_string_to_type(Type, String) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => Type, value => String}
-        }
-    ]}.
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, String)]}.
 
--spec try_convert_string_to_literal(Literal :: term(), String :: string()) ->
+-spec try_convert_string_to_literal(Literal :: spectra:literal_value(), String :: string()) ->
     {ok, term()} | {error, [spectra:error()]}.
 try_convert_string_to_literal(Literal, String) when is_boolean(Literal) ->
     case convert_string_to_type(boolean, String) of
@@ -345,16 +248,10 @@ try_convert_string_to_literal(Literal, String) when is_boolean(Literal) ->
             {ok, Literal};
         {ok, _Other} ->
             {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{
-                        type => #sp_literal{
-                            value = Literal, binary_value = atom_to_binary(Literal, utf8)
-                        },
-                        value => String
-                    }
-                }
+                sp_error:type_mismatch(
+                    #sp_literal{value = Literal, binary_value = atom_to_binary(Literal, utf8)},
+                    String
+                )
             ]};
         {error, Reason} ->
             {error, Reason}
@@ -365,16 +262,10 @@ try_convert_string_to_literal(Literal, String) when is_atom(Literal) ->
             {ok, Literal};
         {ok, _Other} ->
             {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{
-                        type => #sp_literal{
-                            value = Literal, binary_value = atom_to_binary(Literal, utf8)
-                        },
-                        value => String
-                    }
-                }
+                sp_error:type_mismatch(
+                    #sp_literal{value = Literal, binary_value = atom_to_binary(Literal, utf8)},
+                    String
+                )
             ]};
         {error, Reason} ->
             {error, Reason}
@@ -385,54 +276,38 @@ try_convert_string_to_literal(Literal, String) when is_integer(Literal) ->
             {ok, Literal};
         {ok, _Other} ->
             {error, [
-                #sp_error{
-                    type = type_mismatch,
-                    location = [],
-                    ctx = #{
-                        type => #sp_literal{
-                            value = Literal, binary_value = integer_to_binary(Literal)
-                        },
-                        value => String
-                    }
-                }
+                sp_error:type_mismatch(
+                    #sp_literal{value = Literal, binary_value = integer_to_binary(Literal)},
+                    String
+                )
             ]};
         {error, Reason} ->
             {error, Reason}
     end;
 try_convert_string_to_literal(Literal, String) ->
     {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{
-                literal => Literal,
-                value => String
-            }
-        }
+        sp_error:type_mismatch(
+            #sp_literal{value = Literal, binary_value = <<>>},
+            String
+        )
     ]}.
 
 union(Fun, TypeInfo, #sp_union{types = Types} = T, String) ->
-    case do_first(Fun, TypeInfo, Types, String) of
-        {error, no_match} ->
-            {error, [
-                #sp_error{
-                    type = no_match,
-                    location = [],
-                    ctx = #{type => T, value => String}
-                }
-            ]};
+    case do_first(Fun, TypeInfo, Types, String, []) of
+        {error, UnionErrors} ->
+            {error, [sp_error:no_match(T, String, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first(_Fun, _TypeInfo, [], _String) ->
-    {error, no_match};
-do_first(Fun, TypeInfo, [Type | Rest], String) ->
+do_first(_Fun, _TypeInfo, [], _String, Errors) ->
+    {error, Errors};
+do_first(Fun, TypeInfo, [Type | Rest], String, ErrorsAcc) ->
     case Fun(TypeInfo, Type, String) of
         {ok, Result} ->
             {ok, Result};
-        {error, _} ->
-            do_first(Fun, TypeInfo, Rest, String)
+        {error, Errors} ->
+            do_first(Fun, TypeInfo, Rest, String, [{Type, Errors} | ErrorsAcc])
     end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
@@ -480,23 +355,11 @@ type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
 convert_type_to_string(integer, Data) when is_integer(Data) ->
     {ok, integer_to_list(Data)};
 convert_type_to_string(integer, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = integer}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = integer}, Data)]};
 convert_type_to_string(float, Data) when is_float(Data) ->
     {ok, float_to_list(Data)};
 convert_type_to_string(float, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = float}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = float}, Data)]};
 convert_type_to_string(number, Data) when is_number(Data) ->
     if
         is_integer(Data) ->
@@ -505,113 +368,47 @@ convert_type_to_string(number, Data) when is_number(Data) ->
             {ok, float_to_list(Data)}
     end;
 convert_type_to_string(number, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = number}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = number}, Data)]};
 convert_type_to_string(boolean, true) ->
     {ok, "true"};
 convert_type_to_string(boolean, false) ->
     {ok, "false"};
 convert_type_to_string(boolean, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = boolean}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = boolean}, Data)]};
 convert_type_to_string(atom, Data) when is_atom(Data) ->
     {ok, atom_to_list(Data)};
 convert_type_to_string(atom, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = atom}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = atom}, Data)]};
 convert_type_to_string(string, Data) when is_list(Data) ->
     lits_to_charlist(Data);
 convert_type_to_string(string, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = string}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = string}, Data)]};
 convert_type_to_string(nonempty_string, Data) when is_list(Data), Data =/= [] ->
     lits_to_charlist(Data);
 convert_type_to_string(nonempty_string, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = nonempty_string}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, Data)]};
 convert_type_to_string(binary, Data) when is_binary(Data) ->
     {ok, binary_to_list(Data)};
 convert_type_to_string(binary, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = binary}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = binary}, Data)]};
 convert_type_to_string(nonempty_binary, Data) when is_binary(Data), Data =/= <<>> ->
     {ok, binary_to_list(Data)};
 convert_type_to_string(nonempty_binary, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = nonempty_binary}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, Data)]};
 convert_type_to_string(non_neg_integer, Data) when is_integer(Data), Data >= 0 ->
     {ok, integer_to_list(Data)};
 convert_type_to_string(non_neg_integer, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = non_neg_integer}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = non_neg_integer}, Data)]};
 convert_type_to_string(pos_integer, Data) when is_integer(Data), Data > 0 ->
     {ok, integer_to_list(Data)};
 convert_type_to_string(pos_integer, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = pos_integer}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = pos_integer}, Data)]};
 convert_type_to_string(neg_integer, Data) when is_integer(Data), Data < 0 ->
     {ok, integer_to_list(Data)};
 convert_type_to_string(neg_integer, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => #sp_simple_type{type = neg_integer}, value => Data}
-        }
-    ]};
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = neg_integer}, Data)]};
 convert_type_to_string(Type, Data) ->
-    {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{type => Type, value => Data}
-        }
-    ]}.
+    {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
 
 lits_to_charlist(Data) ->
     case application:get_env(spectra, check_unicode, false) of
@@ -620,19 +417,13 @@ lits_to_charlist(Data) ->
                 DataList when is_list(DataList) ->
                     {ok, DataList};
                 _Other ->
-                    {error, [
-                        #sp_error{
-                            type = type_mismatch,
-                            location = [],
-                            ctx = #{type => #sp_simple_type{type = string}, value => Data}
-                        }
-                    ]}
+                    {error, [sp_error:type_mismatch(#sp_simple_type{type = string}, Data)]}
             end;
         false ->
             {ok, Data}
     end.
 
--spec try_convert_literal_to_string(Literal :: term(), Data :: term()) ->
+-spec try_convert_literal_to_string(Literal :: spectra:literal_value(), Data :: term()) ->
     {ok, string()} | {error, [spectra:error()]}.
 try_convert_literal_to_string(Literal, Literal) when is_atom(Literal) ->
     {ok, atom_to_list(Literal)};
@@ -647,36 +438,26 @@ try_convert_literal_to_string(Literal, Literal) when is_boolean(Literal) ->
     end;
 try_convert_literal_to_string(Literal, Data) ->
     {error, [
-        #sp_error{
-            type = type_mismatch,
-            location = [],
-            ctx = #{
-                literal => Literal,
-                value => Data
-            }
-        }
+        sp_error:type_mismatch(
+            #sp_literal{value = Literal, binary_value = <<>>},
+            Data
+        )
     ]}.
 
 union_to_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
-    case do_first_to_string(TypeInfo, Types, Data) of
-        {error, no_match} ->
-            {error, [
-                #sp_error{
-                    type = no_match,
-                    location = [],
-                    ctx = #{type => T, value => Data}
-                }
-            ]};
+    case do_first_to_string(TypeInfo, Types, Data, []) of
+        {error, UnionErrors} ->
+            {error, [sp_error:no_match(T, Data, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first_to_string(_TypeInfo, [], _Data) ->
-    {error, no_match};
-do_first_to_string(TypeInfo, [Type | Rest], Data) ->
+do_first_to_string(_TypeInfo, [], _Data, Errors) ->
+    {error, Errors};
+do_first_to_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
     case to_string(TypeInfo, Type, Data) of
         {ok, Result} ->
             {ok, Result};
-        {error, _} ->
-            do_first_to_string(TypeInfo, Rest, Data)
+        {error, Errors} ->
+            do_first_to_string(TypeInfo, Rest, Data, [{Type, Errors} | ErrorsAcc])
     end.

@@ -1,27 +1,5 @@
 -record(sp_simple_type, {
-    type ::
-        string
-        | nonempty_string
-        | integer
-        | non_neg_integer
-        | neg_integer
-        | pos_integer
-        | float
-        | number
-        | boolean
-        | binary
-        | nonempty_binary
-        | bitstring
-        | nonempty_bitstring
-        | atom
-        | term
-        | reference
-        | pid
-        | port
-        | iolist
-        | iodata
-        | none
-        | map
+    type :: spectra:simple_types()
 }).
 -record(sp_tuple, {fields :: any | [spectra:sp_type()]}).
 -record(sp_map, {
@@ -41,7 +19,7 @@
 -record(sp_type_with_variables, {type :: spectra:sp_type(), vars :: [atom()]}).
 -record(sp_function, {args :: any | [spectra:sp_type()], return :: spectra:sp_type()}).
 -record(sp_union, {types = [spectra:sp_type()]}).
--record(sp_literal, {value :: integer() | atom() | [], binary_value :: binary()}).
+-record(sp_literal, {value :: spectra:literal_value(), binary_value :: binary()}).
 -record(sp_rec_ref, {
     record_name :: spectra:user_type_name(), field_types :: [spectra:record_field_arg()]
 }).

@@ -58,137 +58,91 @@ map1_from_json_test() ->
     ?assertEqual({ok, error}, from_json_result_1(<<"error">>)).
 
 map1_to_json_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
+    % _UnionType1 is OkType (var), UnionType2 is error literal
+    MapType = OkType,
+    ErrorLiteral = UnionType2,
+    UnionType = #sp_union{types = [MapType, ErrorLiteral]},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [],
-                type = no_match,
-                ctx =
-                    #{
-                        type =>
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
-                            },
-                        value => #{a1 => hej}
+            sp_error:no_match(
+                UnionType,
+                #{a1 => hej},
+                [
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]},
+                    {
+                        MapType,
+                        [
+                            sp_error:append_location(
+                                sp_error:type_mismatch(#sp_simple_type{type = integer}, hej),
+                                a1
+                            )
+                        ]
                     }
-            }
+                ]
+            )
         ]},
         to_json_result_1(#{a1 => hej})
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [],
-                type = no_match,
-                ctx =
-                    #{
-                        type =>
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
-                            },
-                        value => pelle
-                    }
-            }
+            sp_error:no_match(
+                UnionType,
+                pelle,
+                [
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]},
+                    {MapType, [sp_error:type_mismatch(MapType, pelle)]}
+                ]
+            )
         ]},
         to_json_result_1(pelle)
     ).
 
 map1_from_json_bad_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
+    % _UnionType1 is OkType (var), UnionType2 is error literal
+    MapType = OkType,
+    ErrorLiteral = UnionType2,
+    UnionType = #sp_union{types = [MapType, ErrorLiteral]},
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [],
-                type = no_match,
-                ctx =
-                    #{
-                        type =>
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
-                            },
-                        value => #{a1 => hej}
+            sp_error:no_match(
+                UnionType,
+                #{a1 => hej},
+                [
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]},
+                    {
+                        MapType,
+                        [
+                            sp_error:append_location(
+                                sp_error:type_mismatch(#sp_simple_type{type = integer}, hej),
+                                a1
+                            )
+                        ]
                     }
-            }
+                ]
+            )
         ]},
         from_json_result_1(#{a1 => hej})
     ),
     ?assertEqual(
         {error, [
-            #sp_error{
-                location = [],
-                type = no_match,
-                ctx =
-                    #{
-                        type =>
-                            #sp_union{
-                                types =
-                                    [
-                                        #sp_map{
-                                            fields =
-                                                [
-                                                    #typed_map_field{
-                                                        kind = assoc,
-                                                        key_type = #sp_simple_type{type = atom},
-                                                        val_type = #sp_simple_type{
-                                                            type =
-                                                                integer
-                                                        }
-                                                    }
-                                                ]
-                                        },
-                                        #sp_literal{value = error, binary_value = <<"error">>}
-                                    ]
-                            },
-                        value => pelle
-                    }
-            }
+            sp_error:no_match(
+                UnionType,
+                pelle,
+                [
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]},
+                    {MapType, [sp_error:type_mismatch(MapType, pelle)]}
+                ]
+            )
         ]},
         from_json_result_1(pelle)
     ).

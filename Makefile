@@ -1,6 +1,6 @@
 .PHONY: all compile format test cover clean doc perf
 
-all: compile format test cover doc
+all: format build-test doc
 
 compile:
 	rebar3 compile
