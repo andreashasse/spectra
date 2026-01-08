@@ -564,7 +564,8 @@ generate_response(#{description := Description} = ResponseSpec) when
                         DirectType ->
                             {ok, InlineSchema} =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            InlineSchema
+                            %% Remove $schema field for OpenAPI embedding
+                            maps:remove(<<"$schema">>, InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
                 #{
@@ -590,8 +591,10 @@ generate_response(#{description := Description} = ResponseSpec) when
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    %% Remove $schema field for OpenAPI embedding
+    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
-    BaseHeader = #{schema => InlineSchema},
+    BaseHeader = #{schema => OpenApiSchema},
 
     %% Add optional description
     HeaderWithDesc =
@@ -623,7 +626,8 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                InlineSchema
+                %% Remove $schema field for OpenAPI embedding
+                maps:remove(<<"$schema">>, InlineSchema)
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
@@ -645,12 +649,14 @@ generate_parameter(
     Required = maps:get(required, ParameterSpec, false),
 
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    %% Remove $schema field for OpenAPI embedding
+    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     #{
         name => Name,
         in => In,
         required => Required,
-        schema => InlineSchema
+        schema => OpenApiSchema
     }.
 
 -spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_or_ref()}].
@@ -748,7 +754,9 @@ generate_components(SchemaRefs) ->
                     {ok, Schema} when is_map(Schema) ->
                         SchemaName =
                             type_ref_to_component_name(TypeRef),
-                        {ok, Acc#{SchemaName => Schema}};
+                        %% Remove $schema field for OpenAPI embedding
+                        OpenApiSchema = maps:remove(<<"$schema">>, Schema),
+                        {ok, Acc#{SchemaName => OpenApiSchema}};
                     {error, _} = Error ->
                         Error
                 end
