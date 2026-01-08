@@ -18,9 +18,9 @@ to_schema(Module, Type) when is_atom(Module) ->
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    do_to_schema(TypeInfo, TypeWithoutVars);
+    add_schema_version(do_to_schema(TypeInfo, TypeWithoutVars));
 to_schema(TypeInfo, Type) ->
-    do_to_schema(TypeInfo, Type).
+    add_schema_version(do_to_schema(TypeInfo, Type)).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
@@ -181,6 +181,14 @@ do_to_schema(_TypeInfo, Type) ->
     ]}.
 
 %% Helper functions
+
+%% Add JSON Schema version to the schema
+-spec add_schema_version({ok, map()} | {error, [spectra:error()]}) ->
+    {ok, map()} | {error, [spectra:error()]}.
+add_schema_version({ok, Schema}) ->
+    {ok, Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}};
+add_schema_version({error, _} = Error) ->
+    Error.
 
 record_replace_vars(RecordInfo, TypeArgs) ->
     lists:foldl(

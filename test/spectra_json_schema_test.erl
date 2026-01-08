@@ -63,55 +63,55 @@
 simple_types_test() ->
     %% integer
     ?assertEqual(
-        {ok, #{type => <<"integer">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_integer, 0})
     ),
 
     %% string
     ?assertEqual(
-        {ok, #{type => <<"string">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_string, 0})
     ),
 
     %% boolean
     ?assertEqual(
-        {ok, #{type => <<"boolean">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_boolean, 0})
     ),
 
     %% number
     ?assertEqual(
-        {ok, #{type => <<"number">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_number, 0})
     ),
 
     %% atom (mapped to string)
     ?assertEqual(
-        {ok, #{type => <<"string">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_atom, 0})
     ),
 
     %% binary (mapped to string)
     ?assertEqual(
-        {ok, #{type => <<"string">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0})
     ),
 
     %% float
     ?assertEqual(
-        {ok, #{type => <<"number">>, format => <<"float">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>, format => <<"float">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_float, 0})
     ),
 
     %% iodata (mapped to string)
     ?assertEqual(
-        {ok, #{type => <<"string">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_iodata, 0})
     ),
 
     %% iolist (mapped to string)
     ?assertEqual(
-        {ok, #{type => <<"string">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_iolist, 0})
     ).
 
@@ -120,6 +120,7 @@ range_types_test() ->
     %% Custom range 1..10
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"integer">>,
             minimum => 1,
             maximum => 10
@@ -130,6 +131,7 @@ range_types_test() ->
     %% byte (0..255)
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"integer">>,
             minimum => 0,
             maximum => 255
@@ -140,6 +142,7 @@ range_types_test() ->
     %% char (0..1114111)
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"integer">>,
             minimum => 0,
             maximum => 1114111
@@ -151,13 +154,13 @@ range_types_test() ->
 literal_types_test() ->
     %% Literal atom (converted to binary string)
     ?assertEqual(
-        {ok, #{enum => [<<"hello">>]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"hello">>]}},
         spectra_json_schema:to_schema(?MODULE, {type, my_literal_atom, 0})
     ),
 
     %% Literal integer
     ?assertEqual(
-        {ok, #{enum => [42]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [42]}},
         spectra_json_schema:to_schema(?MODULE, {type, my_literal_integer, 0})
     ).
 
@@ -165,13 +168,14 @@ literal_types_test() ->
 list_types_test() ->
     %% Regular list
     ?assertEqual(
-        {ok, #{type => <<"array">>, items => #{type => <<"integer">>}}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"array">>, items => #{type => <<"integer">>}}},
         spectra_json_schema:to_schema(?MODULE, {type, my_list, 0})
     ),
 
     %% Non-empty list
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"array">>,
             items => #{type => <<"string">>},
             minItems => 1
@@ -183,13 +187,13 @@ list_types_test() ->
 union_types_test() ->
     %% Simple union of non-literals (should use oneOf)
     ?assertEqual(
-        {ok, #{oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]}},
         spectra_json_schema:to_schema(?MODULE, {type, my_union, 0})
     ),
 
     %% Optional type (union with undefined) - now returns just the non-undefined type
     ?assertEqual(
-        {ok, #{type => <<"integer">>}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>}},
         spectra_json_schema:to_schema(?MODULE, {type, my_optional, 0})
     ).
 
@@ -198,6 +202,7 @@ map_types_test() ->
     %% Fixed map fields - order doesn't matter, just check structure
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{<<"name">> => #{type => <<"string">>}, <<"age">> => #{type => <<"integer">>}},
@@ -210,6 +215,7 @@ map_types_test() ->
     %% Structured map with specific fields
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
@@ -226,13 +232,14 @@ map_types_test() ->
 generic_map_types_test() ->
     %% Generic map with atom keys and integer values
     ?assertEqual(
-        {ok, #{type => <<"object">>, additionalProperties => true}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"object">>, additionalProperties => true}},
         spectra_json_schema:to_schema(?MODULE, {type, my_generic_map, 0})
     ),
 
     %% Mixed map with both specific and generic fields
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties => #{<<"name">> => #{type => <<"string">>}},
             required => [<<"name">>],
@@ -246,6 +253,7 @@ record_types_test() ->
     %% Simple record - check the actual return format
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
@@ -267,6 +275,7 @@ record_types_test() ->
         },
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties => ExpectedProps,
             required => [<<"id">>, <<"name">>, <<"price">>, <<"tags">>]
@@ -280,6 +289,7 @@ record_with_optional_fields_test() ->
     %% The field appears as simple string type and is excluded from required fields
     ?assertEqual(
         {ok, #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
@@ -299,6 +309,7 @@ record_with_enum_fields_test() ->
         spectra_json_schema:to_schema(?MODULE, {record, user_with_role}),
     ?assertEqual(
         #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
@@ -320,6 +331,7 @@ record_with_enum_fields_test() ->
         spectra_json_schema:to_schema(?MODULE, {record, user_with_optional_role}),
     ?assertEqual(
         #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
@@ -338,43 +350,43 @@ record_with_enum_fields_test() ->
 enum_types_test() ->
     %% Atom enum (like role: admin | user | guest)
     ?assertEqual(
-        {ok, #{type => <<"string">>, enum => [<<"admin">>, <<"user">>, <<"guest">>]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>, <<"guest">>]}},
         spectra_json_schema:to_schema(?MODULE, {type, role, 0})
     ),
 
     %% Status enum
     ?assertEqual(
-        {ok, #{type => <<"string">>, enum => [<<"active">>, <<"inactive">>, <<"pending">>]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"active">>, <<"inactive">>, <<"pending">>]}},
         spectra_json_schema:to_schema(?MODULE, {type, status, 0})
     ),
 
     %% Number enum
     ?assertEqual(
-        {ok, #{type => <<"integer">>, enum => [1, 2, 3]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>, enum => [1, 2, 3]}},
         spectra_json_schema:to_schema(?MODULE, {type, number_enum, 0})
     ),
 
     %% Boolean enum
     ?assertEqual(
-        {ok, #{type => <<"boolean">>, enum => [true, false]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>, enum => [true, false]}},
         spectra_json_schema:to_schema(?MODULE, {type, bool_enum, 0})
     ),
 
     %% Optional enum (union with undefined)
     ?assertEqual(
-        {ok, #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>]}},
         spectra_json_schema:to_schema(?MODULE, {type, optional_enum, 0})
     ),
 
     %% Optional enum (union with nil - Elixir's missing value)
     ?assertEqual(
-        {ok, #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]}},
+        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>]}},
         spectra_json_schema:to_schema(?MODULE, {type, optional_enum_with_nil, 0})
     ),
 
     %% Mixed-type enum (atom | integer | boolean) - no type field when types differ
     {ok, MixedEnumSchema} = spectra_json_schema:to_schema(?MODULE, {type, mixed_enum, 0}),
-    ?assertEqual(#{enum => [<<"admin">>, 42, true]}, MixedEnumSchema),
+    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"admin">>, 42, true]}, MixedEnumSchema),
     ?assertNot(maps:is_key(type, MixedEnumSchema)).
 
 %% Test error handling

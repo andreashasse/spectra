@@ -18,7 +18,7 @@
 %% Location: src/spectra_json_schema.erl:76
 binary_format_issue_test() ->
     {ok, BinarySchema} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
-    ?assertEqual(#{type => <<"string">>}, BinarySchema),
+    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}, BinarySchema),
 
     %% FIXED: Now correctly generates simple string type for binary()
     %% This matches how spectra_json handles binary - as regular JSON strings
@@ -30,7 +30,7 @@ binary_format_issue_test() ->
 binary_format_with_minlength_issue_test() ->
     {ok, NonEmptyBinarySchema} =
         spectra_json_schema:to_schema(?MODULE, {type, my_nonempty_binary, 0}),
-    Expected = #{type => <<"string">>, minLength => 1},
+    Expected = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, minLength => 1},
     ?assertEqual(Expected, NonEmptyBinarySchema),
 
     %% FIXED: Now correctly generates string type with minLength for nonempty_binary()
@@ -42,7 +42,7 @@ binary_format_with_minlength_issue_test() ->
 %% Location: src/spectra_json_schema.erl:103
 empty_schema_for_term_test() ->
     {ok, TermSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_term, 0}),
-    ?assertEqual(#{}, TermSchema),
+    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema),
 
     %% Actually, this is CORRECT! Empty object {} in JSON Schema means "any valid JSON value"
     %% This is the proper way to represent Erlang's term() type
@@ -54,7 +54,7 @@ empty_schema_for_term_test() ->
 literal_values_translation_issue_test() ->
     {ok, AtomLiteralSchema} =
         spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
-    ?assertEqual(#{enum => [<<"ok">>]}, AtomLiteralSchema),
+    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]}, AtomLiteralSchema),
 
     %% FIXED: Now correctly converts atom literals to binary strings in enum
     %% - The enum contains the binary string <<"ok">> instead of raw atom 'ok'
@@ -65,12 +65,12 @@ literal_values_translation_issue_test() ->
 %% Demonstration of correct schemas that should be generated
 correct_schemas_test() ->
     %% What binary schema should look like (simple string for JSON compatibility):
-    CorrectBinarySchema = #{type => <<"string">>},
+    CorrectBinarySchema = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
 
     %% What atom literal schema should look like:
 
     %% String, not atom
-    CorrectAtomLiteralSchema = #{enum => [<<"ok">>]},
+    CorrectAtomLiteralSchema = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]},
 
     %% Current implementation now matches these correct schemas
     {ok, CurrentBinary} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
@@ -86,8 +86,11 @@ json_schema_validator_issues_test() ->
     %% Test atom literal with Jesse
     {ok, AtomSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
 
+    %% Remove $schema field since jesse doesn't support 2020-12
+    AtomSchemaWithoutVersion = maps:remove(<<"$schema">>, AtomSchema),
+
     %% Convert schema to Jesse format
-    JesseSchema = json:decode(iolist_to_binary(json:encode(AtomSchema))),
+    JesseSchema = json:decode(iolist_to_binary(json:encode(AtomSchemaWithoutVersion))),
 
     %% Now the schema correctly has enum: ["ok"] instead of enum: [ok]
     %% Validate JSON string "ok" against the corrected schema
