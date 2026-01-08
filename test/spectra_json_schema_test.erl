@@ -4,6 +4,19 @@
 
 -compile(nowarn_unused_type).
 
+%% Helper to validate schemas with Python validator
+validate_with_python(Schema) ->
+    case json_schema_validator_helper:validate_schema_2020_12(Schema) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            io:format("Skipping Python validation: ~s~n", [Reason]),
+            ok;
+        {error, {validation_failed, Output}} ->
+            io:format("Python validation failed:~n~s~n", [Output]),
+            erlang:error({python_validation_failed, Output})
+    end.
+
 %% Test types for schema generation
 -type my_integer() :: integer().
 -type my_string() :: string().
@@ -62,58 +75,76 @@
 %% Test simple type mappings
 simple_types_test() ->
     %% integer
+    {ok, IntSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_integer, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_integer, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>},
+        IntSchema
     ),
+    validate_with_python(IntSchema),
 
     %% string
+    {ok, StringSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_string, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_string, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        StringSchema
     ),
+    validate_with_python(StringSchema),
 
     %% boolean
+    {ok, BoolSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_boolean, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_boolean, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>},
+        BoolSchema
     ),
+    validate_with_python(BoolSchema),
 
     %% number
+    {ok, NumberSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_number, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_number, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>},
+        NumberSchema
     ),
+    validate_with_python(NumberSchema),
 
     %% atom (mapped to string)
+    {ok, AtomSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_atom, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_atom, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        AtomSchema
     ),
+    validate_with_python(AtomSchema),
 
     %% binary (mapped to string)
+    {ok, BinarySchema} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        BinarySchema
     ),
+    validate_with_python(BinarySchema),
 
     %% float
+    {ok, FloatSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_float, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>, format => <<"float">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_float, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>, format => <<"float">>},
+        FloatSchema
     ),
+    validate_with_python(FloatSchema),
 
     %% iodata (mapped to string)
+    {ok, IodataSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_iodata, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_iodata, 0})
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        IodataSchema
     ),
+    validate_with_python(IodataSchema),
 
     %% iolist (mapped to string)
+    {ok, IolistSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_iolist, 0}),
     ?assertEqual(
-        {ok, #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}},
-        spectra_json_schema:to_schema(?MODULE, {type, my_iolist, 0})
-    ).
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        IolistSchema
+    ),
+    validate_with_python(IolistSchema).
 
 %% Test range type mappings
 range_types_test() ->
