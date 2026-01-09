@@ -49,7 +49,8 @@ if [ -n "$CLAUDE_CODE_REMOTE" ]; then
         echo "Building rebar3 from source..."
         cd /tmp
         rm -rf rebar3
-        git clone https://github.com/erlang/rebar3.git 2>&1 | grep -v "^Cloning" || true
+        # Use shallow clone for faster download
+        git clone --depth 1 --branch 3.26.0 https://github.com/erlang/rebar3.git 2>&1 | grep -v "^Cloning" || true
         cd rebar3
         ./bootstrap 2>&1 | grep -E "(Compiling|Building)" || true
         mkdir -p ~/.local/bin
