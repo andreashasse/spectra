@@ -103,8 +103,8 @@ safe_to_json(TypeInfo, Type, Data) ->
             {exception, type_not_found, type_not_found};
         error:{record_not_found, _} ->
             {exception, record_not_found, record_not_found};
-        error:Reason ->
-            {exception, other, Reason}
+        error:Reason:Stack ->
+            {exception, other, {Reason, Stack}}
     end.
 
 %% Safe wrapper for to_schema
@@ -122,8 +122,8 @@ safe_to_schema(TypeInfo, Type) ->
             {exception, type_not_found, type_not_found};
         error:{record_not_found, _} ->
             {exception, record_not_found, record_not_found};
-        error:Reason ->
-            {exception, other, Reason}
+        error:Reason:Stack ->
+            {exception, other, {Reason, Stack}}
     end.
 
 %% Safe wrapper for from_json
@@ -141,8 +141,8 @@ safe_from_json(TypeInfo, Type, JsonValue) ->
             {exception, type_not_found, type_not_found};
         error:{record_not_found, _} ->
             {exception, record_not_found, record_not_found};
-        error:Reason ->
-            {exception, other, Reason}
+        error:Reason:Stack ->
+            {exception, other, {Reason, Stack}}
     end.
 
 %% When to_json succeeds, schema should succeed and from_json should succeed
@@ -197,7 +197,7 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
         {error, SchemaError} ->
             ?WHENFAIL(
                 io:format(
-                    "~nto_son worked, but schema failed. This can happen as (potentially) only part of the type is used when generating json:~n"
+                    "~nto_json worked, but schema failed. This can happen as (potentially) only part of the type is used when generating json:~n"
                     "  Type: ~p~n"
                     "  Original Data: ~p~n"
                     "  JSON: ~p~n"
@@ -209,7 +209,7 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
         {exception, ExceptionType, Exception} ->
             ?WHENFAIL(
                 io:format(
-                    "~nInconsistency: to_json succeeded but to_schema threw exception~n"
+                    "~nto_json succeeded but to_schema threw exception~n"
                     "  Type: ~p~n"
                     "  Data: ~p~n"
                     "  JSON: ~p~n"
@@ -217,7 +217,7 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
                     "  Exception: ~p~n",
                     [Type, OriginalData, JsonValue, ExceptionType, Exception]
                 ),
-                false
+                collect({success, type_category(Type)}, true)
             )
     end.
 
@@ -271,27 +271,12 @@ check_exception_consistency(JsonExceptionType, JsonException, ToSchemaResult) ->
 is_problematic_type(#sp_remote_type{}) ->
     % Remote types with non-existent modules cause issues
     true;
-is_problematic_type(#sp_maybe_improper_list{}) ->
-    % Improper lists: to_json throws type_not_implemented but to_schema returns error
-    true;
-is_problematic_type(#sp_nonempty_improper_list{}) ->
-    % Nonempty improper lists: to_json throws type_not_implemented but to_schema returns error
-    true;
 is_problematic_type(#sp_union{types = Types}) ->
     % Check if union contains other problematic types
     lists:any(fun is_problematic_type/1, Types);
-is_problematic_type(#sp_map{fields = Fields}) ->
-    % Maps with problematic field types
-    lists:any(fun is_problematic_map_field/1, Fields);
-is_problematic_type(#sp_list{type = T}) ->
-    % Lists with problematic element types
-    is_problematic_type(T);
 is_problematic_type(#sp_nonempty_list{type = T}) ->
     % Nonempty lists with problematic element types
     is_problematic_type(T);
-is_problematic_type(#sp_rec{}) ->
-    % Records might reference types not in TypeInfo
-    true;
 is_problematic_type(#sp_rec_ref{}) ->
     % Record refs might reference records not defined
     true;
@@ -306,11 +291,6 @@ is_problematic_type(#sp_type_with_variables{}) ->
     true;
 is_problematic_type(_) ->
     false.
-
-is_problematic_map_field(#literal_map_field{val_type = ValType}) ->
-    is_problematic_type(ValType);
-is_problematic_map_field(#typed_map_field{key_type = KeyType, val_type = ValType}) ->
-    is_problematic_type(KeyType) orelse is_problematic_type(ValType).
 
 %% Categorize types for collect() statistics
 type_category(#sp_simple_type{type = T}) ->
