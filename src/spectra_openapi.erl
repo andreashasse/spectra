@@ -414,13 +414,13 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
 
 -doc """
-Generates a complete OpenAPI 3.0 specification from a list of endpoints.
+Generates a complete OpenAPI 3.1 specification from a list of endpoints.
 
 This function takes a list of endpoint specifications and generates a complete OpenAPI document
 with paths, operations, and component schemas.
 
 ### Returns
-{ok, OpenAPISpec} containing the complete OpenAPI 3.0 document, or {error, Errors} if generation fails
+{ok, OpenAPISpec} containing the complete OpenAPI 3.1 document, or {error, Errors} if generation fails
 """.
 -doc #{
     params =>
@@ -453,7 +453,7 @@ endpoints_to_openapi(MetaData, Endpoints) when is_list(Endpoints) ->
         {ok, ComponentsResult} ->
             OpenAPISpec =
                 #{
-                    openapi => <<"3.0.0">>,
+                    openapi => <<"3.1.0">>,
                     info =>
                         #{
                             title => maps:get(title, MetaData),

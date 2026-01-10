@@ -8,7 +8,7 @@
 """
 OpenAPI Schema Validator
 
-This script validates OpenAPI 3.0 specifications using openapi-spec-validator.
+This script validates OpenAPI 3.1 specifications using openapi-spec-validator.
 Usage: ./validate_openapi.py <openapi_json_file>
 """
 
@@ -25,7 +25,7 @@ def validate_openapi_file(filepath):
         
         # Validate the OpenAPI specification
         validate_spec(spec)
-        print(f"✅ {filepath} is a valid OpenAPI 3.0 specification")
+        print(f"✅ {filepath} is a valid OpenAPI 3.1 specification")
         return True
         
     except json.JSONDecodeError as e:
