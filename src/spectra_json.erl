@@ -617,6 +617,8 @@ check_type_from_json(atom, Json) when is_binary(Json) ->
         error:badarg ->
             false
     end;
+check_type_from_json(map, Json) when is_map(Json) ->
+    {true, Json};
 check_type_from_json(Type, Json) ->
     check_type(Type, Json).
 
@@ -654,6 +656,8 @@ check_type(nonempty_binary, Json) when is_binary(Json), byte_size(Json) > 0 ->
 check_type(atom, Json) when is_atom(Json) ->
     {true, Json};
 check_type(term, Json) ->
+    {true, Json};
+check_type(map, Json) when is_map(Json) ->
     {true, Json};
 check_type(_Type, _Json) ->
     false.

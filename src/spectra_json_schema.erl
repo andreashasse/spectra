@@ -59,6 +59,9 @@ do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
 do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
     % any type
     {ok, #{}};
+do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
+    % generic map type - allows any keys and values
+    {ok, #{type => <<"object">>}};
 %% Range types
 do_to_schema(
     _TypeInfo,
