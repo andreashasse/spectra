@@ -697,9 +697,13 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
 ) ->
     {ok, term()} | {error, [spectra:error()]}.
 type_from_json(TypeInfo, TypeName, TypeArity, TypeArgs, Json) ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-    do_from_json(TypeInfo, TypeWithoutVars, Json).
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+            do_from_json(TypeInfo, TypeWithoutVars, Json);
+        error ->
+            error({type_not_found, TypeName, TypeArity})
+    end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
     ArgNames = arg_names(Type),
@@ -931,8 +935,12 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
 ) ->
     {ok, term()} | {error, list()}.
 record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) ->
-    {ok, Record} = spectra_type_info:get_record(TypeInfo, RecordName),
-    record_from_json(TypeInfo, Record, Json, TypeArgs);
+    case spectra_type_info:get_record(TypeInfo, RecordName) of
+        {ok, Record} ->
+            record_from_json(TypeInfo, Record, Json, TypeArgs);
+        error ->
+            error({record_not_found, RecordName})
+    end;
 record_from_json(
     TypeInfo, #sp_rec{} = ARec, Json, TypeArgs
 ) ->
