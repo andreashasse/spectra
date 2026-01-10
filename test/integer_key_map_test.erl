@@ -6,6 +6,19 @@
 
 -compile(nowarn_unused_type).
 
+%% Helper to validate schemas with Python validator
+validate_with_python(Schema) ->
+    case json_schema_validator_helper:validate_schema_2020_12(Schema) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            io:format("Skipping Python validation: ~s~n", [Reason]),
+            ok;
+        {error, {validation_failed, Output}} ->
+            io:format("Python validation failed:~n~s~n", [Output]),
+            erlang:error({python_validation_failed, Output})
+    end.
+
 %% Test types with integer keys
 -type int_literal_key_map() :: #{1 := binary(), 2 := binary()}.
 -type int_literal_optional_map() :: #{1 => binary(), 2 => atom()}.
@@ -198,7 +211,8 @@ schema_int_literal_key_test() ->
         Schema
     ),
     #{required := Required} = Schema,
-    ?assertEqual([<<"1">>, <<"2">>], lists:sort(Required)).
+    ?assertEqual([<<"1">>, <<"2">>], lists:sort(Required)),
+    validate_with_python(Schema).
 
 schema_int_literal_optional_map_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {
@@ -213,7 +227,8 @@ schema_int_literal_optional_map_test() ->
         },
         Schema
     ),
-    ?assertEqual(false, maps:is_key(required, Schema)).
+    ?assertEqual(false, maps:is_key(required, Schema)),
+    validate_with_python(Schema).
 
 schema_mixed_int_atom_keys_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, mixed_int_atom_keys, 0}),
@@ -229,7 +244,8 @@ schema_mixed_int_atom_keys_test() ->
         Schema
     ),
     #{required := Required} = Schema,
-    ?assertEqual([<<"1">>, <<"foo">>], lists:sort(Required)).
+    ?assertEqual([<<"1">>, <<"foo">>], lists:sort(Required)),
+    validate_with_python(Schema).
 
 schema_nested_int_key_map_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, nested_int_key_map, 0}),
@@ -248,4 +264,5 @@ schema_nested_int_key_map_test() ->
             properties := #{<<"1">> := _, <<"2">> := _}
         },
         OuterSchema
-    ).
+    ),
+    validate_with_python(Schema).

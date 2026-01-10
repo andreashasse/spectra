@@ -2,12 +2,14 @@
 
 -include_lib("proper/include/proper.hrl").
 
+-export([gen_data/2]).
+
 prop_hej() ->
     ?FORALL(
         {{TypeName, Type}, JsonValue},
         {test_type(), json_generator:json_value()},
         begin
-            TypeInfo = #{{type, TypeName} => Type},
+            TypeInfo = spectra_type_info:add_type(spectra_type_info:new(), TypeName, 0, Type),
             case from_json(TypeInfo, Type, JsonValue) of
                 {ok, Data} ->
                     case spectra_json:to_json(TypeInfo, Type, Data) of
@@ -41,13 +43,21 @@ from_json(TypeInfo, Type, JsonValue) ->
             {error, type_not_supported};
         error:{type_not_implemented, _} ->
             {error, type_not_implemented};
-        error:{module_types_not_found, _} ->
+        error:{module_types_not_found, _, _} ->
             {error, module_types_not_found};
+        error:{type_not_found, _, _} ->
+            {error, type_not_found};
         error:{type_not_found, _} ->
-            {error, {type_not_found}};
+            {error, type_not_found};
         error:{record_not_found, _} ->
-            {error, {record_not_found}}
+            {error, record_not_found};
+        error:function_clause ->
+            {error, function_clause}
     end.
 
 test_type() ->
     {my_type, sp_type_generators:sp_type()}.
+
+%% @doc Generate valid Erlang data for a given type
+gen_data(TypeInfo, Type) ->
+    sp_data_generators:gen_data(TypeInfo, Type).

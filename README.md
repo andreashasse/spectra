@@ -147,7 +147,7 @@ And the rest of the arguments are the same as for the data serialization API.
 
 ## OpenAPI Spec
 
-Spectra can generate complete [OpenAPI 3.0](https://spec.openapis.org/oas/v3.0.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
+Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
 
 ### OpenAPI Builder API
 

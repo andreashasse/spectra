@@ -85,7 +85,7 @@ openapi_json_serializable_test() ->
     %% Validate core OpenAPI structure
     ?assertMatch(
         #{
-            <<"openapi">> := <<"3.0.0">>,
+            <<"openapi">> := <<"3.1.0">>,
             <<"info">> := #{<<"title">> := <<"API Documentation">>, <<"version">> := <<"1.0.0">>},
             <<"paths">> := #{<<"/users">> := _, <<"/users/{id}">> := _},
             <<"components">> :=
@@ -254,7 +254,7 @@ openapi_spec_completeness_test() ->
             [Endpoint]
         ),
 
-    %% Validate required OpenAPI 3.0 fields and structure
+    %% Validate required OpenAPI 3.1 fields and structure
     #{<<"paths">> := Paths} = OpenAPISpec,
     ?assertMatch(
         #{
@@ -404,7 +404,7 @@ final_json_output_test() ->
     %% Basic validation that the spec looks correct
     ?assertMatch(
         #{
-            <<"openapi">> := <<"3.0.0">>,
+            <<"openapi">> := <<"3.1.0">>,
             <<"paths">> := _,
             <<"components">> := _
         },
@@ -521,7 +521,8 @@ run_python_openapi_validation() ->
     file:write_file("generated_openapi.json", JsonString),
 
     %% Run Python validation script
-    Output = os:cmd("./validate_openapi.py generated_openapi.json"),
+    ScriptPath = filename:join([code:priv_dir(spectra), "validate_openapi.py"]),
+    Output = os:cmd(lists:flatten(io_lib:format("~s generated_openapi.json", [ScriptPath]))),
 
     %% Check that validation passed (look for success message in output)
     case string:find(Output, "is a valid OpenAPI") of
@@ -1071,3 +1072,73 @@ response_builder_complete_endpoint_test() ->
         },
         Operation
     ).
+
+%% Test that validates generated OpenAPI specs are valid OpenAPI 3.1
+openapi_3_1_validation_test() ->
+    %% Create a comprehensive API with multiple endpoints to test various features
+    GetUsersResp = spectra_openapi:response(200, <<"List of users">>),
+    GetUsersRespBody =
+        spectra_openapi:response_with_body(GetUsersResp, ?MODULE, {record, user}),
+    GetUsersEndpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
+    GetUsersEndpoint = spectra_openapi:add_response(GetUsersEndpoint1, GetUsersRespBody),
+
+    CreateUserResp201 = spectra_openapi:response(201, <<"User created">>),
+    CreateUserResp201Body =
+        spectra_openapi:response_with_body(CreateUserResp201, ?MODULE, {record, user}),
+    CreateUserResp400 = spectra_openapi:response(400, <<"Invalid input">>),
+    CreateUserResp400Body =
+        spectra_openapi:response_with_body(
+            CreateUserResp400,
+            ?MODULE,
+            {record, error_response}
+        ),
+    CreateUserEndpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
+    CreateUserEndpoint2 =
+        spectra_openapi:with_request_body(
+            CreateUserEndpoint1,
+            ?MODULE,
+            {record, create_user_request}
+        ),
+    CreateUserEndpoint3 =
+        spectra_openapi:add_response(CreateUserEndpoint2, CreateUserResp201Body),
+    CreateUserEndpoint =
+        spectra_openapi:add_response(CreateUserEndpoint3, CreateUserResp400Body),
+
+    GetUserResp200 = spectra_openapi:response(200, <<"User details">>),
+    GetUserRespBody = spectra_openapi:response_with_body(GetUserResp200, ?MODULE, {record, user}),
+    GetUserResp404 = spectra_openapi:response(404, <<"User not found">>),
+    GetUserResp404Body =
+        spectra_openapi:response_with_body(GetUserResp404, ?MODULE, {record, error_response}),
+    GetUserEndpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    IdParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => #sp_simple_type{type = integer}
+        },
+    GetUserEndpoint2 = spectra_openapi:with_parameter(GetUserEndpoint1, ?MODULE, IdParam),
+    GetUserEndpoint3 = spectra_openapi:add_response(GetUserEndpoint2, GetUserRespBody),
+    GetUserEndpoint = spectra_openapi:add_response(GetUserEndpoint3, GetUserResp404Body),
+
+    Endpoints = [GetUsersEndpoint, CreateUserEndpoint, GetUserEndpoint],
+
+    %% Generate OpenAPI spec
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"User API">>, version => <<"1.0.0">>},
+            Endpoints
+        ),
+
+    %% Verify the OpenAPI version is 3.1.0
+    ?assertMatch(#{<<"openapi">> := <<"3.1.0">>}, OpenAPISpec),
+
+    %% Validate against OpenAPI 3.1 spec using Python validator
+    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            {skip, Reason};
+        {error, {validation_failed, Result}} ->
+            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
+    end.
