@@ -521,7 +521,8 @@ run_python_openapi_validation() ->
     file:write_file("generated_openapi.json", JsonString),
 
     %% Run Python validation script
-    Output = os:cmd("./validate_openapi.py generated_openapi.json"),
+    ScriptPath = filename:join([code:priv_dir(spectra), "validate_openapi.py"]),
+    Output = os:cmd(lists:flatten(io_lib:format("~s generated_openapi.json", [ScriptPath]))),
 
     %% Check that validation passed (look for success message in output)
     case string:find(Output, "is a valid OpenAPI") of

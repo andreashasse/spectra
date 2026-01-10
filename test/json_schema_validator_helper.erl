@@ -26,8 +26,10 @@ validate_schema(Schema) ->
                 ok = file:write_file(TempFile, JsonBinary),
 
                 %% Run validation script
-                ScriptPath = filename:join([code:priv_dir(spectra), "..", "validate_json_schema.py"]),
-                Command = lists:flatten(io_lib:format("~s run ~s ~s", [UvPath, ScriptPath, TempFile])),
+                ScriptPath = filename:join([code:priv_dir(spectra), "validate_json_schema.py"]),
+                Command = lists:flatten(
+                    io_lib:format("~s run ~s ~s", [UvPath, ScriptPath, TempFile])
+                ),
 
                 case os:cmd(Command) of
                     Result ->
@@ -48,10 +50,11 @@ validate_schema(Schema) ->
 %% Generate a temporary filename
 -spec temp_filename() -> string().
 temp_filename() ->
-    TempDir = case os:type() of
-        {unix, _} -> "/tmp";
-        {win32, _} -> os:getenv("TEMP", "C:\\Temp")
-    end,
+    TempDir =
+        case os:type() of
+            {unix, _} -> "/tmp";
+            {win32, _} -> os:getenv("TEMP", "C:\\Temp")
+        end,
     Timestamp = erlang:system_time(microsecond),
     Filename = lists:flatten(io_lib:format("spectra_schema_~p.json", [Timestamp])),
     filename:join(TempDir, Filename).

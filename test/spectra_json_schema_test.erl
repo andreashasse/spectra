@@ -77,7 +77,10 @@ simple_types_test() ->
     %% integer
     {ok, IntSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_integer, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"integer">>
+        },
         IntSchema
     ),
     validate_with_python(IntSchema),
@@ -85,7 +88,10 @@ simple_types_test() ->
     %% string
     {ok, StringSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_string, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
         StringSchema
     ),
     validate_with_python(StringSchema),
@@ -93,7 +99,10 @@ simple_types_test() ->
     %% boolean
     {ok, BoolSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_boolean, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"boolean">>
+        },
         BoolSchema
     ),
     validate_with_python(BoolSchema),
@@ -101,7 +110,10 @@ simple_types_test() ->
     %% number
     {ok, NumberSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_number, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"number">>
+        },
         NumberSchema
     ),
     validate_with_python(NumberSchema),
@@ -109,7 +121,10 @@ simple_types_test() ->
     %% atom (mapped to string)
     {ok, AtomSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_atom, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
         AtomSchema
     ),
     validate_with_python(AtomSchema),
@@ -117,7 +132,10 @@ simple_types_test() ->
     %% binary (mapped to string)
     {ok, BinarySchema} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
         BinarySchema
     ),
     validate_with_python(BinarySchema),
@@ -125,7 +143,11 @@ simple_types_test() ->
     %% float
     {ok, FloatSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_float, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"number">>, format => <<"float">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"number">>,
+            format => <<"float">>
+        },
         FloatSchema
     ),
     validate_with_python(FloatSchema),
@@ -133,7 +155,10 @@ simple_types_test() ->
     %% iodata (mapped to string)
     {ok, IodataSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_iodata, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
         IodataSchema
     ),
     validate_with_python(IodataSchema),
@@ -141,7 +166,10 @@ simple_types_test() ->
     %% iolist (mapped to string)
     {ok, IolistSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_iolist, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
         IolistSchema
     ),
     validate_with_python(IolistSchema).
@@ -192,7 +220,10 @@ literal_types_test() ->
     %% Literal atom (converted to binary string)
     {ok, LiteralAtomSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_literal_atom, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"hello">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            enum => [<<"hello">>]
+        },
         LiteralAtomSchema
     ),
     validate_with_python(LiteralAtomSchema),
@@ -210,7 +241,11 @@ list_types_test() ->
     %% Regular list
     {ok, ListSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_list, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"array">>, items => #{type => <<"integer">>}},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"array">>,
+            items => #{type => <<"integer">>}
+        },
         ListSchema
     ),
     validate_with_python(ListSchema),
@@ -233,7 +268,10 @@ union_types_test() ->
     %% Simple union of non-literals (should use oneOf)
     {ok, UnionSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_union, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+        },
         UnionSchema
     ),
     validate_with_python(UnionSchema),
@@ -241,7 +279,10 @@ union_types_test() ->
     %% Optional type (union with undefined) - now returns just the non-undefined type
     {ok, OptionalSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_optional, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"integer">>
+        },
         OptionalSchema
     ),
     validate_with_python(OptionalSchema).
@@ -286,7 +327,11 @@ generic_map_types_test() ->
     %% Generic map with atom keys and integer values
     {ok, GenericMapSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_generic_map, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"object">>, additionalProperties => true},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            additionalProperties => true
+        },
         GenericMapSchema
     ),
     validate_with_python(GenericMapSchema),
@@ -349,7 +394,9 @@ record_types_test() ->
 record_with_optional_fields_test() ->
     %% Record with optional email field (can be undefined)
     %% The field appears as simple string type and is excluded from required fields
-    {ok, UserWithOptionalSchema} = spectra_json_schema:to_schema(?MODULE, {record, user_with_optional}),
+    {ok, UserWithOptionalSchema} = spectra_json_schema:to_schema(
+        ?MODULE, {record, user_with_optional}
+    ),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
@@ -417,7 +464,11 @@ enum_types_test() ->
     %% Atom enum (like role: admin | user | guest)
     {ok, RoleSchema} = spectra_json_schema:to_schema(?MODULE, {type, role, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>, <<"guest">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>,
+            enum => [<<"admin">>, <<"user">>, <<"guest">>]
+        },
         RoleSchema
     ),
     validate_with_python(RoleSchema),
@@ -425,7 +476,11 @@ enum_types_test() ->
     %% Status enum
     {ok, StatusSchema} = spectra_json_schema:to_schema(?MODULE, {type, status, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"active">>, <<"inactive">>, <<"pending">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>,
+            enum => [<<"active">>, <<"inactive">>, <<"pending">>]
+        },
         StatusSchema
     ),
     validate_with_python(StatusSchema),
@@ -433,7 +488,11 @@ enum_types_test() ->
     %% Number enum
     {ok, NumberEnumSchema} = spectra_json_schema:to_schema(?MODULE, {type, number_enum, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"integer">>, enum => [1, 2, 3]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"integer">>,
+            enum => [1, 2, 3]
+        },
         NumberEnumSchema
     ),
     validate_with_python(NumberEnumSchema),
@@ -441,7 +500,11 @@ enum_types_test() ->
     %% Boolean enum
     {ok, BoolEnumSchema} = spectra_json_schema:to_schema(?MODULE, {type, bool_enum, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"boolean">>, enum => [true, false]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"boolean">>,
+            enum => [true, false]
+        },
         BoolEnumSchema
     ),
     validate_with_python(BoolEnumSchema),
@@ -449,22 +512,38 @@ enum_types_test() ->
     %% Optional enum (union with undefined)
     {ok, OptionalEnumSchema} = spectra_json_schema:to_schema(?MODULE, {type, optional_enum, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>,
+            enum => [<<"admin">>, <<"user">>]
+        },
         OptionalEnumSchema
     ),
     validate_with_python(OptionalEnumSchema),
 
     %% Optional enum (union with nil - Elixir's missing value)
-    {ok, OptionalEnumWithNilSchema} = spectra_json_schema:to_schema(?MODULE, {type, optional_enum_with_nil, 0}),
+    {ok, OptionalEnumWithNilSchema} = spectra_json_schema:to_schema(
+        ?MODULE, {type, optional_enum_with_nil, 0}
+    ),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>,
+            enum => [<<"admin">>, <<"user">>]
+        },
         OptionalEnumWithNilSchema
     ),
     validate_with_python(OptionalEnumWithNilSchema),
 
     %% Mixed-type enum (atom | integer | boolean) - no type field when types differ
     {ok, MixedEnumSchema} = spectra_json_schema:to_schema(?MODULE, {type, mixed_enum, 0}),
-    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"admin">>, 42, true]}, MixedEnumSchema),
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            enum => [<<"admin">>, 42, true]
+        },
+        MixedEnumSchema
+    ),
     ?assertNot(maps:is_key(type, MixedEnumSchema)),
     validate_with_python(MixedEnumSchema).
 

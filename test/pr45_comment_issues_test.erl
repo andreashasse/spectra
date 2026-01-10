@@ -31,7 +31,13 @@ validate_with_python(Schema) ->
 %% Location: src/spectra_json_schema.erl:76
 binary_format_issue_test() ->
     {ok, BinarySchema} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
-    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>}, BinarySchema),
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
+        BinarySchema
+    ),
     validate_with_python(BinarySchema),
 
     %% FIXED: Now correctly generates simple string type for binary()
@@ -44,7 +50,11 @@ binary_format_issue_test() ->
 binary_format_with_minlength_issue_test() ->
     {ok, NonEmptyBinarySchema} =
         spectra_json_schema:to_schema(?MODULE, {type, my_nonempty_binary, 0}),
-    Expected = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>, minLength => 1},
+    Expected = #{
+        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+        type => <<"string">>,
+        minLength => 1
+    },
     ?assertEqual(Expected, NonEmptyBinarySchema),
     validate_with_python(NonEmptyBinarySchema),
 
@@ -57,7 +67,9 @@ binary_format_with_minlength_issue_test() ->
 %% Location: src/spectra_json_schema.erl:103
 empty_schema_for_term_test() ->
     {ok, TermSchema} = spectra_json_schema:to_schema(?MODULE, {type, my_term, 0}),
-    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema),
+    ?assertEqual(
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema
+    ),
     validate_with_python(TermSchema),
 
     %% Actually, this is CORRECT! Empty object {} in JSON Schema means "any valid JSON value"
@@ -70,7 +82,10 @@ empty_schema_for_term_test() ->
 literal_values_translation_issue_test() ->
     {ok, AtomLiteralSchema} =
         spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
-    ?assertEqual(#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]}, AtomLiteralSchema),
+    ?assertEqual(
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]},
+        AtomLiteralSchema
+    ),
     validate_with_python(AtomLiteralSchema),
 
     %% FIXED: Now correctly converts atom literals to binary strings in enum
@@ -82,12 +97,16 @@ literal_values_translation_issue_test() ->
 %% Demonstration of correct schemas that should be generated
 correct_schemas_test() ->
     %% What binary schema should look like (simple string for JSON compatibility):
-    CorrectBinarySchema = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>},
+    CorrectBinarySchema = #{
+        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>
+    },
 
     %% What atom literal schema should look like:
 
     %% String, not atom
-    CorrectAtomLiteralSchema = #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]},
+    CorrectAtomLiteralSchema = #{
+        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]
+    },
 
     %% Current implementation now matches these correct schemas
     {ok, CurrentBinary} = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
