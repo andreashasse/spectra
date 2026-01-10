@@ -197,14 +197,14 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
         {error, SchemaError} ->
             ?WHENFAIL(
                 io:format(
-                    "~nInconsistency: to_json succeeded but to_schema failed~n"
+                    "~nto_son worked, but schema failed. This can happen as (potentially) only part of the type is used when generating json:~n"
                     "  Type: ~p~n"
-                    "  Data: ~p~n"
+                    "  Original Data: ~p~n"
                     "  JSON: ~p~n"
                     "  Schema error: ~p~n",
                     [Type, OriginalData, JsonValue, SchemaError]
                 ),
-                false
+                collect({success, type_category(Type)}, true)
             );
         {exception, ExceptionType, Exception} ->
             ?WHENFAIL(
@@ -278,9 +278,8 @@ is_problematic_type(#sp_nonempty_improper_list{}) ->
     % Nonempty improper lists: to_json throws type_not_implemented but to_schema returns error
     true;
 is_problematic_type(#sp_union{types = Types}) ->
-    % Unions with certain literals (floats, tuples, etc.) cause function_clause in schema
-    lists:any(fun is_problematic_literal/1, Types) orelse
-        lists:any(fun is_problematic_type/1, Types);
+    % Check if union contains other problematic types
+    lists:any(fun is_problematic_type/1, Types);
 is_problematic_type(#sp_map{fields = Fields}) ->
     % Maps with problematic field types
     lists:any(fun is_problematic_map_field/1, Fields);
@@ -312,17 +311,6 @@ is_problematic_map_field(#literal_map_field{val_type = ValType}) ->
     is_problematic_type(ValType);
 is_problematic_map_field(#typed_map_field{key_type = KeyType, val_type = ValType}) ->
     is_problematic_type(KeyType) orelse is_problematic_type(ValType).
-
-is_problematic_literal(#sp_literal{value = V}) when is_float(V) ->
-    true;
-is_problematic_literal(#sp_literal{value = V}) when is_tuple(V) ->
-    true;
-is_problematic_literal(#sp_literal{value = V}) when is_list(V) ->
-    true;
-is_problematic_literal(#sp_literal{value = V}) when is_binary(V) ->
-    true;
-is_problematic_literal(_) ->
-    false.
 
 %% Categorize types for collect() statistics
 type_category(#sp_simple_type{type = T}) ->

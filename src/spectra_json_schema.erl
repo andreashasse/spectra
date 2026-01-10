@@ -347,23 +347,39 @@ process_map_fields(
             Err
     end;
 process_map_fields(
-    _TypeInfo,
-    [#typed_map_field{kind = assoc} | Rest],
+    TypeInfo,
+    [#typed_map_field{kind = assoc, key_type = KeyType, val_type = ValType} | Rest],
     Properties,
     Required,
     _HasAdditional
 ) ->
-    %% Generic key-value map allows additional properties
-    process_map_fields(_TypeInfo, Rest, Properties, Required, true);
+    %% Validate that key and value types are supported
+    case {do_to_schema(TypeInfo, KeyType), do_to_schema(TypeInfo, ValType)} of
+        {{ok, _}, {ok, _}} ->
+            %% Generic key-value map allows additional properties
+            process_map_fields(TypeInfo, Rest, Properties, Required, true);
+        {{error, _} = Err, _} ->
+            Err;
+        {_, {error, _} = Err} ->
+            Err
+    end;
 process_map_fields(
-    _TypeInfo,
-    [#typed_map_field{kind = exact} | Rest],
+    TypeInfo,
+    [#typed_map_field{kind = exact, key_type = KeyType, val_type = ValType} | Rest],
     Properties,
     Required,
     _HasAdditional
 ) ->
-    %% Generic key-value map allows additional properties
-    process_map_fields(_TypeInfo, Rest, Properties, Required, true).
+    %% Validate that key and value types are supported
+    case {do_to_schema(TypeInfo, KeyType), do_to_schema(TypeInfo, ValType)} of
+        {{ok, _}, {ok, _}} ->
+            %% Generic key-value map allows additional properties
+            process_map_fields(TypeInfo, Rest, Properties, Required, true);
+        {{error, _} = Err, _} ->
+            Err;
+        {_, {error, _} = Err} ->
+            Err
+    end.
 
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
     {ok, map()} | {error, [spectra:error()]}.
@@ -440,8 +456,13 @@ try_generate_enum_schema(Types) ->
     case
         lists:all(
             fun
-                (#sp_literal{}) -> true;
-                (_) -> false
+                (#sp_literal{value = Value}) ->
+                    % Only simple literals are suitable for enum schemas
+                    % Note: floats cannot be literals in Erlang type specs
+                    Value =:= undefined orelse Value =:= nil orelse Value =:= true orelse
+                        Value =:= false orelse is_integer(Value) orelse is_atom(Value);
+                (_) ->
+                    false
             end,
             Types
         )

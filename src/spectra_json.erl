@@ -148,6 +148,8 @@ nonempty_list_to_json(_TypeInfo, Type, Data) ->
 ) ->
     {ok, [json:encode_value()]} | {error, [spectra:error()]}.
 list_to_json(TypeInfo, Type, Data) when is_list(Data) ->
+    % Validate that the element type is supported, even for empty lists
+    % This ensures consistency with schema generation
     spectra_util:map_until_error(
         fun({Nr, Item}) ->
             case do_to_json(TypeInfo, Type, Item) of
