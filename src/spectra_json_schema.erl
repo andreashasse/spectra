@@ -235,7 +235,12 @@ record_replace_vars(RecordInfo, TypeArgs) ->
 ) ->
     spectra:sp_type().
 type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    maps:get(Name, NamedTypes, #sp_simple_type{type = term});
+    case maps:find(Name, NamedTypes) of
+        {ok, Type} ->
+            Type;
+        error ->
+            erlang:error({type_variable_not_found, Name})
+    end;
 type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
     case Type of
         #sp_union{types = UnionTypes} ->

@@ -753,7 +753,12 @@ arg_names(_) ->
 ) ->
     spectra:sp_type().
 type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    maps:get(Name, NamedTypes);
+    case maps:find(Name, NamedTypes) of
+        {ok, Type} ->
+            Type;
+        error ->
+            erlang:error({type_variable_not_found, Name})
+    end;
 type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
     case Type of
         #sp_union{types = UnionTypes} ->
@@ -809,6 +814,18 @@ type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
                     }
                 end,
                 Fields
+            )
+    };
+type_replace_vars(TypeInfo, #sp_list{type = ItemType}, NamedTypes) ->
+    #sp_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
+type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType}, NamedTypes) ->
+    #sp_nonempty_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
+type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
+    #sp_union{
+        types =
+            lists:map(
+                fun(T) -> type_replace_vars(TypeInfo, T, NamedTypes) end,
+                Types
             )
     };
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->

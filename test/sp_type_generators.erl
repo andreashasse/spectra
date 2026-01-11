@@ -49,7 +49,6 @@ simple_type_atom() ->
         {1, port},
         {10, iolist},
         {10, iodata},
-        {1, none},
         {10, map}
     ]).
 

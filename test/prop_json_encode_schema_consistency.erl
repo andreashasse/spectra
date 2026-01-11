@@ -105,6 +105,8 @@ safe_to_json(TypeInfo, Type, Data) ->
             ?spectra_error;
         error:{record_not_found, _} ->
             ?spectra_error;
+        error:{type_variable_not_found, _} ->
+            ?spectra_error;
         error:Reason:Stack ->
             {exception, {Reason, Stack}}
     end.
@@ -125,6 +127,8 @@ safe_to_schema(TypeInfo, Type) ->
             ?spectra_error;
         error:{record_not_found, _} ->
             ?spectra_error;
+        error:{type_variable_not_found, _} ->
+            ?spectra_error;
         error:Reason:Stack ->
             {exception, {Reason, Stack}}
     end.
@@ -144,6 +148,8 @@ safe_from_json(TypeInfo, Type, JsonValue) ->
         error:{type_not_found, _} ->
             ?spectra_error;
         error:{record_not_found, _} ->
+            ?spectra_error;
+        error:{type_variable_not_found, _} ->
             ?spectra_error;
         error:Reason:Stack ->
             {exception, {Reason, Stack}}
