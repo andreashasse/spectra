@@ -152,7 +152,8 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeA
     TypeArity = length(TypeArgs),
     case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
         {ok, Type} ->
-            do_to_schema(TypeInfo, Type);
+            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+            do_to_schema(TypeInfo, TypeWithoutVars);
         error ->
             erlang:error({type_not_found, TypeName})
     end;
@@ -288,6 +289,18 @@ type_replace_vars(_TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
                     }
                 end,
                 Fields
+            )
+    };
+type_replace_vars(TypeInfo, #sp_list{type = ItemType}, NamedTypes) ->
+    #sp_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
+type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType}, NamedTypes) ->
+    #sp_nonempty_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
+type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
+    #sp_union{
+        types =
+            lists:map(
+                fun(T) -> type_replace_vars(TypeInfo, T, NamedTypes) end,
+                Types
             )
     };
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->

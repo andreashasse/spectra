@@ -291,34 +291,8 @@ exception_type(Other) ->
 is_problematic_type(#sp_var{}) ->
     % Type variables are not supported
     true;
-is_problematic_type(#sp_type_with_variables{}) ->
-    % Types with variables are not supported
-    true;
-is_problematic_type(#sp_maybe_improper_list{}) ->
-    % Improper lists don't support JSON schema
-    true;
-is_problematic_type(#sp_nonempty_improper_list{}) ->
-    % Nonempty improper lists don't support JSON schema
-    true;
-%% Composite types containing problematic types also need to be filtered
-%% because to_json can succeed (e.g., empty list) but to_schema must generate schemas for all branches
-is_problematic_type(#sp_union{types = Types}) ->
-    lists:any(fun is_problematic_type/1, Types);
-is_problematic_type(#sp_list{type = T}) ->
-    is_problematic_type(T);
-is_problematic_type(#sp_nonempty_list{type = T}) ->
-    is_problematic_type(T);
-is_problematic_type(#sp_map{fields = Fields}) ->
-    lists:any(fun is_problematic_map_field/1, Fields);
-is_problematic_type(#sp_rec{fields = Fields}) ->
-    lists:any(fun(#sp_rec_field{type = T}) -> is_problematic_type(T) end, Fields);
 is_problematic_type(_) ->
     false.
-
-is_problematic_map_field(#literal_map_field{val_type = ValType}) ->
-    is_problematic_type(ValType);
-is_problematic_map_field(#typed_map_field{key_type = KeyType, val_type = ValType}) ->
-    is_problematic_type(KeyType) orelse is_problematic_type(ValType).
 
 %% Categorize types for collect() statistics
 type_category(#sp_simple_type{type = T}) ->

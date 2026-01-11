@@ -73,6 +73,23 @@ map1_from_json_test() ->
         from_json_result_1(#{<<"value">> => <<"hej">>, <<"errors">> => []})
     ).
 
+record_to_json_schema_test() ->
+    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            properties =>
+                #{
+                    <<"value">> => #{type => <<"integer">>},
+                    <<"errors">> => #{type => <<"array">>, items => #{type => <<"string">>}}
+                },
+            required => [<<"value">>, <<"errors">>]
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_schema_2020_12(Schema).
+
 -spec from_json_result_1(term()) -> int_result().
 from_json_result_1(Data) ->
     spectra_json:from_json(?MODULE, {type, int_result, 0}, Data).
