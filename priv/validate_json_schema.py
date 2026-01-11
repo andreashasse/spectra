@@ -18,7 +18,6 @@ installation is needed - uv will automatically handle dependencies.
 
 import json
 import sys
-from pathlib import Path
 
 import jsonschema
 from jsonschema import Draft202012Validator
