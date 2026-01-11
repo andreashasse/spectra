@@ -150,15 +150,23 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
 %% User type references
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    do_to_schema(TypeInfo, Type);
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            do_to_schema(TypeInfo, Type);
+        error ->
+            erlang:error({type_not_found, TypeName})
+    end;
 %% Remote types
 do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    do_to_schema(TypeInfo, TypeWithoutVars);
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            do_to_schema(TypeInfo, TypeWithoutVars);
+        error ->
+            erlang:error({type_not_found, TypeName})
+    end;
 %% Unsupported types
 do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
     NotSupported =:= pid orelse
@@ -393,8 +401,12 @@ process_map_fields(
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
     {ok, map()} | {error, [spectra:error()]}.
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
-    {ok, RecordInfo} = spectra_type_info:get_record(TypeInfo, RecordName),
-    record_to_schema_internal(TypeInfo, RecordInfo);
+    case spectra_type_info:get_record(TypeInfo, RecordName) of
+        {ok, RecordInfo} ->
+            record_to_schema_internal(TypeInfo, RecordInfo);
+        error ->
+            erlang:error({record_not_found, RecordName})
+    end;
 record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
     case process_record_fields(TypeInfo, Fields, #{}, []) of
         {ok, Properties, Required} ->

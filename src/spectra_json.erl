@@ -49,9 +49,13 @@ do_to_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArg
     is_atom(TypeName)
 ->
     TypeArity = length(TypeArgs),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-    do_to_json(TypeInfo, TypeWithoutVars, Data);
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+            do_to_json(TypeInfo, TypeWithoutVars, Data);
+        error ->
+            erlang:error({type_not_found, TypeName})
+    end;
 do_to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -107,9 +111,13 @@ do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
 do_to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    do_to_json(TypeInfo, TypeWithoutVars, Data);
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            do_to_json(TypeInfo, TypeWithoutVars, Data);
+        error ->
+            erlang:error({type_not_found, TypeName})
+    end;
 do_to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data) ->
     erlang:error({type_not_implemented, Type});
 do_to_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data) ->
@@ -355,8 +363,12 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
 ) ->
     {ok, #{atom() => json:encode_value()}} | {error, [spectra:error()]}.
 record_to_json(TypeInfo, RecordName, Record, TypeArgs) when is_atom(RecordName) ->
-    {ok, RecordInfo} = spectra_type_info:get_record(TypeInfo, RecordName),
-    record_to_json(TypeInfo, RecordInfo, Record, TypeArgs);
+    case spectra_type_info:get_record(TypeInfo, RecordName) of
+        {ok, RecordInfo} ->
+            record_to_json(TypeInfo, RecordInfo, Record, TypeArgs);
+        error ->
+            erlang:error({record_not_found, RecordName})
+    end;
 record_to_json(
     TypeInfo,
     #sp_rec{

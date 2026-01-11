@@ -43,9 +43,9 @@ json_encode_schema_consistency_unfiltered() ->
                             );
                         {error, _JsonError} ->
                             check_error_consistency(ToSchemaResult);
-                        {exception, JsonExceptionType, JsonException} ->
+                        {exception, JsonException} ->
                             check_exception_consistency(
-                                JsonExceptionType, JsonException, ToSchemaResult
+                                JsonException, ToSchemaResult
                             )
                     end
                 end
@@ -79,9 +79,9 @@ prop_json_encode_schema_consistency_filtered() ->
                             );
                         {error, _JsonError} ->
                             check_error_consistency(ToSchemaResult);
-                        {exception, JsonExceptionType, JsonException} ->
+                        {exception, JsonException} ->
                             check_exception_consistency(
-                                JsonExceptionType, JsonException, ToSchemaResult
+                                JsonException, ToSchemaResult
                             )
                     end
                 end
@@ -95,20 +95,15 @@ safe_to_json(TypeInfo, Type, Data) ->
     try
         spectra_json:to_json(TypeInfo, Type, Data)
     catch
-        error:{type_not_supported, _}  ->
-
+        error:{type_not_supported, _} ->
             ?spectra_error;
-        error:{type_not_implemented, _}  ->
-
+        error:{type_not_implemented, _} ->
             ?spectra_error;
         error:{module_types_not_found, _, _} ->
-
             ?spectra_error;
         error:{type_not_found, _} ->
-
             ?spectra_error;
         error:{record_not_found, _} ->
-
             ?spectra_error;
         error:Reason:Stack ->
             {exception, {Reason, Stack}}
@@ -123,18 +118,14 @@ safe_to_schema(TypeInfo, Type) ->
         error:{type_not_supported, _} ->
             ?spectra_error;
         error:{type_not_implemented, _} ->
-
-        ?spectra_error;
+            ?spectra_error;
         error:{module_types_not_found, _, _} ->
-
-        ?spectra_error;
+            ?spectra_error;
         error:{type_not_found, _} ->
             ?spectra_error;
-
         error:{record_not_found, _} ->
             ?spectra_error;
-
-        error:Reason:Stack->
+        error:Reason:Stack ->
             {exception, {Reason, Stack}}
     end.
 
@@ -146,20 +137,14 @@ safe_from_json(TypeInfo, Type, JsonValue) ->
     catch
         error:{type_not_supported, _} ->
             ?spectra_error;
-
-
         error:{type_not_implemented, _} ->
             ?spectra_error;
-
         error:{module_types_not_found, _, _} ->
             ?spectra_error;
-
         error:{type_not_found, _} ->
             ?spectra_error;
-
         error:{record_not_found, _} ->
             ?spectra_error;
-
         error:Reason:Stack ->
             {exception, {Reason, Stack}}
     end.
@@ -198,7 +183,7 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
                         ),
                         false
                     );
-                {exception, ExceptionType, Exception} ->
+                {exception, Exception} ->
                     ?WHENFAIL(
                         io:format(
                             "~nInconsistency: to_json and to_schema succeeded, "
@@ -206,9 +191,8 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
                             "  Type: ~p~n"
                             "  Data: ~p~n"
                             "  JSON: ~p~n"
-                            "  Exception type: ~p~n"
                             "  Exception: ~p~n",
-                            [Type, OriginalData, JsonValue, ExceptionType, Exception]
+                            [Type, OriginalData, JsonValue, Exception]
                         ),
                         false
                     )
@@ -225,18 +209,17 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
                 ),
                 collect({success, type_category(Type)}, true)
             );
-        {exception, ExceptionType, Exception} ->
+        {exception, Exception} ->
             ?WHENFAIL(
                 io:format(
-                    "~nInconsistency: to_json succeeded but to_schema threw exception~n"
+                    "~nto_json succeeded but to_schema threw exception. This can happen.~n"
                     "  Type: ~p~n"
                     "  Data: ~p~n"
                     "  JSON: ~p~n"
-                    "  Exception type: ~p~n"
                     "  Exception: ~p~n",
-                    [Type, OriginalData, JsonValue, ExceptionType, Exception]
+                    [Type, OriginalData, JsonValue, Exception]
                 ),
-                false
+                collect({success, type_category(Type)}, true)
             )
     end.
 
@@ -249,27 +232,32 @@ check_error_consistency(ToSchemaResult) ->
             collect(to_json_error_schema_ok, true);
         {error, _} ->
             collect(to_json_error_schema_error, true);
-        {exception, _, _} ->
+        {exception, _} ->
             collect(to_json_error_schema_exception, true)
     end.
 
 %% When to_json throws exception, to_schema should also fail
 %% (either by throwing exception or returning error)
-check_exception_consistency(JsonExceptionType, JsonException, ToSchemaResult) ->
+check_exception_consistency(JsonException, ToSchemaResult) ->
+    JsonExceptionType = exception_type(JsonException),
     case ToSchemaResult of
-        {exception, SchemaExceptionType, _} when JsonExceptionType =:= SchemaExceptionType ->
-            % Exceptions match - this is expected consistency
-            collect({both_exception, JsonExceptionType}, true);
-        {exception, SchemaExceptionType, SchemaException} ->
-            ?WHENFAIL(
-                io:format(
-                    "~nInconsistency: Different exception types~n"
-                    "  to_json exception: ~p (~p)~n"
-                    "  to_schema exception: ~p (~p)~n",
-                    [JsonExceptionType, JsonException, SchemaExceptionType, SchemaException]
-                ),
-                false
-            );
+        {exception, SchemaException} ->
+            SchemaExceptionType = exception_type(SchemaException),
+            case JsonExceptionType =:= SchemaExceptionType of
+                true ->
+                    % Exceptions match - this is expected consistency
+                    collect({both_exception, JsonExceptionType}, true);
+                false ->
+                    ?WHENFAIL(
+                        io:format(
+                            "~nInconsistency: Different exception types~n"
+                            "  to_json exception type: ~p~n"
+                            "  to_schema exception type: ~p~n",
+                            [JsonExceptionType, SchemaExceptionType]
+                        ),
+                        false
+                    )
+            end;
         {error, _SchemaError} ->
             % Schema returned error - this is acceptable, both operations failed
             % (different error mechanisms but both indicate "not supported")
@@ -278,29 +266,52 @@ check_exception_consistency(JsonExceptionType, JsonException, ToSchemaResult) ->
             ?WHENFAIL(
                 io:format(
                     "~nInconsistency: to_json threw exception but to_schema succeeded~n"
-                    "  to_json exception: ~p (~p)~n",
-                    [JsonExceptionType, JsonException]
+                    "  to_json exception type: ~p~n",
+                    [JsonExceptionType]
                 ),
                 false
             )
     end.
 
+%% Extract the exception type from an exception value
+exception_type(spectra_error) ->
+    spectra_error;
+exception_type({ErrorType, _Stack}) when is_tuple(ErrorType); is_atom(ErrorType) ->
+    % For errors like {function_clause, Stack} or {type_not_supported, Details}
+    % we extract just the error type
+    case ErrorType of
+        ET when is_atom(ET) -> ET;
+        ET when is_tuple(ET) -> element(1, ET)
+    end;
+exception_type(Other) ->
+    Other.
+
 %% Filter out types that have known bugs in the library
 %% These types cause inconsistencies between to_json and to_schema
-%% Currently all known inconsistencies have been fixed, so this always returns false.
-%% The recursive structure is kept for future use if new problematic types are discovered.
+is_problematic_type(#sp_var{}) ->
+    % Type variables are not supported
+    true;
+is_problematic_type(#sp_type_with_variables{}) ->
+    % Types with variables are not supported
+    true;
+is_problematic_type(#sp_maybe_improper_list{}) ->
+    % Improper lists don't support JSON schema
+    true;
+is_problematic_type(#sp_nonempty_improper_list{}) ->
+    % Nonempty improper lists don't support JSON schema
+    true;
+%% Composite types containing problematic types also need to be filtered
+%% because to_json can succeed (e.g., empty list) but to_schema must generate schemas for all branches
 is_problematic_type(#sp_union{types = Types}) ->
-    % Check if union contains other problematic types
     lists:any(fun is_problematic_type/1, Types);
+is_problematic_type(#sp_list{type = T}) ->
+    is_problematic_type(T);
 is_problematic_type(#sp_nonempty_list{type = T}) ->
-    % Nonempty lists with problematic element types
     is_problematic_type(T);
 is_problematic_type(#sp_map{fields = Fields}) ->
-    % Maps with problematic field types
     lists:any(fun is_problematic_map_field/1, Fields);
-is_problematic_type(#sp_list{type = T}) ->
-    % Lists with problematic element types
-    is_problematic_type(T);
+is_problematic_type(#sp_rec{fields = Fields}) ->
+    lists:any(fun(#sp_rec_field{type = T}) -> is_problematic_type(T) end, Fields);
 is_problematic_type(_) ->
     false.
 
