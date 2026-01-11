@@ -173,6 +173,15 @@ do_to_schema(_TypeInfo, #sp_tuple{} = Type) ->
     erlang:error({type_not_supported, Type});
 do_to_schema(_TypeInfo, #sp_function{} = Type) ->
     erlang:error({type_not_supported, Type});
+do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
+    erlang:error({type_not_implemented, Type});
+do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
+    erlang:error({type_not_implemented, Type});
+%% Type variables must be replaced with concrete types before schema generation
+do_to_schema(_TypeInfo, #sp_var{} = Type) ->
+    erlang:error({type_not_supported, Type});
+do_to_schema(_TypeInfo, #sp_type_with_variables{} = Type) ->
+    erlang:error({type_not_supported, Type});
 %% Fallback
 do_to_schema(_TypeInfo, Type) ->
     {error, [

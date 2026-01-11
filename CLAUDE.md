@@ -8,6 +8,8 @@ spectra - A data validation library for Erlang inspired by Pydantic
 make format
 make build-test
 ```
+When `make build-test` succeeds, see if you can cleanup the code.
+Once that is done, run `make proper`.
 
 ## Common Tasks
   - Add test: Create new test file in test/ directory
@@ -16,6 +18,7 @@ make build-test
 ## Development Guidelines
   - Don't define types in .hrl files. Types that the user of this library should use should be defined in spectra.erl
   - When using a type that is defined in the same file, you don't have to prefix it with the module name
+  - When the property based tests uncover an error. Make a unit test that reproduces the error and fix the error.
 
 ## Library Architecture
   - The library uses Erlang types during runtime to support type-safe serialization and deserialization

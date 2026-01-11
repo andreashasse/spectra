@@ -123,17 +123,29 @@ sp_map(Size) ->
 sp_rec() ->
     ?SIZED(Size, sp_rec(Size)).
 
+sp_rec_field(Size) ->
+    ?LET(
+        {FieldName, FieldType},
+        {my_atom(), sp_type(Size)},
+        #sp_rec_field{
+            name = FieldName,
+            binary_name = atom_to_binary(FieldName, utf8),
+            type = FieldType
+        }
+    ).
+
 sp_rec(Size) ->
     ?LET(
         Len,
         choose(1, max(1, Size)),
         ?LET(
-            {Name, Fields, Arity},
-            {my_atom(), non_empty(vector(Len, {my_atom(), sp_type(Size)})), pos_integer()},
+            {Name, Fields},
+            {my_atom(), non_empty(vector(Len, sp_rec_field(Size)))},
             #sp_rec{
                 name = Name,
                 fields = Fields,
-                arity = Arity
+                % Arity is number of fields + 1 for the tag
+                arity = length(Fields) + 1
             }
         )
     ).

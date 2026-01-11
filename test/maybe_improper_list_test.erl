@@ -122,3 +122,17 @@ spectra_json_handles_maybe_improper_list_data_from_json_test() ->
         spectra_json:from_json(?MODULE, {type, non_empty_iolist1, 0}, Data)
     ),
     ok.
+
+spectra_json_schema_handles_maybe_improper_list_test() ->
+    ?assertError(
+        {type_not_implemented, _},
+        spectra_json_schema:to_schema(?MODULE, {type, iolist1, 0})
+    ),
+    ok.
+
+spectra_json_schema_handles_nonempty_improper_list_test() ->
+    ?assertError(
+        {type_not_implemented, _},
+        spectra_json_schema:to_schema(?MODULE, {type, non_empty_iolist1, 0})
+    ),
+    ok.
