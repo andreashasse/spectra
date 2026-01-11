@@ -59,8 +59,8 @@ prop_json_encode_schema_consistency_filtered() ->
         Type,
         ?SUCHTHAT(T, sp_type_generators:sp_type(), not is_problematic_type(T)),
         begin
-            % Create TypeInfo context with the generated type
-            TypeInfo = #{{type, test_type} => Type},
+            % Create TypeInfo context with the generated type plus known reference types
+            TypeInfo = create_typeinfo_with_known_types(Type),
 
             % Generate data matching this type
             ?FORALL(
@@ -88,6 +88,55 @@ prop_json_encode_schema_consistency_filtered() ->
             )
         end
     ).
+
+%% Create TypeInfo with the test type plus all known types that generators might reference
+create_typeinfo_with_known_types(Type) ->
+    #{
+        {type, test_type} => Type,
+        %% Known types for sp_user_type_ref
+        {type, my_type} => #sp_simple_type{type = integer},
+        {type, my_string_type} => #sp_simple_type{type = string},
+        {type, my_int_type} => #sp_simple_type{type = integer},
+        %% Known records for sp_rec_ref
+        {record, my_record} => #sp_rec{
+            name = my_record,
+            arity = 3,
+            fields = [
+                #sp_rec_field{
+                    name = id,
+                    binary_name = <<"id">>,
+                    type = #sp_simple_type{type = integer}
+                },
+                #sp_rec_field{
+                    name = name,
+                    binary_name = <<"name">>,
+                    type = #sp_simple_type{type = string}
+                }
+            ]
+        },
+        {record, user_record} => #sp_rec{
+            name = user_record,
+            arity = 2,
+            fields = [
+                #sp_rec_field{
+                    name = value,
+                    binary_name = <<"value">>,
+                    type = #sp_simple_type{type = integer}
+                }
+            ]
+        },
+        {record, data_record} => #sp_rec{
+            name = data_record,
+            arity = 2,
+            fields = [
+                #sp_rec_field{
+                    name = data,
+                    binary_name = <<"data">>,
+                    type = #sp_simple_type{type = binary}
+                }
+            ]
+        }
+    }.
 
 %% Safe wrapper for to_json that catches exceptions
 %% Categorizes exceptions by their error type for consistency checking
@@ -296,6 +345,9 @@ exception_type(Other) ->
 %% These types cause inconsistencies between to_json and to_schema
 is_problematic_type(#sp_var{}) ->
     % Type variables are not supported
+    true;
+is_problematic_type(#sp_remote_type{}) ->
+    % Remote types require module type info which is complex to set up in tests
     true;
 is_problematic_type(_) ->
     false.

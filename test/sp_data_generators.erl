@@ -73,7 +73,7 @@ gen_data(_TypeInfo, #sp_var{name = _Name}) ->
     term();
 gen_data(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = _Variables}) ->
     #{{type, TypeName} := TypeDef} = TypeInfo,
-            gen_data(TypeInfo, TypeDef);
+    gen_data(TypeInfo, TypeDef);
 gen_data(TypeInfo, #sp_maybe_improper_list{elements = ElemType, tail = TailType}) ->
     oneof([
         list(gen_data(TypeInfo, ElemType)),

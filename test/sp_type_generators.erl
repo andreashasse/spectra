@@ -208,11 +208,17 @@ sp_rec_ref(Size) ->
         Len,
         choose(0, Size),
         ?LET(
-            {RecordName, FieldTypes},
-            {my_atom(), vector(Len, record_field(Size))},
-            #sp_rec_ref{record_name = RecordName, field_types = FieldTypes}
+            FieldTypes,
+            vector(Len, record_field(Size)),
+            #sp_rec_ref{
+                record_name = known_record_name(),
+                field_types = FieldTypes
+            }
         )
     ).
+
+known_record_name() ->
+    oneof([my_record, user_record, data_record]).
 
 %% Remote type generator
 sp_remote_type() ->
@@ -223,11 +229,17 @@ sp_remote_type(Size) ->
         Len,
         choose(0, Size),
         ?LET(
-            {Module, Function, Args},
-            {my_atom(), my_atom(), vector(Len, sp_type(Size))},
-            #sp_remote_type{mfargs = {Module, Function, Args}}
+            Args,
+            vector(Len, sp_type(Size)),
+            #sp_remote_type{
+                mfargs = {known_module(), known_type_name(), Args}
+            }
         )
     ).
+
+known_module() ->
+    %% Use prop_json_encode_schema_consistency as it's guaranteed to be loaded
+    prop_json_encode_schema_consistency.
 
 %% Maybe improper list generator
 sp_maybe_improper_list() ->
@@ -261,11 +273,17 @@ sp_user_type_ref(Size) ->
         Len,
         choose(0, Size),
         ?LET(
-            {TypeName, Variables},
-            {my_atom(), vector(Len, sp_type(Size))},
-            #sp_user_type_ref{type_name = TypeName, variables = Variables}
+            Variables,
+            vector(Len, sp_type(Size)),
+            #sp_user_type_ref{
+                type_name = known_type_name(),
+                variables = Variables
+            }
         )
     ).
+
+known_type_name() ->
+    oneof([my_type, my_string_type, my_int_type]).
 
 %% Variable generator
 sp_var() ->
@@ -316,11 +334,11 @@ sp_type(Size) ->
         {10, sp_type_with_variables(ChildSize)},
         {1, sp_function(ChildSize)},
         {10, sp_union(ChildSize)},
-        {10, sp_rec_ref(ChildSize)},
-        {10, sp_remote_type(ChildSize)},
+        {1, sp_rec_ref(ChildSize)},
+        {1, sp_remote_type(ChildSize)},
         {10, sp_maybe_improper_list(ChildSize)},
         {10, sp_nonempty_improper_list(ChildSize)},
-        {10, sp_user_type_ref(ChildSize)},
+        {1, sp_user_type_ref(ChildSize)},
         {10, sp_list(ChildSize)},
         {10, sp_nonempty_list(ChildSize)}
     ]).

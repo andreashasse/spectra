@@ -492,43 +492,25 @@ generate_oneof_schema(TypeInfo, Types) ->
     end.
 
 try_generate_enum_schema(Types) ->
-    case
-        lists:all(
-            fun
-                (#sp_literal{value = Value}) ->
-                    % Only simple literals are suitable for enum schemas
-                    % Note: floats cannot be literals in Erlang type specs
-                    Value =:= undefined orelse Value =:= nil orelse Value =:= true orelse
-                        Value =:= false orelse is_integer(Value) orelse is_atom(Value);
-                (_) ->
-                    false
-            end,
-            Types
-        )
-    of
-        true ->
-            EnumValues = lists:map(
-                fun
-                    (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                        null;
-                    (#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
-                        Value;
-                    (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
-                        BinaryValue;
-                    (#sp_literal{value = Value}) ->
-                        Value
-                end,
-                Types
-            ),
-            JsonType = infer_json_type(Types),
-            case JsonType of
-                undefined ->
-                    {ok, #{enum => EnumValues}};
-                Type ->
-                    {ok, #{type => Type, enum => EnumValues}}
-            end;
-        false ->
-            not_all_literals
+    EnumValues = lists:map(
+        fun
+            (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
+                null;
+            (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
+                BinaryValue;
+            (#sp_literal{value = Value}) when is_integer(Value) ->
+                Value;
+            (#sp_literal{} = Type) ->
+                erlang:error({type_not_supported, Type})
+        end,
+        Types
+    ),
+    JsonType = infer_json_type(Types),
+    case JsonType of
+        undefined ->
+            {ok, #{enum => EnumValues}};
+        Type ->
+            {ok, #{type => Type, enum => EnumValues}}
     end.
 
 infer_json_type(Types) ->
