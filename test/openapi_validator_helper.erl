@@ -5,12 +5,12 @@
 %% @doc Validate that an OpenAPI spec conforms to OpenAPI 3.1 using Python validator.
 %% This function writes the spec to a temporary file, runs the validation script,
 %% and returns the result.
--spec validate_openapi_3_1(map()) -> ok | {error, term()}.
+-spec validate_openapi_3_1(map()) -> ok | {skip, string()} | {error, term()}.
 validate_openapi_3_1(Spec) ->
     validate_openapi(Spec).
 
 %% @doc Validate an OpenAPI spec using the Python validator script.
--spec validate_openapi(map()) -> ok | {error, term()}.
+-spec validate_openapi(map()) -> ok | {skip, string()} | {error, term()}.
 validate_openapi(Spec) ->
     %% Check if uv is available
     case os:find_executable("uv") of
