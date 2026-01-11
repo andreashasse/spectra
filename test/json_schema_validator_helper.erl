@@ -5,12 +5,12 @@
 %% @doc Validate that a schema conforms to JSON Schema 2020-12 using Python validator.
 %% This function writes the schema to a temporary file, runs the validation script,
 %% and returns the result.
--spec validate_schema_2020_12(map()) -> ok | {error, term()}.
+-spec validate_schema_2020_12(map()) -> ok | {skip, string()} | {error, term()}.
 validate_schema_2020_12(Schema) ->
     validate_schema(Schema).
 
 %% @doc Validate a schema using the Python validator script.
--spec validate_schema(map()) -> ok | {error, term()}.
+-spec validate_schema(map()) -> ok | {skip, string()} | {error, term()}.
 validate_schema(Schema) ->
     %% Check if uv is available
     case os:find_executable("uv") of
