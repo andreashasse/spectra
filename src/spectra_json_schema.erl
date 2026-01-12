@@ -490,7 +490,7 @@ try_generate_enum_schema(Types) ->
     EnumValues = lists:map(
         fun
             (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                null;
+                <<"null">>;
             (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
                 BinaryValue;
             (#sp_literal{value = Value}) when is_integer(Value) ->

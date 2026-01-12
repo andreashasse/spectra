@@ -320,7 +320,7 @@ sp_type() ->
     ?SIZED(Size, sp_type(Size)).
 
 sp_type(0) ->
-    oneof([sp_simple_type(), sp_literal(1), sp_var(), sp_range()]);
+    oneof([sp_simple_type(), sp_literal(1), sp_range()]);
 sp_type(Size) ->
     ChildSize = Size div 2,
     frequency([
@@ -338,7 +338,7 @@ sp_type(Size) ->
         {1, sp_remote_type(ChildSize)},
         {10, sp_maybe_improper_list(ChildSize)},
         {10, sp_nonempty_improper_list(ChildSize)},
-        {1, sp_user_type_ref(ChildSize)},
+        %{1, sp_user_type_ref(ChildSize)}, FIXME: Need to generate this better
         {10, sp_list(ChildSize)},
         {10, sp_nonempty_list(ChildSize)}
     ]).

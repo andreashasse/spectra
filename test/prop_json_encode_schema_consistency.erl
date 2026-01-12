@@ -86,7 +86,15 @@ prop_json_encode_schema_consistency_filtered() ->
                                 TypeInfo, Type, Data, JsonValue, ToSchemaResult
                             );
                         {error, _JsonError} ->
-                            check_error_consistency(ToSchemaResult);
+                            ?WHENFAIL(
+                                       io:format(
+                                           "~nto_json failed on good? data:~n"
+                                           "  Type: ~p~n"
+                                           "  Original Data: ~p~n",
+                                           [Type, Data]
+                                       ),
+                                       collect({success, type_category(Type)}, true)
+                                   );
                         {exception, JsonException} ->
                             check_exception_consistency(
                                 JsonException, ToSchemaResult
@@ -99,14 +107,14 @@ prop_json_encode_schema_consistency_filtered() ->
 
 %% Create TypeInfo with the test type plus all known types that generators might reference
 create_typeinfo_with_known_types(Type) ->
-    #{
-        {type, test_type} => Type,
-        %% Known types for sp_user_type_ref
-        {type, my_type} => #sp_simple_type{type = integer},
-        {type, my_string_type} => #sp_simple_type{type = string},
-        {type, my_int_type} => #sp_simple_type{type = integer},
-        %% Known records for sp_rec_ref
-        {record, my_record} => #sp_rec{
+    Types = [
+        {test_type, 0, Type},
+        {my_type, 0, #sp_simple_type{type = integer}},
+        {my_string_type, 0, #sp_simple_type{type = string}},
+        {my_int_type, 0, #sp_simple_type{type = integer}}
+    ],
+    Records = [
+        {my_record, #sp_rec{
             name = my_record,
             arity = 3,
             fields = [
@@ -121,8 +129,8 @@ create_typeinfo_with_known_types(Type) ->
                     type = #sp_simple_type{type = string}
                 }
             ]
-        },
-        {record, user_record} => #sp_rec{
+        }},
+        {user_record, #sp_rec{
             name = user_record,
             arity = 2,
             fields = [
@@ -132,8 +140,8 @@ create_typeinfo_with_known_types(Type) ->
                     type = #sp_simple_type{type = integer}
                 }
             ]
-        },
-        {record, data_record} => #sp_rec{
+        }},
+        {data_record, #sp_rec{
             name = data_record,
             arity = 2,
             fields = [
@@ -143,8 +151,24 @@ create_typeinfo_with_known_types(Type) ->
                     type = #sp_simple_type{type = binary}
                 }
             ]
-        }
-    }.
+        }}
+    ],
+
+    TypeInfo0 = spectra_type_info:new(),
+    TypeInfo1 = lists:foldl(
+        fun({Name, Arity, T}, Acc) ->
+            spectra_type_info:add_type(Acc, Name, Arity, T)
+        end,
+        TypeInfo0,
+        Types
+    ),
+    lists:foldl(
+        fun({Name, Record}, Acc) ->
+            spectra_type_info:add_record(Acc, Name, Record)
+        end,
+        TypeInfo1,
+        Records
+    ).
 
 safe_to_json(TypeInfo, Type, Data) ->
     save(fun() -> spectra_json:to_json(TypeInfo, Type, Data) end).
@@ -249,19 +273,6 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
             )
     end.
 
-%% When to_json returns error, to_schema can succeed or fail
-%% (error returns are for data validation, not type support)
-check_error_consistency(ToSchemaResult) ->
-    case ToSchemaResult of
-        {ok, _Schema} ->
-            % This is OK - to_json can fail on invalid data even if schema is valid
-            collect(to_json_error_schema_ok, true);
-        {error, _} ->
-            collect(to_json_error_schema_error, true);
-        {exception, _} ->
-            collect(to_json_error_schema_exception, true)
-    end.
-
 %% When to_json throws exception, to_schema should also fail
 %% (either by throwing exception or returning error)
 check_exception_consistency(JsonException, ToSchemaResult) ->
@@ -284,10 +295,16 @@ check_exception_consistency(JsonException, ToSchemaResult) ->
                         false
                     )
             end;
-        {error, _SchemaError} ->
-            % Schema returned error - this is acceptable, both operations failed
-            % (different error mechanisms but both indicate "not supported")
-            collect({to_json_exception_schema_error, JsonExceptionType}, true);
+        {error, SchemaError} ->
+            ?WHENFAIL(
+                io:format(
+                    "~nInconsistency: to_json exception schema error~n"
+                    "  to_json exception: ~p~n"
+                    "  to_schema error: ~p~n",
+                    [JsonException, SchemaError]
+                ),
+                false
+            );
         {ok, _Schema} ->
             ?WHENFAIL(
                 io:format(
@@ -310,7 +327,6 @@ exception_type({ErrorType, _Stack}) when is_tuple(ErrorType); is_atom(ErrorType)
 exception_type(Other) ->
     Other.
 
-%% Filter out types that have known bugs in the library
 %% These types cause inconsistencies between to_json and to_schema
 is_problematic_type(#sp_var{}) ->
     % Type variables are not supported

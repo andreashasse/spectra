@@ -471,11 +471,11 @@ do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
     case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
-    {ok, Type} ->
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    do_from_json(TypeInfo, TypeWithoutVars, Data);
-    error ->
-        erlang:error({type_not_found, TypeName})
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            do_from_json(TypeInfo, TypeWithoutVars, Data);
+        error ->
+            erlang:error({type_not_found, TypeName})
     end;
 do_from_json(
     TypeInfo,

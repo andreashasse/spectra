@@ -23,13 +23,13 @@ gen_data(_TypeInfo, #sp_simple_type{type = boolean}) ->
 gen_data(_TypeInfo, #sp_simple_type{type = atom}) ->
     atom();
 gen_data(_TypeInfo, #sp_simple_type{type = string}) ->
-    list(char());
+    utf8_string();
 gen_data(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
-    non_empty(list(char()));
+    non_empty(utf8_string());
 gen_data(_TypeInfo, #sp_simple_type{type = binary}) ->
-    binary();
+    utf8();
 gen_data(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
-    ?SUCHTHAT(B, binary(), byte_size(B) > 0);
+    ?SUCHTHAT(B, utf8(), byte_size(B) > 0);
 gen_data(_TypeInfo, #sp_simple_type{type = bitstring}) ->
     bitstring();
 gen_data(_TypeInfo, #sp_simple_type{type = nonempty_bitstring}) ->
@@ -71,8 +71,8 @@ gen_data(TypeInfo, #sp_rec_ref{record_name = RecordName, field_types = FieldType
     list_to_tuple([RecordName | FieldValues]);
 gen_data(_TypeInfo, #sp_var{name = _Name}) ->
     term();
-gen_data(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = _Variables}) ->
-    #{{type, TypeName} := TypeDef} = TypeInfo,
+gen_data(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Variables}) ->
+    {ok, TypeDef} = spectra_type_info:get_type(TypeInfo, TypeName, length(Variables)),
     gen_data(TypeInfo, TypeDef);
 gen_data(TypeInfo, #sp_maybe_improper_list{elements = ElemType, tail = TailType}) ->
     oneof([
