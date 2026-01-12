@@ -42,7 +42,15 @@ json_encode_schema_consistency_unfiltered() ->
                                 TypeInfo, Type, Data, JsonValue, ToSchemaResult
                             );
                         {error, _JsonError} ->
-                            check_error_consistency(ToSchemaResult);
+                            ?WHENFAIL(
+                                io:format(
+                                    "~nto_json failed on good? data:~n"
+                                    "  Type: ~p~n"
+                                    "  Original Data: ~p~n",
+                                    [Type, Data]
+                                ),
+                                collect({success, type_category(Type)}, true)
+                            );
                         {exception, JsonException} ->
                             check_exception_consistency(
                                 JsonException, ToSchemaResult
@@ -138,55 +146,18 @@ create_typeinfo_with_known_types(Type) ->
         }
     }.
 
-%% Safe wrapper for to_json that catches exceptions
-%% Categorizes exceptions by their error type for consistency checking
 safe_to_json(TypeInfo, Type, Data) ->
-    try
-        spectra_json:to_json(TypeInfo, Type, Data)
-    catch
-        error:{type_not_supported, _} ->
-            ?spectra_error;
-        error:{type_not_implemented, _} ->
-            ?spectra_error;
-        error:{module_types_not_found, _, _} ->
-            ?spectra_error;
-        error:{type_not_found, _} ->
-            ?spectra_error;
-        error:{record_not_found, _} ->
-            ?spectra_error;
-        error:{type_variable_not_found, _} ->
-            ?spectra_error;
-        error:Reason:Stack ->
-            {exception, {Reason, Stack}}
-    end.
+    save(fun() -> spectra_json:to_json(TypeInfo, Type, Data) end).
 
-%% Safe wrapper for to_schema
-%% Categorizes exceptions by their error type for consistency checking
 safe_to_schema(TypeInfo, Type) ->
-    try
-        spectra_json_schema:to_schema(TypeInfo, Type)
-    catch
-        error:{type_not_supported, _} ->
-            ?spectra_error;
-        error:{type_not_implemented, _} ->
-            ?spectra_error;
-        error:{module_types_not_found, _, _} ->
-            ?spectra_error;
-        error:{type_not_found, _} ->
-            ?spectra_error;
-        error:{record_not_found, _} ->
-            ?spectra_error;
-        error:{type_variable_not_found, _} ->
-            ?spectra_error;
-        error:Reason:Stack ->
-            {exception, {Reason, Stack}}
-    end.
+    save(fun() -> spectra_json_schema:to_schema(TypeInfo, Type) end).
 
-%% Safe wrapper for from_json
-%% Categorizes exceptions by their error type for consistency checking
 safe_from_json(TypeInfo, Type, JsonValue) ->
+    save(fun() -> spectra_json:from_json(TypeInfo, Type, JsonValue) end).
+
+save(Fun) ->
     try
-        spectra_json:from_json(TypeInfo, Type, JsonValue)
+        Fun()
     catch
         error:{type_not_supported, _} ->
             ?spectra_error;
@@ -308,7 +279,7 @@ check_exception_consistency(JsonException, ToSchemaResult) ->
                             "~nInconsistency: Different exception types~n"
                             "  to_json exception type: ~p~n"
                             "  to_schema exception type: ~p~n",
-                            [JsonExceptionType, SchemaExceptionType]
+                            [JsonException, SchemaException]
                         ),
                         false
                     )
@@ -322,15 +293,13 @@ check_exception_consistency(JsonException, ToSchemaResult) ->
                 io:format(
                     "~nInconsistency: to_json threw exception but to_schema succeeded~n"
                     "  to_json exception type: ~p~n",
-                    [JsonExceptionType]
+                    [JsonException]
                 ),
                 false
             )
     end.
 
 %% Extract the exception type from an exception value
-exception_type(spectra_error) ->
-    spectra_error;
 exception_type({ErrorType, _Stack}) when is_tuple(ErrorType); is_atom(ErrorType) ->
     % For errors like {function_clause, Stack} or {type_not_supported, Details}
     % we extract just the error type

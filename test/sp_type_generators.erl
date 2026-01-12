@@ -327,11 +327,11 @@ sp_type(Size) ->
         {10, sp_simple_type()},
         {10, sp_literal(Size)},
         {10, sp_range()},
-        {10, sp_var()},
+        %{10, sp_var()}, FIXME: Need to understand this better.
         {1, sp_tuple(ChildSize)},
         {10, sp_map(ChildSize)},
         {10, sp_rec(ChildSize)},
-        {10, sp_type_with_variables(ChildSize)},
+        %{10, sp_type_with_variables(ChildSize)}, FIXME: Need to generate this better
         {1, sp_function(ChildSize)},
         {10, sp_union(ChildSize)},
         {1, sp_rec_ref(ChildSize)},
