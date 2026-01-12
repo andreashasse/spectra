@@ -19,12 +19,7 @@ to_json(Module, TypeRef, Data) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_json(TypeInfo, TypeRef, Data);
 to_json(TypeInfo, Type, Data) ->
-    case do_to_json(TypeInfo, Type, Data) of
-        {ok, Json} ->
-            {ok, Json};
-        {error, Errs} ->
-            {error, Errs}
-    end.
+    do_to_json(TypeInfo, Type, Data).
 
 %% INTERNAL
 -spec do_to_json(

@@ -279,13 +279,13 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
         #sp_list{type = ListType} ->
             #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
     end;
-type_replace_vars(_TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
+type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
     Rec#sp_rec{
         fields =
             lists:map(
                 fun(#sp_rec_field{type = NType} = Field) ->
                     Field#sp_rec_field{
-                        type = type_replace_vars(_TypeInfo, NType, NamedTypes)
+                        type = type_replace_vars(TypeInfo, NType, NamedTypes)
                     }
                 end,
                 Fields
