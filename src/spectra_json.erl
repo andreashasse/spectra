@@ -19,7 +19,12 @@ to_json(Module, TypeRef, Data) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_json(TypeInfo, TypeRef, Data);
 to_json(TypeInfo, Type, Data) ->
-    do_to_json(TypeInfo, Type, Data).
+    case do_to_json(TypeInfo, Type, Data) of
+        {ok, Json} ->
+            {ok, Json};
+        {error, Errs} ->
+            {error, Errs}
+    end.
 
 %% INTERNAL
 -spec do_to_json(
@@ -118,10 +123,6 @@ do_to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data) ->
 do_to_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data) ->
     erlang:error({type_not_implemented, Type});
 %% Type variables must be replaced with concrete types before encoding
-do_to_json(_TypeInfo, #sp_var{} = Type, _Data) ->
-    erlang:error({type_not_supported, Type});
-do_to_json(_TypeInfo, #sp_type_with_variables{} = Type, _Data) ->
-    erlang:error({type_not_supported, Type});
 %% Not supported types
 do_to_json(_TypeInfo, #sp_tuple{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
@@ -563,10 +564,6 @@ do_from_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Value) ->
 do_from_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Value) ->
     erlang:error({type_not_implemented, Type});
 %% Type variables must be replaced with concrete types before decoding
-do_from_json(_TypeInfo, #sp_var{} = Type, _Value) ->
-    erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, #sp_type_with_variables{} = Type, _Value) ->
-    erlang:error({type_not_supported, Type});
 do_from_json(_TypeInfo, #sp_function{} = Type, _Value) ->
     erlang:error({type_not_supported, Type});
 do_from_json(_TypeInfo, #sp_tuple{} = Type, _Value) ->
@@ -578,6 +575,10 @@ do_from_json(_TypeInfo, Type, Value) ->
     Type :: #sp_literal{},
     Value :: term()
 ) -> {ok, integer() | atom() | []} | false.
+try_convert_to_literal(
+    #sp_literal{value = []}, _Value
+) ->
+    false;
 try_convert_to_literal(
     #sp_literal{value = LiteralValue}, null
 ) when LiteralValue =:= nil orelse LiteralValue =:= undefined ->
