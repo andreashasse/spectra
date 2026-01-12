@@ -87,14 +87,14 @@ prop_json_encode_schema_consistency_filtered() ->
                             );
                         {error, _JsonError} ->
                             ?WHENFAIL(
-                                       io:format(
-                                           "~nto_json failed on good? data:~n"
-                                           "  Type: ~p~n"
-                                           "  Original Data: ~p~n",
-                                           [Type, Data]
-                                       ),
-                                       collect({success, type_category(Type)}, true)
-                                   );
+                                io:format(
+                                    "~nto_json failed on good? data:~n"
+                                    "  Type: ~p~n"
+                                    "  Original Data: ~p~n",
+                                    [Type, Data]
+                                ),
+                                collect({success, type_category(Type)}, true)
+                            );
                         {exception, JsonException} ->
                             check_exception_consistency(
                                 JsonException, ToSchemaResult

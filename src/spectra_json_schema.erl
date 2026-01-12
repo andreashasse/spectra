@@ -487,25 +487,32 @@ generate_oneof_schema(TypeInfo, Types) ->
     end.
 
 try_generate_enum_schema(Types) ->
-    EnumValues = lists:map(
+    Enums = spectra_util:map_until_error(
         fun
             (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                <<"null">>;
+                {ok, <<"null">>};
             (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
-                BinaryValue;
+                {ok, BinaryValue};
             (#sp_literal{value = Value}) when is_integer(Value) ->
-                Value;
-            (Type) ->
-                erlang:error({type_not_supported, Type})
+                {ok, Value};
+            (_Type) ->
+                %% FIXME: Should handle remote types etc here.
+                %% ... everything that can terminate to a literal
+                {error, not_all_literals}
         end,
         Types
     ),
-    JsonType = infer_json_type(Types),
-    case JsonType of
-        undefined ->
-            {ok, #{enum => EnumValues}};
-        Type ->
-            {ok, #{type => Type, enum => EnumValues}}
+    case Enums of
+        {error, not_all_literals} ->
+            not_all_literals;
+        {ok, EnumValues} ->
+            JsonType = infer_json_type(Types),
+            case JsonType of
+                undefined ->
+                    {ok, #{enum => EnumValues}};
+                Type ->
+                    {ok, #{type => Type, enum => EnumValues}}
+            end
     end.
 
 infer_json_type(Types) ->
