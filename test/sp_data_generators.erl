@@ -69,8 +69,6 @@ gen_data(TypeInfo, #sp_union{types = Types}) ->
 gen_data(TypeInfo, #sp_rec_ref{record_name = RecordName, field_types = FieldTypes}) ->
     FieldValues = [gen_data(TypeInfo, FieldType) || {_FieldName, FieldType} <- FieldTypes],
     list_to_tuple([RecordName | FieldValues]);
-gen_data(_TypeInfo, #sp_var{name = _Name}) ->
-    term();
 gen_data(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Variables}) ->
     {ok, TypeDef} = spectra_type_info:get_type(TypeInfo, TypeName, length(Variables)),
     gen_data(TypeInfo, TypeDef);
@@ -112,9 +110,21 @@ gen_map_data(TypeInfo, [#literal_map_field{name = Name, val_type = ValType} | Re
         gen_data(TypeInfo, ValType),
         gen_map_data(TypeInfo, Rest, Acc#{Name => Value})
     );
-gen_map_data(TypeInfo, [#typed_map_field{key_type = KeyType, val_type = ValType} | Rest], Acc) ->
+gen_map_data(
+    TypeInfo, [#typed_map_field{kind = assoc, key_type = KeyType, val_type = ValType} | Rest], Acc
+) ->
+    %% For associative maps (=>), generate 0 or more entries
     ?LET(
-        {Key, Value},
-        {gen_data(TypeInfo, KeyType), gen_data(TypeInfo, ValType)},
-        gen_map_data(TypeInfo, Rest, Acc#{Key => Value})
+        Entries,
+        list({gen_data(TypeInfo, KeyType), gen_data(TypeInfo, ValType)}),
+        gen_map_data(TypeInfo, Rest, maps:merge(Acc, maps:from_list(Entries)))
+    );
+gen_map_data(
+    TypeInfo, [#typed_map_field{kind = exact, key_type = KeyType, val_type = ValType} | Rest], Acc
+) ->
+    %% For exact maps (:=), generate 1 or more entries
+    ?LET(
+        Entries,
+        non_empty(list({gen_data(TypeInfo, KeyType), gen_data(TypeInfo, ValType)})),
+        gen_map_data(TypeInfo, Rest, maps:merge(Acc, maps:from_list(Entries)))
     ).

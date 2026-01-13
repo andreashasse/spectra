@@ -183,9 +183,9 @@ do_to_schema(_TypeInfo, #sp_tuple{} = Type) ->
 do_to_schema(_TypeInfo, #sp_function{} = Type) ->
     erlang:error({type_not_supported, Type});
 do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
-    erlang:error({type_not_implemented, Type});
+    erlang:error({type_not_supported, Type});
 do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
-    erlang:error({type_not_implemented, Type});
+    erlang:error({type_not_supported, Type});
 %% Fallback
 do_to_schema(_TypeInfo, Type) ->
     {error, [
@@ -197,6 +197,32 @@ do_to_schema(_TypeInfo, Type) ->
     ]}.
 
 %% Helper functions
+
+%% Check if a type can be used as a JSON object key (must be string-like)
+-spec can_be_json_key(spectra:type_info(), spectra:sp_type()) -> boolean().
+can_be_json_key(_TypeInfo, #sp_simple_type{type = Type}) when
+    Type =:= string orelse
+        Type =:= binary orelse
+        Type =:= nonempty_string orelse
+        Type =:= nonempty_binary orelse
+        Type =:= atom
+->
+    true;
+can_be_json_key(_TypeInfo, #sp_literal{value = Value}) when is_atom(Value) ->
+    true;
+can_be_json_key(TypeInfo, #sp_union{types = Types}) ->
+    lists:all(fun(T) -> can_be_json_key(TypeInfo, T) end, Types);
+can_be_json_key(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
+    TypeArity = length(TypeArgs),
+    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+        {ok, Type} ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+            can_be_json_key(TypeInfo, TypeWithoutVars);
+        error ->
+            erlang:error({type_not_found, TypeName})
+    end;
+can_be_json_key(_TypeInfo, _Type) ->
+    false.
 
 %% Add JSON Schema version to the schema
 -spec add_schema_version({ok, map()} | {error, [spectra:error()]}) ->
@@ -378,37 +404,53 @@ process_map_fields(
     end;
 process_map_fields(
     TypeInfo,
-    [#typed_map_field{kind = assoc, key_type = KeyType, val_type = ValType} | Rest],
+    [#typed_map_field{kind = assoc, key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
     _HasAdditional
 ) ->
-    %% Validate that key and value types are supported
-    case {do_to_schema(TypeInfo, KeyType), do_to_schema(TypeInfo, ValType)} of
-        {{ok, _}, {ok, _}} ->
-            %% Generic key-value map allows additional properties
-            process_map_fields(TypeInfo, Rest, Properties, Required, true);
-        {{error, _} = Err, _} ->
-            Err;
-        {_, {error, _} = Err} ->
-            Err
+    %% JSON object keys must be strings
+    case can_be_json_key(TypeInfo, KeyType) of
+        false ->
+            erlang:error({type_not_supported, Field});
+        true ->
+            %% Validate key and value types by attempting to generate schemas for them
+            case do_to_schema(TypeInfo, KeyType) of
+                {ok, _} ->
+                    case do_to_schema(TypeInfo, ValType) of
+                        {ok, _} ->
+                            process_map_fields(TypeInfo, Rest, Properties, Required, true);
+                        {error, _} = Err ->
+                            Err
+                    end;
+                {error, _} = Err ->
+                    Err
+            end
     end;
 process_map_fields(
     TypeInfo,
-    [#typed_map_field{kind = exact, key_type = KeyType, val_type = ValType} | Rest],
+    [#typed_map_field{kind = exact, key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
     _HasAdditional
 ) ->
-    %% Validate that key and value types are supported
-    case {do_to_schema(TypeInfo, KeyType), do_to_schema(TypeInfo, ValType)} of
-        {{ok, _}, {ok, _}} ->
-            %% Generic key-value map allows additional properties
-            process_map_fields(TypeInfo, Rest, Properties, Required, true);
-        {{error, _} = Err, _} ->
-            Err;
-        {_, {error, _} = Err} ->
-            Err
+    %% JSON object keys must be strings
+    case can_be_json_key(TypeInfo, KeyType) of
+        false ->
+            erlang:error({type_not_supported, Field});
+        true ->
+            %% Validate key and value types by attempting to generate schemas for them
+            case do_to_schema(TypeInfo, KeyType) of
+                {ok, _} ->
+                    case do_to_schema(TypeInfo, ValType) of
+                        {ok, _} ->
+                            process_map_fields(TypeInfo, Rest, Properties, Required, true);
+                        {error, _} = Err ->
+                            Err
+                    end;
+                {error, _} = Err ->
+                    Err
+            end
     end.
 
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
