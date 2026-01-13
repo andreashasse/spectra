@@ -375,7 +375,7 @@ process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional) ->
     {ok, Properties, Required, HasAdditional};
 process_map_fields(
     TypeInfo,
-    [#literal_map_field{kind = assoc, binary_name = BinaryName, val_type = FieldType} | Rest],
+    [#literal_map_field{kind = Kind, binary_name = BinaryName, val_type = FieldType} | Rest],
     Properties,
     Required,
     HasAdditional
@@ -383,51 +383,18 @@ process_map_fields(
     case do_to_schema(TypeInfo, FieldType) of
         {ok, FieldSchema} ->
             NewProperties = maps:put(BinaryName, FieldSchema, Properties),
-            process_map_fields(TypeInfo, Rest, NewProperties, Required, HasAdditional);
-        {error, _} = Err ->
-            Err
-    end;
-process_map_fields(
-    TypeInfo,
-    [#literal_map_field{kind = exact, binary_name = BinaryName, val_type = FieldType} | Rest],
-    Properties,
-    Required,
-    HasAdditional
-) ->
-    case do_to_schema(TypeInfo, FieldType) of
-        {ok, FieldSchema} ->
-            NewProperties = maps:put(BinaryName, FieldSchema, Properties),
-            NewRequired = [BinaryName | Required],
+            NewRequired =
+                case Kind of
+                    exact -> [BinaryName | Required];
+                    assoc -> Required
+                end,
             process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional);
         {error, _} = Err ->
             Err
     end;
 process_map_fields(
     TypeInfo,
-    [#typed_map_field{kind = assoc, key_type = KeyType, val_type = ValType} = Field | Rest],
-    Properties,
-    Required,
-    _HasAdditional
-) ->
-    case can_be_json_key(TypeInfo, KeyType) of
-        false ->
-            erlang:error({type_not_supported, Field});
-        true ->
-            case do_to_schema(TypeInfo, KeyType) of
-                {ok, _} ->
-                    case do_to_schema(TypeInfo, ValType) of
-                        {ok, _} ->
-                            process_map_fields(TypeInfo, Rest, Properties, Required, true);
-                        {error, _} = Err ->
-                            Err
-                    end;
-                {error, _} = Err ->
-                    Err
-            end
-    end;
-process_map_fields(
-    TypeInfo,
-    [#typed_map_field{kind = exact, key_type = KeyType, val_type = ValType} = Field | Rest],
+    [#typed_map_field{key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
     _HasAdditional

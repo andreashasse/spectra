@@ -53,10 +53,10 @@ def validate_schema(schema_path):
         print(f"❌ Schema missing $schema field")
         return False
 
-    schema_uri = schema.get("$schema", "")
+    schema_uri = schema["$schema"]
 
     # Check 2: Verify it's JSON Schema 2020-12
-    if not "2020-12" in schema_uri:
+    if "2020-12" not in schema_uri:
         print(f"❌ Schema does not declare JSON Schema 2020-12")
         print(f"   Found: {schema_uri}")
         print(f"   Expected: https://json-schema.org/draft/2020-12/schema")
