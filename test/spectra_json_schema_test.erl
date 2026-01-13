@@ -10,10 +10,10 @@ validate_with_python(Schema) ->
         ok ->
             ok;
         {skip, Reason} ->
-            io:format("Skipping Python validation: ~s~n", [Reason]),
+            io:format("Skipping Python validation: ~p~n", [Reason]),
             ok;
         {error, {validation_failed, Output}} ->
-            io:format("Python validation failed:~n~s~n", [Output]),
+            io:format("Python validation failed:~n~ts~n", [Output]),
             erlang:error({python_validation_failed, Output})
     end.
 

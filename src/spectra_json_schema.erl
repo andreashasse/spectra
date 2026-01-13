@@ -409,12 +409,10 @@ process_map_fields(
     Required,
     _HasAdditional
 ) ->
-    %% JSON object keys must be strings
     case can_be_json_key(TypeInfo, KeyType) of
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            %% Validate key and value types by attempting to generate schemas for them
             case do_to_schema(TypeInfo, KeyType) of
                 {ok, _} ->
                     case do_to_schema(TypeInfo, ValType) of
@@ -434,12 +432,10 @@ process_map_fields(
     Required,
     _HasAdditional
 ) ->
-    %% JSON object keys must be strings
     case can_be_json_key(TypeInfo, KeyType) of
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            %% Validate key and value types by attempting to generate schemas for them
             case do_to_schema(TypeInfo, KeyType) of
                 {ok, _} ->
                     case do_to_schema(TypeInfo, ValType) of

@@ -23,33 +23,10 @@ import jsonschema
 from jsonschema import Draft202012Validator
 
 
-def get_schema_version(schema):
-    """Determine JSON Schema version from $schema field"""
-    schema_uri = schema.get("$schema", "")
-
-    if "2020-12" in schema_uri:
-        return "2020-12"
-    elif "2019-09" in schema_uri:
-        return "2019-09"
-    elif "draft-07" in schema_uri:
-        return "draft-07"
-    elif "draft-06" in schema_uri:
-        return "draft-06"
-    elif "draft-04" in schema_uri:
-        return "draft-04"
-    else:
-        return "unknown"
-
-
 def load_json_file(filepath):
     """Load JSON from a file"""
-    try:
-        with open(filepath, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        raise Exception(f"File not found: {filepath}")
-    except json.JSONDecodeError as e:
-        raise Exception(f"Invalid JSON: {e}")
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
 
 def validate_schema(schema_path):
@@ -63,9 +40,6 @@ def validate_schema(schema_path):
     Returns:
         True if valid, False otherwise
     """
-    print(f"\n{'='*70}")
-    print(f"Validating: {schema_path}")
-    print(f"{'='*70}")
 
     # Load the schema
     try:
@@ -80,12 +54,11 @@ def validate_schema(schema_path):
         return False
 
     schema_uri = schema.get("$schema", "")
-    version = get_schema_version(schema)
 
     # Check 2: Verify it's JSON Schema 2020-12
-    if version != "2020-12":
+    if not "2020-12" in schema_uri:
         print(f"❌ Schema does not declare JSON Schema 2020-12")
-        print(f"   Found: {schema_uri} (version: {version})")
+        print(f"   Found: {schema_uri}")
         print(f"   Expected: https://json-schema.org/draft/2020-12/schema")
         return False
     else:
@@ -103,38 +76,6 @@ def validate_schema(schema_path):
             print(f"   Schema path: {list(e.schema_path)}")
         return False
 
-    # Display schema info
-    print(f"\n📋 Schema details:")
-    schema_type = schema.get('type', 'any')
-    print(f"   Type: {schema_type}")
-
-    if 'properties' in schema:
-        props = list(schema['properties'].keys())
-        if len(props) <= 5:
-            print(f"   Properties: {props}")
-        else:
-            print(f"   Properties: {props[:5]} ... ({len(props)} total)")
-
-    if 'required' in schema:
-        req = schema['required']
-        if len(req) <= 5:
-            print(f"   Required: {req}")
-        else:
-            print(f"   Required: {req[:5]} ... ({len(req)} total)")
-
-    if 'enum' in schema:
-        enum = schema['enum']
-        if len(enum) <= 5:
-            print(f"   Enum: {enum}")
-        else:
-            print(f"   Enum: {enum[:5]} ... ({len(enum)} values)")
-
-    if 'oneOf' in schema:
-        print(f"   OneOf: {len(schema['oneOf'])} alternatives")
-
-    if 'items' in schema:
-        print(f"   Items: {schema['items'].get('type', 'complex')}")
-
     return True
 
 
@@ -144,27 +85,13 @@ def main():
         print("\nValidates that JSON schemas conform to JSON Schema 2020-12 specification.")
         print("\nExample:")
         print("  python validate_json_schema.py my_schema.json")
-        print("  python validate_json_schema.py schemas/*.json")
         sys.exit(1)
 
-    print("="*70)
-    print("JSON Schema 2020-12 Validator")
-    print("="*70)
-
     all_valid = True
-    total_schemas = len(sys.argv) - 1
-    valid_count = 0
 
     for schema_file in sys.argv[1:]:
-        if validate_schema(schema_file):
-            valid_count += 1
-        else:
+        if not validate_schema(schema_file):
             all_valid = False
-
-    # Summary
-    print(f"\n{'='*70}")
-    print(f"Summary: {valid_count}/{total_schemas} schemas valid")
-    print(f"{'='*70}")
 
     if all_valid:
         print("✅ All schemas are valid JSON Schema 2020-12!")
