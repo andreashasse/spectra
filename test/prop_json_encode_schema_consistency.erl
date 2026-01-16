@@ -143,7 +143,7 @@ save(Fun) ->
             ?spectra_error;
         error:{module_types_not_found, _, _} ->
             ?spectra_error;
-        error:{type_not_found, _} ->
+        error:{type_not_found, _, _} ->
             ?spectra_error;
         error:{record_not_found, _} ->
             ?spectra_error;
