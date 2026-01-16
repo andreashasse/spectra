@@ -50,16 +50,16 @@ def validate_schema(schema_path):
 
     # Check 1: Verify $schema field exists
     if "$schema" not in schema:
-        print(f"❌ Schema missing $schema field")
+        print("❌ Schema missing $schema field")
         return False
 
     schema_uri = schema["$schema"]
 
     # Check 2: Verify it's JSON Schema 2020-12
     if "2020-12" not in schema_uri:
-        print(f"❌ Schema does not declare JSON Schema 2020-12")
+        print("❌ Schema does not declare JSON Schema 2020-12")
         print(f"   Found: {schema_uri}")
-        print(f"   Expected: https://json-schema.org/draft/2020-12/schema")
+        print("   Expected: https://json-schema.org/draft/2020-12/schema")
         return False
     else:
         print(f"✅ Schema declares: {schema_uri}")
@@ -67,7 +67,7 @@ def validate_schema(schema_path):
     # Check 3: Validate schema structure against meta-schema
     try:
         Draft202012Validator.check_schema(schema)
-        print(f"✅ Schema is valid JSON Schema 2020-12")
+        print("✅ Schema is valid JSON Schema 2020-12")
     except jsonschema.SchemaError as e:
         print(f"❌ Schema validation failed: {e.message}")
         if e.path:
