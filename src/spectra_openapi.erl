@@ -564,7 +564,6 @@ generate_response(#{description := Description} = ResponseSpec) when
                         DirectType ->
                             {ok, InlineSchema} =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            %% Remove $schema field for OpenAPI embedding
                             maps:remove(<<"$schema">>, InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
@@ -591,7 +590,6 @@ generate_response(#{description := Description} = ResponseSpec) when
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    %% Remove $schema field for OpenAPI embedding
     OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     BaseHeader = #{schema => OpenApiSchema},
@@ -626,7 +624,6 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                %% Remove $schema field for OpenAPI embedding
                 maps:remove(<<"$schema">>, InlineSchema)
         end,
 
@@ -649,7 +646,6 @@ generate_parameter(
     Required = maps:get(required, ParameterSpec, false),
 
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    %% Remove $schema field for OpenAPI embedding
     OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     #{
@@ -754,7 +750,6 @@ generate_components(SchemaRefs) ->
                     {ok, Schema} when is_map(Schema) ->
                         SchemaName =
                             type_ref_to_component_name(TypeRef),
-                        %% Remove $schema field for OpenAPI embedding
                         OpenApiSchema = maps:remove(<<"$schema">>, Schema),
                         {ok, Acc#{SchemaName => OpenApiSchema}};
                     {error, _} = Error ->
