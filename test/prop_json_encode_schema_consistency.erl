@@ -18,50 +18,6 @@
 %% It's not run automatically by `make proper`. To run it manually:
 %%   proper:quickcheck(prop_json_encode_schema_consistency:json_encode_schema_consistency_unfiltered())
 
-json_encode_schema_consistency_unfiltered() ->
-    ?FORALL(
-        Type,
-        sp_type_generators:sp_type(),
-        begin
-            % Create TypeInfo context with the generated type
-            TypeInfo = #{{type, test_type} => Type},
-
-            % Generate data matching this type
-            ?FORALL(
-                Data,
-                prop_base:gen_data(TypeInfo, Type),
-                begin
-                    % Safely call all three operations
-                    ToJsonResult = safe_to_json(TypeInfo, Type, Data),
-                    ToSchemaResult = safe_to_schema(TypeInfo, Type),
-
-                    % Check consistency based on to_json result
-                    case ToJsonResult of
-                        {ok, JsonValue} ->
-                            check_success_consistency(
-                                TypeInfo, Type, Data, JsonValue, ToSchemaResult
-                            );
-                        {error, _JsonError} ->
-                            ?WHENFAIL(
-                                io:format(
-                                    "~nto_json failed on good? data:~n"
-                                    "  Type: ~p~n"
-                                    "  Original Data: ~p~n",
-                                    [Type, Data]
-                                ),
-                                collect({success, type_category(Type)}, true)
-                            );
-                        {exception, JsonException} ->
-                            check_exception_consistency(
-                                JsonException, ToSchemaResult
-                            )
-                    end
-                end
-            )
-        end
-    ).
-
-%% Filtered version that excludes known problematic types for demonstration
 prop_json_encode_schema_consistency_filtered() ->
     ?FORALL(
         Type,
@@ -374,16 +330,3 @@ type_category(#sp_nonempty_improper_list{}) ->
     nonempty_improper_list;
 type_category(_) ->
     other.
-
-%% Uses filtered version to exclude known problematic types with bugs in the library.
-%% This demonstrates that the test infrastructure works correctly for consistent types.
-%%
-%% Known issues filtered out:
-%%   - Remote types with non-existent modules: to_json throws exception but to_schema succeeds
-%%   - Float/tuple literals in unions: to_json succeeds but to_schema throws function_clause
-%%   - Records/user types referencing undefined types: both may fail with different errors
-%%
-%% To run the unfiltered version manually and see all inconsistencies:
-%%   proper:quickcheck(prop_json_encode_schema_consistency:json_encode_schema_consistency_unfiltered())
-%% To run the filtered version manually with more tests:
-%%   proper:quickcheck(prop_json_encode_schema_consistency:prop_json_encode_schema_consistency_filtered(), [{numtests, 200}, {max_size, 5}])
