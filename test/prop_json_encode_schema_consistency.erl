@@ -3,8 +3,6 @@
 -include_lib("proper/include/proper.hrl").
 -include("../include/spectra_internal.hrl").
 
-%% Export for manual testing
--export([json_encode_schema_consistency_unfiltered/0]).
 -define(spectra_error, {exception, spectra_error}).
 
 %% Property test that verifies consistency between JSON encoding,
