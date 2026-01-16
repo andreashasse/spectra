@@ -16,7 +16,7 @@ to_schema(Module, Type) when is_atom(Module) ->
     to_schema(TypeInfo, Type);
 %% Type references
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
     add_schema_version(do_to_schema(TypeInfo, TypeWithoutVars));
 to_schema(TypeInfo, Type) ->
@@ -150,24 +150,16 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
 %% User type references
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-            do_to_schema(TypeInfo, TypeWithoutVars);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    do_to_schema(TypeInfo, TypeWithoutVars);
 %% Remote types
 do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_to_schema(TypeInfo, TypeWithoutVars);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+    do_to_schema(TypeInfo, TypeWithoutVars);
 %% Unsupported types
 do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
     NotSupported =:= pid orelse
@@ -214,13 +206,9 @@ can_be_json_key(TypeInfo, #sp_union{types = Types}) ->
     lists:all(fun(T) -> can_be_json_key(TypeInfo, T) end, Types);
 can_be_json_key(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-            can_be_json_key(TypeInfo, TypeWithoutVars);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    can_be_json_key(TypeInfo, TypeWithoutVars);
 can_be_json_key(_TypeInfo, _Type) ->
     false.
 
@@ -300,7 +288,7 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
         #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             type_replace_vars(TypeInfo, Type, NamedTypes);
         #sp_list{type = ListType} ->
             #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}

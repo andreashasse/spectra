@@ -34,7 +34,7 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, term()} | {error, [spectra:error()]}.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
 from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
@@ -70,7 +70,7 @@ from_string(
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     from_string(TypeInfo, TypeWithoutVars, String);
 from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
@@ -105,7 +105,7 @@ and converts it to a string representation.
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_string(TypeInfo, Type, Data);
 to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
@@ -141,7 +141,7 @@ to_string(
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     to_string(TypeInfo, TypeWithoutVars, Data);
 to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
@@ -351,7 +351,7 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
         #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             type_replace_vars(TypeInfo, Type, NamedTypes)
     end;
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->

@@ -5,7 +5,7 @@
 -ignore_xref([find_function/3]).
 
 -export([new/0]).
--export([add_type/4, find_type/3]).
+-export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2]).
 -export([add_function/4, find_function/3]).
 
@@ -26,6 +26,15 @@ add_type(#type_info{types = Types} = TypeInfo, Name, Arity, Type) ->
 -spec find_type(type_info(), atom(), arity()) -> {ok, spectra:sp_type()} | error.
 find_type(#type_info{types = Types}, Name, Arity) ->
     maps:find({Name, Arity}, Types).
+
+-spec get_type(type_info(), atom(), arity()) -> spectra:sp_type().
+get_type(#type_info{types = Types}, Name, Arity) ->
+    case Types of
+        #{{Name, Arity} := Type} ->
+            Type;
+        #{} ->
+            erlang:error({type_not_found, Name, Arity})
+    end.
 
 -spec add_record(type_info(), atom(), #sp_rec{}) -> type_info().
 add_record(#type_info{records = Records} = TypeInfo, Name, Record) ->

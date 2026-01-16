@@ -70,7 +70,7 @@ gen_data(TypeInfo, #sp_rec_ref{record_name = RecordName, field_types = FieldType
     FieldValues = [gen_data(TypeInfo, FieldType) || {_FieldName, FieldType} <- FieldTypes],
     list_to_tuple([RecordName | FieldValues]);
 gen_data(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Variables}) ->
-    {ok, TypeDef} = spectra_type_info:find_type(TypeInfo, TypeName, length(Variables)),
+    TypeDef = spectra_type_info:get_type(TypeInfo, TypeName, length(Variables)),
     gen_data(TypeInfo, TypeDef);
 gen_data(TypeInfo, #sp_maybe_improper_list{elements = ElemType, tail = TailType}) ->
     oneof([

@@ -14,9 +14,9 @@
 
 erl_abstract_code_parses_tuple_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, EmptyTupleType} = spectra_type_info:find_type(TypeInfo, empty_tuple, 0),
+    EmptyTupleType = spectra_type_info:get_type(TypeInfo, empty_tuple, 0),
     ?assertEqual(#sp_tuple{fields = []}, EmptyTupleType),
-    {ok, Tuple2Type} = spectra_type_info:find_type(TypeInfo, tuple2, 0),
+    Tuple2Type = spectra_type_info:get_type(TypeInfo, tuple2, 0),
     ?assertEqual(
         #sp_tuple{
             fields =
@@ -24,7 +24,7 @@ erl_abstract_code_parses_tuple_types_test() ->
         },
         Tuple2Type
     ),
-    {ok, Tuple3Type} = spectra_type_info:find_type(TypeInfo, tuple3, 0),
+    Tuple3Type = spectra_type_info:get_type(TypeInfo, tuple3, 0),
     ?assertEqual(#sp_tuple{fields = any}, Tuple3Type),
     {ok, WithTupleRecord} = spectra_type_info:find_record(TypeInfo, with_tuple),
     ?assertEqual(

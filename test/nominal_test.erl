@@ -29,10 +29,10 @@
 simple_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
-    {ok, UserIdType} = spectra_type_info:find_type(TypeInfo, user_id, 0),
+    UserIdType = spectra_type_info:get_type(TypeInfo, user_id, 0),
     ?assertEqual(#sp_simple_type{type = pos_integer}, UserIdType),
 
-    {ok, PersonType} = spectra_type_info:find_type(TypeInfo, person, 0),
+    PersonType = spectra_type_info:get_type(TypeInfo, person, 0),
     ?assertEqual(
         #sp_map{
             fields =
@@ -92,7 +92,7 @@ simple_test() ->
         },
         MyRecRecord
     ),
-    {ok, MyRecTType} = spectra_type_info:find_type(TypeInfo, my_rec_t, 0),
+    MyRecTType = spectra_type_info:get_type(TypeInfo, my_rec_t, 0),
     ?assertEqual(
         #sp_rec_ref{
             record_name = my_rec,

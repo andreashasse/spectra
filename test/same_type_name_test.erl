@@ -13,7 +13,7 @@
 
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, MapResultType} = spectra_type_info:find_type(TypeInfo, map_result, 0),
+    MapResultType = spectra_type_info:get_type(TypeInfo, map_result, 0),
     ?assertEqual(
         #sp_user_type_ref{
             type_name = result,
@@ -33,7 +33,7 @@ type_in_form_test() ->
         },
         MapResultType
     ),
-    {ok, ResultType} = spectra_type_info:find_type(TypeInfo, result, 1),
+    ResultType = spectra_type_info:get_type(TypeInfo, result, 1),
     ?assertEqual(
         #sp_type_with_variables{
             type =
@@ -59,10 +59,10 @@ map1_from_json_test() ->
 
 map1_to_json_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
-        spectra_type_info:find_type(TypeInfo, map_result, 0),
-    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
-        spectra_type_info:find_type(TypeInfo, result, 1),
+    #sp_user_type_ref{type_name = result, variables = [OkType]} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
     % _UnionType1 is OkType (var), UnionType2 is error literal
     MapType = OkType,
     ErrorLiteral = UnionType2,
@@ -104,10 +104,10 @@ map1_to_json_bad_test() ->
 
 map1_from_json_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, #sp_user_type_ref{type_name = result, variables = [OkType]}} =
-        spectra_type_info:find_type(TypeInfo, map_result, 0),
-    {ok, #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}}} =
-        spectra_type_info:find_type(TypeInfo, result, 1),
+    #sp_user_type_ref{type_name = result, variables = [OkType]} =
+        spectra_type_info:get_type(TypeInfo, map_result, 0),
+    #sp_type_with_variables{type = #sp_union{types = [_UnionType1, UnionType2]}} =
+        spectra_type_info:get_type(TypeInfo, result, 1),
     % _UnionType1 is OkType (var), UnionType2 is error literal
     MapType = OkType,
     ErrorLiteral = UnionType2,

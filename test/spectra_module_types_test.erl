@@ -52,6 +52,6 @@ cache_consistency_test() ->
     TypeInfo3 = spectra_module_types:get(other),
     ?assertEqual(TypeInfo1, TypeInfo2),
     ?assertEqual(TypeInfo2, TypeInfo3),
-    {ok, _AccountType} = spectra_type_info:find_type(TypeInfo3, account, 0),
+    _AccountType = spectra_type_info:get_type(TypeInfo3, account, 0),
     application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).

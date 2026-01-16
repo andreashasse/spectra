@@ -49,13 +49,9 @@ do_to_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArg
     is_atom(TypeName)
 ->
     TypeArity = length(TypeArgs),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-            do_to_json(TypeInfo, TypeWithoutVars, Data);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    do_to_json(TypeInfo, TypeWithoutVars, Data);
 do_to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -93,7 +89,7 @@ do_to_json(TypeInfo, #sp_list{type = Type}, Data) when is_list(Data) ->
     list_to_json(TypeInfo, Type, Data);
 do_to_json(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     %% FIXME: For simple types without arity, default to 0
-    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     do_to_json(TypeInfo, Type, Data);
 do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
     case StructName of
@@ -111,13 +107,9 @@ do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
 do_to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_to_json(TypeInfo, TypeWithoutVars, Data);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+    do_to_json(TypeInfo, TypeWithoutVars, Data);
 do_to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
 do_to_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data) ->
@@ -466,13 +458,9 @@ do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
 do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_from_json(TypeInfo, TypeWithoutVars, Data);
-        error ->
-            erlang:error({type_not_found, TypeName})
-    end;
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+    do_from_json(TypeInfo, TypeWithoutVars, Data);
 do_from_json(
     TypeInfo,
     #sp_rec_ref{record_name = RecordName, field_types = TypeArgs},
@@ -723,13 +711,9 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
 ) ->
     {ok, term()} | {error, [spectra:error()]}.
 type_from_json(TypeInfo, TypeName, TypeArity, TypeArgs, Json) ->
-    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
-        {ok, Type} ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-            do_from_json(TypeInfo, TypeWithoutVars, Json);
-        error ->
-            error({type_not_found, TypeName, TypeArity})
-    end.
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    do_from_json(TypeInfo, TypeWithoutVars, Json).
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
     ArgNames = arg_names(Type),
@@ -797,7 +781,7 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
         #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             type_replace_vars(TypeInfo, Type, NamedTypes);
         #sp_list{type = ListType} ->
             #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}

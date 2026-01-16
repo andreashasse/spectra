@@ -28,26 +28,26 @@ sp_types_to_json_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test simple types
-    {ok, IntegerType} = spectra_type_info:find_type(TypeInfo, my_integer, 0),
+    IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
     ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, IntegerType, 42)),
 
-    {ok, StringType} = spectra_type_info:find_type(TypeInfo, my_string, 0),
+    StringType = spectra_type_info:get_type(TypeInfo, my_string, 0),
     ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, StringType, "hello")),
 
-    {ok, BooleanType} = spectra_type_info:find_type(TypeInfo, my_boolean, 0),
+    BooleanType = spectra_type_info:get_type(TypeInfo, my_boolean, 0),
     ?assertEqual({ok, true}, spectra_json:to_json(TypeInfo, BooleanType, true)),
 
     %% Test list types
-    {ok, ListType} = spectra_type_info:find_type(TypeInfo, my_list_of_integers, 0),
+    ListType = spectra_type_info:get_type(TypeInfo, my_list_of_integers, 0),
     ?assertEqual({ok, [1, 2, 3]}, spectra_json:to_json(TypeInfo, ListType, [1, 2, 3])),
 
     %% Test union types
-    {ok, UnionType} = spectra_type_info:find_type(TypeInfo, my_union, 0),
+    UnionType = spectra_type_info:get_type(TypeInfo, my_union, 0),
     ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, UnionType, 42)),
     ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, UnionType, "hello")),
 
     %% Test map types
-    {ok, MapType} = spectra_type_info:find_type(TypeInfo, my_map, 0),
+    MapType = spectra_type_info:get_type(TypeInfo, my_map, 0),
     MapData = #{name => "John", age => 30},
     ?assertEqual(
         {ok, #{<<"name">> => <<"John">>, <<"age">> => 30}},
@@ -59,26 +59,26 @@ sp_types_from_json_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test simple types
-    {ok, IntegerType} = spectra_type_info:find_type(TypeInfo, my_integer, 0),
+    IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
     ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, IntegerType, 42)),
 
-    {ok, StringType} = spectra_type_info:find_type(TypeInfo, my_string, 0),
+    StringType = spectra_type_info:get_type(TypeInfo, my_string, 0),
     ?assertEqual({ok, "hello"}, spectra_json:from_json(TypeInfo, StringType, <<"hello">>)),
 
-    {ok, BooleanType} = spectra_type_info:find_type(TypeInfo, my_boolean, 0),
+    BooleanType = spectra_type_info:get_type(TypeInfo, my_boolean, 0),
     ?assertEqual({ok, true}, spectra_json:from_json(TypeInfo, BooleanType, true)),
 
     %% Test list types
-    {ok, ListType} = spectra_type_info:find_type(TypeInfo, my_list_of_integers, 0),
+    ListType = spectra_type_info:get_type(TypeInfo, my_list_of_integers, 0),
     ?assertEqual({ok, [1, 2, 3]}, spectra_json:from_json(TypeInfo, ListType, [1, 2, 3])),
 
     %% Test union types
-    {ok, UnionType} = spectra_type_info:find_type(TypeInfo, my_union, 0),
+    UnionType = spectra_type_info:get_type(TypeInfo, my_union, 0),
     ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, UnionType, 42)),
     ?assertEqual({ok, "hello"}, spectra_json:from_json(TypeInfo, UnionType, <<"hello">>)),
 
     %% Test map types
-    {ok, MapType} = spectra_type_info:find_type(TypeInfo, my_map, 0),
+    MapType = spectra_type_info:get_type(TypeInfo, my_map, 0),
     JsonData = #{<<"name">> => <<"John">>, <<"age">> => 30},
     ?assertEqual(
         {ok, #{name => "John", age => 30}},
@@ -121,7 +121,7 @@ literal_sp_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test literal atom
-    {ok, AtomLiteralType} = spectra_type_info:find_type(TypeInfo, my_literal_atom, 0),
+    AtomLiteralType = spectra_type_info:get_type(TypeInfo, my_literal_atom, 0),
     ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, AtomLiteralType, hello)),
     ?assertEqual(
         {ok, hello},
@@ -129,7 +129,7 @@ literal_sp_types_test() ->
     ),
 
     %% Test literal integer
-    {ok, IntLiteralType} = spectra_type_info:find_type(TypeInfo, my_literal_integer, 0),
+    IntLiteralType = spectra_type_info:get_type(TypeInfo, my_literal_integer, 0),
     ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, IntLiteralType, 42)),
     ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, IntLiteralType, 42)).
 
@@ -138,7 +138,7 @@ range_sp_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test integer range
-    {ok, RangeType} = spectra_type_info:find_type(TypeInfo, my_range, 0),
+    RangeType = spectra_type_info:get_type(TypeInfo, my_range, 0),
     ?assertEqual({ok, 5}, spectra_json:to_json(TypeInfo, RangeType, 5)),
     ?assertEqual({ok, 5}, spectra_json:from_json(TypeInfo, RangeType, 5)),
 
@@ -151,7 +151,7 @@ nonempty_list_sp_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test nonempty list
-    {ok, NonEmptyListType} = spectra_type_info:find_type(TypeInfo, my_nonempty_list, 0),
+    NonEmptyListType = spectra_type_info:get_type(TypeInfo, my_nonempty_list, 0),
     ?assertEqual(
         {ok, [1, 2, 3]},
         spectra_json:to_json(TypeInfo, NonEmptyListType, [1, 2, 3])
@@ -171,14 +171,14 @@ cross_module_sp_types_test() ->
     OtherModuleTypeInfo = spectra_abstract_code:types_in_module(spectra_json_schema_test),
 
     %% Get a type from the other module and use it
-    {ok, MyIntegerType} = spectra_type_info:find_type(OtherModuleTypeInfo, my_integer, 0),
+    MyIntegerType = spectra_type_info:get_type(OtherModuleTypeInfo, my_integer, 0),
     ?assertEqual({ok, 42}, spectra_json:to_json(OtherModuleTypeInfo, MyIntegerType, 42)),
     ?assertEqual({ok, 42}, spectra_json:from_json(OtherModuleTypeInfo, MyIntegerType, 42)).
 
 %% Test passing TypeInfo vs passing module directly
 typeinfo_vs_module_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, IntegerType} = spectra_type_info:find_type(TypeInfo, my_integer, 0),
+    IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
 
     %% These two should give the same result
     Result1 = spectra_json:to_json(?MODULE, IntegerType, 42),
