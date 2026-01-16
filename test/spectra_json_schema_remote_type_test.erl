@@ -6,16 +6,7 @@
 
 %% Helper to validate schemas with Python validator
 validate_with_python(Schema) ->
-    case json_schema_validator_helper:validate_schema_2020_12(Schema) of
-        ok ->
-            ok;
-        {skip, Reason} ->
-            io:format("Skipping Python validation: ~s~n", [Reason]),
-            ok;
-        {error, {validation_failed, Output}} ->
-            io:format("Python validation failed:~n~s~n", [Output]),
-            erlang:error({python_validation_failed, Output})
-    end.
+    json_schema_validator_helper:validate_or_skip(Schema).
 
 -type user_with_account() :: #{
     name := string(),

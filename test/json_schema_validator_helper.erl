@@ -1,6 +1,6 @@
 -module(json_schema_validator_helper).
 
--export([validate_schema/1, validate_schema_2020_12/1, assert_validation/3]).
+-export([validate_schema/1, validate_schema_2020_12/1, assert_validation/3, validate_or_skip/1]).
 
 %% @doc Validate that a schema conforms to JSON Schema 2020-12 using Python validator.
 %% This function writes the schema to a temporary file, runs the validation script,
@@ -60,4 +60,20 @@ assert_validation(Schema, ShouldPass, ExpectedErrorSubstring) ->
         ok when not ShouldPass ->
             %% If validation passed but should have failed, fail the test
             error({assertion_failed, expected_validation_to_fail})
+    end.
+
+%% @doc Validate a schema and skip or fail with error.
+%% This is useful for test cases that want to validate schemas but skip if uv is not installed.
+%% If validation fails, it raises an error with the validation output.
+-spec validate_or_skip(map()) -> ok.
+validate_or_skip(Schema) ->
+    case validate_schema_2020_12(Schema) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            io:format("Skipping Python validation: ~ts~n", [Reason]),
+            ok;
+        {error, {validation_failed, Output}} ->
+            io:format("Python validation failed:~n~ts~n", [Output]),
+            erlang:error({python_validation_failed, Output})
     end.
