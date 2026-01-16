@@ -483,7 +483,9 @@ try_generate_enum_schema(Types) ->
     Enums = spectra_util:map_until_error(
         fun
             (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                {ok, <<"null">>};
+                {ok, null};
+            (#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
+                {ok, Value};
             (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
                 {ok, BinaryValue};
             (#sp_literal{value = Value}) when is_integer(Value) ->

@@ -494,7 +494,7 @@ enum_types_test() ->
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"boolean">>,
-            enum => [<<"true">>, <<"false">>]
+            enum => [true, false]
         },
         BoolEnumSchema
     ),
@@ -531,7 +531,7 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            enum => [<<"admin">>, 42, <<"true">>]
+            enum => [<<"admin">>, 42, true]
         },
         MixedEnumSchema
     ),
