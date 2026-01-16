@@ -10,7 +10,7 @@
 
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, IntResultType} = spectra_type_info:get_type(TypeInfo, int_result, 0),
+    {ok, IntResultType} = spectra_type_info:find_type(TypeInfo, int_result, 0),
     ?assertEqual(
         #sp_remote_type{
             mfargs =

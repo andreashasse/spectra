@@ -49,7 +49,7 @@ do_to_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArg
     is_atom(TypeName)
 ->
     TypeArity = length(TypeArgs),
-    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
         {ok, Type} ->
             TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
             do_to_json(TypeInfo, TypeWithoutVars, Data);
@@ -93,7 +93,7 @@ do_to_json(TypeInfo, #sp_list{type = Type}, Data) when is_list(Data) ->
     list_to_json(TypeInfo, Type, Data);
 do_to_json(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     %% FIXME: For simple types without arity, default to 0
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
     do_to_json(TypeInfo, Type, Data);
 do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
     case StructName of
@@ -111,7 +111,7 @@ do_to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
 do_to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
         {ok, Type} ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_to_json(TypeInfo, TypeWithoutVars, Data);
@@ -357,7 +357,7 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
 ) ->
     {ok, #{atom() => json:encode_value()}} | {error, [spectra:error()]}.
 record_to_json(TypeInfo, RecordName, Record, TypeArgs) when is_atom(RecordName) ->
-    case spectra_type_info:get_record(TypeInfo, RecordName) of
+    case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
             record_to_json(TypeInfo, RecordInfo, Record, TypeArgs);
         error ->
@@ -466,7 +466,7 @@ do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
 do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
         {ok, Type} ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Data);
@@ -723,7 +723,7 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
 ) ->
     {ok, term()} | {error, [spectra:error()]}.
 type_from_json(TypeInfo, TypeName, TypeArity, TypeArgs, Json) ->
-    case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+    case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
         {ok, Type} ->
             TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
             do_from_json(TypeInfo, TypeWithoutVars, Json);
@@ -789,7 +789,7 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
                     )
             };
         #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes} ->
-            {ok, #sp_rec{fields = Fields} = Rec} = spectra_type_info:get_record(
+            {ok, #sp_rec{fields = Fields} = Rec} = spectra_type_info:find_record(
                 TypeInfo, RecordName
             ),
             NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
@@ -797,7 +797,7 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
         #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            {ok, Type} = spectra_type_info:find_type(TypeInfo, TypeName, TypeArity),
             type_replace_vars(TypeInfo, Type, NamedTypes);
         #sp_list{type = ListType} ->
             #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
@@ -978,7 +978,7 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
 ) ->
     {ok, term()} | {error, list()}.
 record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) ->
-    case spectra_type_info:get_record(TypeInfo, RecordName) of
+    case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, Record} ->
             record_from_json(TypeInfo, Record, Json, TypeArgs);
         error ->

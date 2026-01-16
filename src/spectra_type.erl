@@ -26,7 +26,7 @@ can_be_missing(TypeInfo, Type) ->
         #sp_user_type_ref{type_name = TypeName, variables = TypeArgs} ->
             TypeArity = length(TypeArgs),
             %% FIXME: handle error case
-            case spectra_type_info:get_type(TypeInfo, TypeName, TypeArity) of
+            case spectra_type_info:find_type(TypeInfo, TypeName, TypeArity) of
                 {ok, RefType} ->
                     can_be_missing(TypeInfo, RefType);
                 error ->

@@ -13,8 +13,8 @@ add_and_get_type_test() ->
     Type = #sp_simple_type{type = integer},
     TypeInfo1 = spectra_type_info:add_type(TypeInfo0, my_type, 0, Type),
 
-    ?assertEqual({ok, Type}, spectra_type_info:get_type(TypeInfo1, my_type, 0)),
-    ?assertEqual(error, spectra_type_info:get_type(TypeInfo1, non_existent, 0)).
+    ?assertEqual({ok, Type}, spectra_type_info:find_type(TypeInfo1, my_type, 0)),
+    ?assertEqual(error, spectra_type_info:find_type(TypeInfo1, non_existent, 0)).
 
 add_and_get_record_test() ->
     TypeInfo0 = spectra_type_info:new(),
@@ -32,8 +32,8 @@ add_and_get_record_test() ->
         },
     TypeInfo1 = spectra_type_info:add_record(TypeInfo0, user, Record),
 
-    ?assertEqual({ok, Record}, spectra_type_info:get_record(TypeInfo1, user)),
-    ?assertEqual(error, spectra_type_info:get_record(TypeInfo1, non_existent)).
+    ?assertEqual({ok, Record}, spectra_type_info:find_record(TypeInfo1, user)),
+    ?assertEqual(error, spectra_type_info:find_record(TypeInfo1, non_existent)).
 
 add_and_get_function_test() ->
     TypeInfo0 = spectra_type_info:new(),
@@ -44,5 +44,5 @@ add_and_get_function_test() ->
         },
     TypeInfo1 = spectra_type_info:add_function(TypeInfo0, test_func, 1, FuncSpec),
 
-    ?assertEqual({ok, FuncSpec}, spectra_type_info:get_function(TypeInfo1, test_func, 1)),
-    ?assertEqual(error, spectra_type_info:get_function(TypeInfo1, non_existent, 1)).
+    ?assertEqual({ok, FuncSpec}, spectra_type_info:find_function(TypeInfo1, test_func, 1)),
+    ?assertEqual(error, spectra_type_info:find_function(TypeInfo1, non_existent, 1)).

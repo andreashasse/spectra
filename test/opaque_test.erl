@@ -18,7 +18,7 @@ simple_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Normal opaque type
-    {ok, PersonType} = spectra_type_info:get_type(TypeInfo, person, 0),
+    {ok, PersonType} = spectra_type_info:find_type(TypeInfo, person, 0),
     ?assertEqual(
         #sp_map{
             fields =
@@ -54,7 +54,7 @@ simple_test() ->
     ),
 
     %% Opaque record type
-    {ok, MyRecRecord} = spectra_type_info:get_record(TypeInfo, my_rec),
+    {ok, MyRecRecord} = spectra_type_info:find_record(TypeInfo, my_rec),
     ?assertEqual(
         #sp_rec{
             name = my_rec,
@@ -71,7 +71,7 @@ simple_test() ->
         },
         MyRecRecord
     ),
-    {ok, MyRecTType} = spectra_type_info:get_type(TypeInfo, my_rec_t, 0),
+    {ok, MyRecTType} = spectra_type_info:find_type(TypeInfo, my_rec_t, 0),
     ?assertEqual(
         #sp_rec_ref{
             record_name = my_rec,

@@ -11,7 +11,7 @@
 
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, IntResultType} = spectra_type_info:get_type(TypeInfo, int_result, 0),
+    {ok, IntResultType} = spectra_type_info:find_type(TypeInfo, int_result, 0),
     ?assertEqual(
         #sp_user_type_ref{
             type_name = result,
@@ -20,7 +20,7 @@ type_in_form_test() ->
         IntResultType
     ),
 
-    {ok, ResultType} = spectra_type_info:get_type(TypeInfo, result, 1),
+    {ok, ResultType} = spectra_type_info:find_type(TypeInfo, result, 1),
     ?assertEqual(
         #sp_type_with_variables{
             type =

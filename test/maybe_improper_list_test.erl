@@ -17,7 +17,7 @@
 
 erl_abstract_code_parses_maybe_improper_list_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, EmptyImproperType} = spectra_type_info:get_type(TypeInfo, empty_improper, 0),
+    {ok, EmptyImproperType} = spectra_type_info:find_type(TypeInfo, empty_improper, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = term},
@@ -25,7 +25,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         EmptyImproperType
     ),
-    {ok, Iolist1Type} = spectra_type_info:get_type(TypeInfo, iolist1, 0),
+    {ok, Iolist1Type} = spectra_type_info:find_type(TypeInfo, iolist1, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -33,7 +33,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist1Type
     ),
-    {ok, Iolist2Type} = spectra_type_info:get_type(TypeInfo, iolist2, 0),
+    {ok, Iolist2Type} = spectra_type_info:find_type(TypeInfo, iolist2, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -41,7 +41,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist2Type
     ),
-    {ok, Iolist3Type} = spectra_type_info:get_type(TypeInfo, iolist3, 0),
+    {ok, Iolist3Type} = spectra_type_info:find_type(TypeInfo, iolist3, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -61,7 +61,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist3Type
     ),
-    {ok, Iolist4Type} = spectra_type_info:get_type(TypeInfo, iolist4, 0),
+    {ok, Iolist4Type} = spectra_type_info:find_type(TypeInfo, iolist4, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = binary},
@@ -69,7 +69,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist4Type
     ),
-    {ok, Iolist5Type} = spectra_type_info:get_type(TypeInfo, iolist5, 0),
+    {ok, Iolist5Type} = spectra_type_info:find_type(TypeInfo, iolist5, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = binary},
@@ -89,7 +89,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist5Type
     ),
-    {ok, NonEmptyIolist1Type} = spectra_type_info:get_type(TypeInfo, non_empty_iolist1, 0),
+    {ok, NonEmptyIolist1Type} = spectra_type_info:find_type(TypeInfo, non_empty_iolist1, 0),
     ?assertEqual(
         #sp_nonempty_improper_list{
             elements = #sp_simple_type{type = string},

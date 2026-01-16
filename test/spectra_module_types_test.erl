@@ -8,7 +8,7 @@ get_module_types_without_cache_test() ->
     application:set_env(spectra, use_module_types_cache, false),
     TypeInfo = spectra_module_types:get(other),
     ?assert(is_record(TypeInfo, type_info)),
-    ?assertMatch({ok, _}, spectra_type_info:get_type(TypeInfo, account, 0)).
+    ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, account, 0)).
 
 get_module_types_with_cache_test() ->
     application:set_env(spectra, use_module_types_cache, true),
@@ -52,6 +52,6 @@ cache_consistency_test() ->
     TypeInfo3 = spectra_module_types:get(other),
     ?assertEqual(TypeInfo1, TypeInfo2),
     ?assertEqual(TypeInfo2, TypeInfo3),
-    {ok, _AccountType} = spectra_type_info:get_type(TypeInfo3, account, 0),
+    {ok, _AccountType} = spectra_type_info:find_type(TypeInfo3, account, 0),
     application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).

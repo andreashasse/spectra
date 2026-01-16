@@ -16,7 +16,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
-    {ok, PersonAliasType} = spectra_type_info:get_type(TypeInfo, person_alias, 0),
+    {ok, PersonAliasType} = spectra_type_info:find_type(TypeInfo, person_alias, 0),
     ?assertMatch(
         #sp_rec_ref{
             record_name = person,
@@ -29,7 +29,7 @@ type_in_form_test() ->
         PersonAliasType
     ),
 
-    {ok, AddressAliasType} = spectra_type_info:get_type(TypeInfo, address_alias, 0),
+    {ok, AddressAliasType} = spectra_type_info:find_type(TypeInfo, address_alias, 0),
     ?assertMatch(
         #sp_rec_ref{
             record_name = address,
@@ -42,7 +42,7 @@ type_in_form_test() ->
         AddressAliasType
     ),
 
-    {ok, PersonNewAgeType} = spectra_type_info:get_type(TypeInfo, person_new_age, 0),
+    {ok, PersonNewAgeType} = spectra_type_info:find_type(TypeInfo, person_new_age, 0),
     ?assertMatch(
         #sp_rec_ref{
             record_name = person,
@@ -51,7 +51,7 @@ type_in_form_test() ->
         PersonNewAgeType
     ),
 
-    {ok, PersonTType} = spectra_type_info:get_type(TypeInfo, person_t, 0),
+    {ok, PersonTType} = spectra_type_info:find_type(TypeInfo, person_t, 0),
     ?assertMatch(#sp_rec_ref{record_name = person, field_types = []}, PersonTType).
 
 to_json_person_record_test() ->
