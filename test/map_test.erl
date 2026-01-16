@@ -18,6 +18,9 @@
 -type map_in_map_value() :: #{hej => #{string() => integer()}}.
 -type map_in_map_key() :: #{#{string() => integer()} => integer()}.
 
+-type optional_nullable() :: #{a1 => integer() | undefined}.
+-type nullable() :: #{a1 := integer() | undefined}.
+
 map1_test() ->
     ?assertEqual({ok, #{<<"a1">> => 1}}, to_json_atom_map(#{a1 => 1})).
 
@@ -73,6 +76,42 @@ map3_bad_test() ->
         {error, [#sp_error{location = [a1], type = missing_data}]},
         to_json_atom_map3(#{not_a1 => kalle})
     ).
+
+nullable_test() ->
+    ?assertEqual(
+        {ok, #{a1 => 1}},
+        to_json_nullable(<<"{\"a1\":1}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_nullable(<<"{\"a1\":null}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_nullable(<<"{}">>)
+    ).
+
+optional_nullable_test() ->
+    ?assertEqual(
+        {ok, #{a1 => 1}},
+        to_json_optional_nullable(<<"{\"a1\":1}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_optional_nullable(<<"{\"a1\":null}">>)
+    ),
+    ?assertEqual(
+        {ok, #{}},
+        to_json_optional_nullable(<<"{}">>)
+    ).
+
+-spec to_json_optional_nullable(binary()) -> optional_nullable().
+to_json_optional_nullable(Binary) ->
+    spectra:decode(json, ?MODULE, optional_nullable, Binary).
+
+-spec to_json_nullable(binary()) -> nullable().
+to_json_nullable(Binary) ->
+    spectra:decode(json, ?MODULE, nullable, Binary).
 
 type_shaddow_literal_map_test() ->
     ?assertEqual(
