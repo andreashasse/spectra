@@ -16,6 +16,7 @@ import json
 import sys
 
 from openapi_spec_validator import validate_spec
+from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 
 
 def validate_openapi_file(filepath):
@@ -25,13 +26,24 @@ def validate_openapi_file(filepath):
             spec = json.load(f)
 
         validate_spec(spec, spec_url='openapi_3.1.0')
+        print(f"✅ {filepath} is a valid OpenAPI 3.1 specification")
         return True
 
     except json.JSONDecodeError as e:
-        print(f"❌ Invalid JSON in {filepath}: {e}")
+        print(f"❌ Invalid JSON in {filepath}:")
+        print(f"   {e}")
+        return False
+    except OpenAPIValidationError as e:
+        print(f"❌ OpenAPI validation failed for {filepath}:")
+        print(f"   {e}")
+        if hasattr(e, 'path'):
+            print(f"   Path: {e.path}")
+        if hasattr(e, 'schema_path'):
+            print(f"   Schema path: {e.schema_path}")
         return False
     except Exception as e:
-        print(f"❌ OpenAPI validation failed for {filepath}: {e}")
+        print(f"❌ Unexpected error validating {filepath}:")
+        print(f"   {type(e).__name__}: {e}")
         return False
 
 
