@@ -227,7 +227,7 @@ The atoms `undefined` and `nil` have special handling in JSON serialization to r
 
 The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
 
-**Mandatory fields** (`:=`):
+**Mandatory fields** (`:=`), **record fields**, and **Elixir struct fields**:
 - Missing JSON fields decode to `undefined` or `nil` if the type includes that literal
 - Explicit JSON `null` values also decode to `undefined` or `nil` if the type includes that literal
 - Example with type `#{email := binary() | undefined}`:
@@ -242,6 +242,8 @@ The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
   - `{}` (missing field) → `#{}` (key absent)
   - `{"email": null}` → `#{email => undefined}` (key present)
   - `{"email": "test@example.com"}` → `#{email => <<"test@example.com">>}` (key present)
+
+**Note on record and struct fields**: Erlang record fields and Elixir struct fields behave the same as mandatory map fields (`:=`). When a field is missing from JSON, it will be filled with `undefined` or `nil` if the field type includes that literal. For example, a record field `email :: binary() | undefined` will decode `{}` to a record with `email = undefined`.
 
 **Note**: If a union type includes both `undefined` and `nil` (e.g., `integer() | undefined | nil`), the selection of which missing value to use depends on the order they appear in the type definition. The last one encountered will be used. For predictable behavior, include only one missing value literal in your type definitions. The `nil` atom is primarily for Elixir interoperability.
 
