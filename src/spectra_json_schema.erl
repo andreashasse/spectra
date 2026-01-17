@@ -220,106 +220,6 @@ add_schema_version({ok, Schema}) ->
 add_schema_version({error, _} = Error) ->
     Error.
 
-record_replace_vars(RecordInfo, TypeArgs) ->
-    lists:foldl(
-        fun({FieldName, Type}, Fields) ->
-            lists:map(
-                fun
-                    (#sp_rec_field{name = Name} = Field) when Name =:= FieldName ->
-                        Field#sp_rec_field{type = Type};
-                    (Field) ->
-                        Field
-                end,
-                Fields
-            )
-        end,
-        RecordInfo,
-        TypeArgs
-    ).
-
--spec type_replace_vars(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    NamedTypes :: #{atom() => spectra:sp_type()}
-) ->
-    spectra:sp_type().
-type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    case maps:find(Name, NamedTypes) of
-        {ok, Type} ->
-            Type;
-        error ->
-            erlang:error({type_variable_not_found, Name})
-    end;
-type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
-    case Type of
-        #sp_union{types = UnionTypes} ->
-            #sp_union{
-                types =
-                    lists:map(
-                        fun(UnionType) ->
-                            type_replace_vars(TypeInfo, UnionType, NamedTypes)
-                        end,
-                        UnionTypes
-                    )
-            };
-        #sp_map{fields = Fields} = Map ->
-            Map#sp_map{
-                fields =
-                    lists:map(
-                        fun
-                            (#literal_map_field{val_type = FieldType} = Field) ->
-                                Field#literal_map_field{
-                                    val_type = type_replace_vars(TypeInfo, FieldType, NamedTypes)
-                                };
-                            (#typed_map_field{key_type = KeyType, val_type = ValueType} = Field) ->
-                                Field#typed_map_field{
-                                    key_type = type_replace_vars(TypeInfo, KeyType, NamedTypes),
-                                    val_type = type_replace_vars(TypeInfo, ValueType, NamedTypes)
-                                }
-                        end,
-                        Fields
-                    )
-            };
-        #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes} ->
-            {ok, #sp_rec{fields = Fields} = Rec} =
-                spectra_type_info:find_record(TypeInfo, RecordName),
-            NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
-            type_replace_vars(TypeInfo, NewRec, NamedTypes);
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes);
-        #sp_list{type = ListType} ->
-            #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
-    end;
-type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
-    Rec#sp_rec{
-        fields =
-            lists:map(
-                fun(#sp_rec_field{type = NType} = Field) ->
-                    Field#sp_rec_field{
-                        type = type_replace_vars(TypeInfo, NType, NamedTypes)
-                    }
-                end,
-                Fields
-            )
-    };
-type_replace_vars(TypeInfo, #sp_list{type = ItemType}, NamedTypes) ->
-    #sp_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType}, NamedTypes) ->
-    #sp_nonempty_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
-    #sp_union{
-        types =
-            lists:map(
-                fun(T) -> type_replace_vars(TypeInfo, T, NamedTypes) end,
-                Types
-            )
-    };
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
-    Type.
-
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
 arg_names(_) ->
@@ -331,7 +231,7 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         maps:from_list(
             lists:zip(ArgNames, TypeArgs)
         ),
-    type_replace_vars(TypeInfo, Type, NamedTypes).
+    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
     {ok, map()} | {error, [spectra:error()]}.
@@ -391,16 +291,19 @@ process_map_fields(
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            case do_to_schema(TypeInfo, KeyType) of
-                {ok, _} ->
-                    case do_to_schema(TypeInfo, ValType) of
-                        {ok, _} ->
-                            process_map_fields(TypeInfo, Rest, Properties, Required, true);
-                        {error, _} = Err ->
-                            Err
-                    end;
+            validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required)
+    end.
+
+validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required) ->
+    case do_to_schema(TypeInfo, KeyType) of
+        {error, _} = Err ->
+            Err;
+        {ok, _} ->
+            case do_to_schema(TypeInfo, ValType) of
                 {error, _} = Err ->
-                    Err
+                    Err;
+                {ok, _} ->
+                    process_map_fields(TypeInfo, Rest, Properties, Required, true)
             end
     end.
 

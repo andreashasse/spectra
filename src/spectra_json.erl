@@ -368,32 +368,11 @@ record_to_json(
         tuple_size(Record) =:= Arity
 ->
     [RecordName | FieldsData] = tuple_to_list(Record),
-    RecFieldTypes = record_replace_vars(Fields, TypeArgs),
+    RecFieldTypes = spectra_util:record_replace_vars(Fields, TypeArgs),
     RecFieldTypesWithData = lists:zip(RecFieldTypes, FieldsData),
     do_record_to_json(TypeInfo, RecFieldTypesWithData);
 record_to_json(_TypeInfo, RecordType, Record, TypeArgs) ->
     {error, [sp_error:type_mismatch(RecordType, Record, #{type_args => TypeArgs})]}.
-
--spec record_replace_vars(
-    RecordInfo :: [#sp_rec_field{}],
-    TypeArgs :: [spectra:record_field_arg()]
-) -> [#sp_rec_field{}].
-record_replace_vars(RecordInfo, TypeArgs) ->
-    lists:foldl(
-        fun({FieldName, Type}, Fields) ->
-            lists:map(
-                fun
-                    (#sp_rec_field{name = Name} = Field) when Name =:= FieldName ->
-                        Field#sp_rec_field{type = Type};
-                    (Field) ->
-                        Field
-                end,
-                Fields
-            )
-        end,
-        RecordInfo,
-        TypeArgs
-    ).
 
 -spec do_record_to_json(
     spectra:type_info(),
@@ -718,97 +697,12 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         maps:from_list(
             lists:zip(ArgNames, TypeArgs)
         ),
-    type_replace_vars(TypeInfo, Type, NamedTypes).
+    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
 arg_names(_) ->
     [].
-
--spec type_replace_vars(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    NamedTypes :: #{atom() => spectra:sp_type()}
-) ->
-    spectra:sp_type().
-type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    case maps:find(Name, NamedTypes) of
-        {ok, Type} ->
-            Type;
-        error ->
-            erlang:error({type_variable_not_found, Name})
-    end;
-type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
-    case Type of
-        #sp_union{types = UnionTypes} ->
-            #sp_union{
-                types =
-                    lists:map(
-                        fun(UnionType) ->
-                            type_replace_vars(TypeInfo, UnionType, NamedTypes)
-                        end,
-                        UnionTypes
-                    )
-            };
-        #sp_map{fields = Fields} = Map ->
-            Map#sp_map{
-                fields =
-                    lists:map(
-                        fun
-                            (#literal_map_field{val_type = FieldType} = Field) ->
-                                Field#literal_map_field{
-                                    val_type = type_replace_vars(TypeInfo, FieldType, NamedTypes)
-                                };
-                            (#typed_map_field{key_type = KeyType, val_type = ValueType} = Field) ->
-                                %% ADD TESTS
-                                Field#typed_map_field{
-                                    key_type = type_replace_vars(TypeInfo, KeyType, NamedTypes),
-                                    val_type = type_replace_vars(TypeInfo, ValueType, NamedTypes)
-                                }
-                        end,
-                        Fields
-                    )
-            };
-        #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes} ->
-            {ok, #sp_rec{fields = Fields} = Rec} = spectra_type_info:find_record(
-                TypeInfo, RecordName
-            ),
-            NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
-            type_replace_vars(TypeInfo, NewRec, NamedTypes);
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes);
-        #sp_list{type = ListType} ->
-            #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
-    end;
-type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
-    Rec#sp_rec{
-        fields =
-            lists:map(
-                fun(#sp_rec_field{type = NType} = Field) ->
-                    Field#sp_rec_field{
-                        type = type_replace_vars(TypeInfo, NType, NamedTypes)
-                    }
-                end,
-                Fields
-            )
-    };
-type_replace_vars(TypeInfo, #sp_list{type = ItemType}, NamedTypes) ->
-    #sp_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType}, NamedTypes) ->
-    #sp_nonempty_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
-    #sp_union{
-        types =
-            lists:map(
-                fun(T) -> type_replace_vars(TypeInfo, T, NamedTypes) end,
-                Types
-            )
-    };
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
-    Type.
 
 -spec map_from_json(
     spectra:type_info(),
@@ -968,7 +862,7 @@ record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) 
 record_from_json(
     TypeInfo, #sp_rec{} = ARec, Json, TypeArgs
 ) ->
-    RecordInfo = record_replace_vars(ARec#sp_rec.fields, TypeArgs),
+    RecordInfo = spectra_util:record_replace_vars(ARec#sp_rec.fields, TypeArgs),
     NewRec = ARec#sp_rec{fields = RecordInfo},
     do_record_from_json(TypeInfo, NewRec, Json).
 
