@@ -12,8 +12,9 @@ This script validates OpenAPI 3.1 specifications using openapi-spec-validator.
 Usage: ./validate_openapi.py <openapi_json_file>
 """
 
-import sys
 import json
+import sys
+
 from openapi_spec_validator import validate_spec
 
 
@@ -22,12 +23,10 @@ def validate_openapi_file(filepath):
     try:
         with open(filepath, 'r') as f:
             spec = json.load(f)
-        
-        # Validate the OpenAPI specification
-        validate_spec(spec)
-        print(f"✅ {filepath} is a valid OpenAPI 3.1 specification")
+
+        validate_spec(spec, spec_url='openapi_3.1.0')
         return True
-        
+
     except json.JSONDecodeError as e:
         print(f"❌ Invalid JSON in {filepath}: {e}")
         return False
@@ -40,7 +39,7 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: ./validate_openapi.py <openapi_json_file>")
         sys.exit(1)
-    
+
     filepath = sys.argv[1]
     success = validate_openapi_file(filepath)
     sys.exit(0 if success else 1)
