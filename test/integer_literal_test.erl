@@ -17,7 +17,7 @@
 
 bor_t_abstract_code_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, BorTType} = spectra_type_info:get_type(TypeInfo, bor_t, 0),
+    BorTType = spectra_type_info:get_type(TypeInfo, bor_t, 0),
     ?assertEqual(#sp_literal{value = 2 bor 5, binary_value = <<"7">>}, BorTType).
 
 bor_t_to_json_test() ->

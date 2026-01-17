@@ -18,6 +18,9 @@
 -type map_in_map_value() :: #{hej => #{string() => integer()}}.
 -type map_in_map_key() :: #{#{string() => integer()} => integer()}.
 
+-type optional_nullable() :: #{a1 => integer() | undefined}.
+-type nullable() :: #{a1 := integer() | undefined}.
+
 map1_test() ->
     ?assertEqual({ok, #{<<"a1">> => 1}}, to_json_atom_map(#{a1 => 1})).
 
@@ -73,6 +76,42 @@ map3_bad_test() ->
         {error, [#sp_error{location = [a1], type = missing_data}]},
         to_json_atom_map3(#{not_a1 => kalle})
     ).
+
+nullable_test() ->
+    ?assertEqual(
+        {ok, #{a1 => 1}},
+        to_json_nullable(<<"{\"a1\":1}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_nullable(<<"{\"a1\":null}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_nullable(<<"{}">>)
+    ).
+
+optional_nullable_test() ->
+    ?assertEqual(
+        {ok, #{a1 => 1}},
+        to_json_optional_nullable(<<"{\"a1\":1}">>)
+    ),
+    ?assertEqual(
+        {ok, #{a1 => undefined}},
+        to_json_optional_nullable(<<"{\"a1\":null}">>)
+    ),
+    ?assertEqual(
+        {ok, #{}},
+        to_json_optional_nullable(<<"{}">>)
+    ).
+
+-spec to_json_optional_nullable(binary()) -> optional_nullable().
+to_json_optional_nullable(Binary) ->
+    spectra:decode(json, ?MODULE, optional_nullable, Binary).
+
+-spec to_json_nullable(binary()) -> nullable().
+to_json_nullable(Binary) ->
+    spectra:decode(json, ?MODULE, nullable, Binary).
 
 type_shaddow_literal_map_test() ->
     ?assertEqual(
@@ -178,7 +217,7 @@ from_json_type_shaddow_literal_map_test() ->
 
 from_json_type_shaddow_literal_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, TypeShadowLiteralMapType} = spectra_type_info:get_type(
+    TypeShadowLiteralMapType = spectra_type_info:get_type(
         TypeInfo, type_shaddow_literal_map, 0
     ),
     ?assertEqual(
@@ -202,7 +241,7 @@ from_json_mandatory_type_map_test() ->
 
 from_json_mandatory_type_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, MandatoryTypeMapType} = spectra_type_info:get_type(TypeInfo, mandatory_type_map, 0),
+    MandatoryTypeMapType = spectra_type_info:get_type(TypeInfo, mandatory_type_map, 0),
     ?assertEqual(
         {error, [sp_error:type_mismatch(MandatoryTypeMapType, [])]},
         from_json_mandatory_type_map([])
@@ -220,7 +259,7 @@ empty_map_test() ->
 
 empty_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
+    EmptyMapType = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
         {error, [sp_error:type_mismatch(EmptyMapType, not_a_map)]},
         to_json_empty_map(not_a_map)
@@ -248,7 +287,7 @@ from_json_empty_map_test() ->
 
 from_json_empty_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, EmptyMapType} = spectra_type_info:get_type(TypeInfo, empty_map, 0),
+    EmptyMapType = spectra_type_info:get_type(TypeInfo, empty_map, 0),
     ?assertEqual(
         {error, [sp_error:type_mismatch(EmptyMapType, not_a_map)]},
         from_json_empty_map(not_a_map)
@@ -336,7 +375,7 @@ map_in_map_key_test() ->
 
 map_in_map_key_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, MapInMapKeyType} = spectra_type_info:get_type(TypeInfo, map_in_map_key, 0),
+    MapInMapKeyType = spectra_type_info:get_type(TypeInfo, map_in_map_key, 0),
     ?assertEqual(
         {error, [sp_error:type_mismatch(MapInMapKeyType, not_a_map)]},
         to_json_map_in_map_key(not_a_map)

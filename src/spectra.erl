@@ -231,11 +231,11 @@ schema(json_schema, Module, TypeOrRef) ->
     end.
 
 get_type_from_atom(TypeInfo, RefAtom) ->
-    case spectra_type_info:get_type(TypeInfo, RefAtom, 0) of
+    case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
         {ok, Type} ->
             Type;
         error ->
-            case spectra_type_info:get_record(TypeInfo, RefAtom) of
+            case spectra_type_info:find_record(TypeInfo, RefAtom) of
                 {ok, Rec} ->
                     Rec;
                 error ->

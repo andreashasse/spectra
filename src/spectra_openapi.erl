@@ -414,13 +414,13 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
 
 -doc """
-Generates a complete OpenAPI 3.0 specification from a list of endpoints.
+Generates a complete OpenAPI 3.1 specification from a list of endpoints.
 
 This function takes a list of endpoint specifications and generates a complete OpenAPI document
 with paths, operations, and component schemas.
 
 ### Returns
-{ok, OpenAPISpec} containing the complete OpenAPI 3.0 document, or {error, Errors} if generation fails
+{ok, OpenAPISpec} containing the complete OpenAPI 3.1 document, or {error, Errors} if generation fails
 """.
 -doc #{
     params =>
@@ -453,7 +453,7 @@ endpoints_to_openapi(MetaData, Endpoints) when is_list(Endpoints) ->
         {ok, ComponentsResult} ->
             OpenAPISpec =
                 #{
-                    openapi => <<"3.0.0">>,
+                    openapi => <<"3.1.0">>,
                     info =>
                         #{
                             title => maps:get(title, MetaData),
@@ -564,7 +564,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                         DirectType ->
                             {ok, InlineSchema} =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            InlineSchema
+                            maps:remove(<<"$schema">>, InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
                 #{
@@ -590,8 +590,9 @@ generate_response(#{description := Description} = ResponseSpec) when
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
-    BaseHeader = #{schema => InlineSchema},
+    BaseHeader = #{schema => OpenApiSchema},
 
     %% Add optional description
     HeaderWithDesc =
@@ -623,7 +624,7 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                InlineSchema
+                maps:remove(<<"$schema">>, InlineSchema)
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
@@ -645,12 +646,13 @@ generate_parameter(
     Required = maps:get(required, ParameterSpec, false),
 
     {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     #{
         name => Name,
         in => In,
         required => Required,
-        schema => InlineSchema
+        schema => OpenApiSchema
     }.
 
 -spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_or_ref()}].
@@ -748,7 +750,8 @@ generate_components(SchemaRefs) ->
                     {ok, Schema} when is_map(Schema) ->
                         SchemaName =
                             type_ref_to_component_name(TypeRef),
-                        {ok, Acc#{SchemaName => Schema}};
+                        OpenApiSchema = maps:remove(<<"$schema">>, Schema),
+                        {ok, Acc#{SchemaName => OpenApiSchema}};
                     {error, _} = Error ->
                         Error
                 end

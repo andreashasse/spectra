@@ -25,7 +25,7 @@ can_be_missing(TypeInfo, Type) ->
             {true, LiteralValue};
         #sp_user_type_ref{type_name = TypeName, variables = TypeArgs} ->
             TypeArity = length(TypeArgs),
-            {ok, RefType} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            RefType = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             can_be_missing(TypeInfo, RefType);
         _ ->
             false

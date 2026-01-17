@@ -39,7 +39,7 @@ and converts it to the corresponding Erlang value.
 from_binary_string(TypeInfo, {type, TypeName, TypeArity}, BinaryString) when
     is_atom(TypeName)
 ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_binary_string(TypeInfo, Type, BinaryString);
 from_binary_string(_TypeInfo, {record, RecordName}, _BinaryString) when
     is_atom(RecordName)
@@ -81,7 +81,7 @@ from_binary_string(
 ) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     from_binary_string(TypeInfo, TypeWithoutVars, BinaryString);
 from_binary_string(_TypeInfo, #sp_literal{value = Literal}, BinaryString) ->
@@ -116,7 +116,7 @@ and converts it to a binary string representation.
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
 to_binary_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_binary_string(TypeInfo, Type, Data);
 to_binary_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
@@ -152,7 +152,7 @@ to_binary_string(
 to_binary_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     to_binary_string(TypeInfo, TypeWithoutVars, Data);
 to_binary_string(_TypeInfo, #sp_literal{} = Type, Data) ->
@@ -331,41 +331,12 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         maps:from_list(
             lists:zip(ArgNames, TypeArgs)
         ),
-    type_replace_vars(TypeInfo, Type, NamedTypes).
+    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
 arg_names(_) ->
     [].
-
--spec type_replace_vars(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    NamedTypes :: #{atom() => spectra:sp_type()}
-) ->
-    spectra:sp_type().
-type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    maps:get(Name, NamedTypes, #sp_simple_type{type = term});
-type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
-    case Type of
-        #sp_union{types = UnionTypes} ->
-            #sp_union{
-                types =
-                    lists:map(
-                        fun(UnionType) ->
-                            type_replace_vars(TypeInfo, UnionType, NamedTypes)
-                        end,
-                        UnionTypes
-                    )
-            };
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes)
-    end;
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
-    Type.
 
 convert_type_to_binary_string(integer, Data) when is_integer(Data) ->
     {ok, integer_to_binary(Data)};

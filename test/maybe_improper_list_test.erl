@@ -17,7 +17,7 @@
 
 erl_abstract_code_parses_maybe_improper_list_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, EmptyImproperType} = spectra_type_info:get_type(TypeInfo, empty_improper, 0),
+    EmptyImproperType = spectra_type_info:get_type(TypeInfo, empty_improper, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = term},
@@ -25,7 +25,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         EmptyImproperType
     ),
-    {ok, Iolist1Type} = spectra_type_info:get_type(TypeInfo, iolist1, 0),
+    Iolist1Type = spectra_type_info:get_type(TypeInfo, iolist1, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -33,7 +33,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist1Type
     ),
-    {ok, Iolist2Type} = spectra_type_info:get_type(TypeInfo, iolist2, 0),
+    Iolist2Type = spectra_type_info:get_type(TypeInfo, iolist2, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -41,7 +41,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist2Type
     ),
-    {ok, Iolist3Type} = spectra_type_info:get_type(TypeInfo, iolist3, 0),
+    Iolist3Type = spectra_type_info:get_type(TypeInfo, iolist3, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = string},
@@ -61,7 +61,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist3Type
     ),
-    {ok, Iolist4Type} = spectra_type_info:get_type(TypeInfo, iolist4, 0),
+    Iolist4Type = spectra_type_info:get_type(TypeInfo, iolist4, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = binary},
@@ -69,7 +69,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist4Type
     ),
-    {ok, Iolist5Type} = spectra_type_info:get_type(TypeInfo, iolist5, 0),
+    Iolist5Type = spectra_type_info:get_type(TypeInfo, iolist5, 0),
     ?assertEqual(
         #sp_maybe_improper_list{
             elements = #sp_simple_type{type = binary},
@@ -89,7 +89,7 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
         },
         Iolist5Type
     ),
-    {ok, NonEmptyIolist1Type} = spectra_type_info:get_type(TypeInfo, non_empty_iolist1, 0),
+    NonEmptyIolist1Type = spectra_type_info:get_type(TypeInfo, non_empty_iolist1, 0),
     ?assertEqual(
         #sp_nonempty_improper_list{
             elements = #sp_simple_type{type = string},
@@ -102,11 +102,11 @@ erl_abstract_code_parses_maybe_improper_list_types_test() ->
 spectra_json_handles_maybe_improper_list_data_test() ->
     Iolist1 = ["hello", <<"world">>],
     ?assertError(
-        {type_not_implemented, _},
+        {type_not_supported, _},
         spectra_json:to_json(?MODULE, {type, iolist1, 0}, Iolist1)
     ),
     ?assertError(
-        {type_not_implemented, _},
+        {type_not_supported, _},
         spectra_json:to_json(?MODULE, {type, non_empty_iolist1, 0}, Iolist1)
     ),
     ok.
@@ -114,11 +114,25 @@ spectra_json_handles_maybe_improper_list_data_test() ->
 spectra_json_handles_maybe_improper_list_data_from_json_test() ->
     Data = <<"[]">>,
     ?assertError(
-        {type_not_implemented, _},
+        {type_not_supported, _},
         spectra_json:from_json(?MODULE, {type, iolist1, 0}, Data)
     ),
     ?assertError(
-        {type_not_implemented, _},
+        {type_not_supported, _},
         spectra_json:from_json(?MODULE, {type, non_empty_iolist1, 0}, Data)
+    ),
+    ok.
+
+spectra_json_schema_handles_maybe_improper_list_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra_json_schema:to_schema(?MODULE, {type, iolist1, 0})
+    ),
+    ok.
+
+spectra_json_schema_handles_nonempty_improper_list_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra_json_schema:to_schema(?MODULE, {type, non_empty_iolist1, 0})
     ),
     ok.

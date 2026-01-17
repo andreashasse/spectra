@@ -1,7 +1,6 @@
--module(json_generator_test).
+-module(prop_json_generator).
 
 -include_lib("proper/include/proper.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 %% Property test that verifies all generated JSON values can be encoded
 prop_json_encodable() ->
@@ -37,10 +36,3 @@ prop_json_roundtrip() ->
             end
         end
     ).
-
-%% EUnit wrapper for PropEr tests
-json_encodable_test() ->
-    ?assert(proper:quickcheck(prop_json_encodable(), [{to_file, user}])).
-
-json_roundtrip_test() ->
-    ?assert(proper:quickcheck(prop_json_roundtrip(), [{to_file, user}])).

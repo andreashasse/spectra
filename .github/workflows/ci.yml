@@ -57,6 +57,9 @@ jobs:
       - name: Run tests
         run: make test
 
+      - name: Run property-based tests
+        run: make proper
+
       - name: Type check
         run: make type_check
 
