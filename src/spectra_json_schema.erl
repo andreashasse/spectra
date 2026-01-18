@@ -122,14 +122,14 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
         {[_MissingLiteral], [SingleType]} ->
             do_to_schema(TypeInfo, SingleType);
         {[], NonMissingTypes} ->
-            case try_generate_enum_schema(NonMissingTypes) of
+            case try_generate_enum_schema(NonMissingTypes, TypeInfo) of
                 {ok, _} = EnumSchema ->
                     EnumSchema;
                 not_all_literals ->
                     generate_oneof_schema(TypeInfo, NonMissingTypes)
             end;
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
-            case try_generate_enum_schema(OtherTypes) of
+            case try_generate_enum_schema(OtherTypes, TypeInfo) of
                 {ok, _} = EnumSchema ->
                     EnumSchema;
                 not_all_literals ->
@@ -382,36 +382,109 @@ generate_oneof_schema(TypeInfo, Types) ->
             Err
     end.
 
-try_generate_enum_schema(Types) ->
-    Enums = spectra_util:map_until_error(
-        fun
-            (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                {ok, null};
-            (#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
-                {ok, Value};
-            (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
-                {ok, BinaryValue};
-            (#sp_literal{value = Value}) when is_integer(Value) ->
-                {ok, Value};
-            (_Type) ->
-                %% FIXME: Should handle remote types etc here.
-                %% ... everything that can terminate to a literal
-                {error, not_all_literals}
-        end,
-        Types
-    ),
-    case Enums of
-        {error, not_all_literals} ->
+try_generate_enum_schema(Types, TypeInfo) ->
+    %% First, expand all types to their base forms (resolving references)
+    ExpandResults = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, Types),
+    %% Check if all types could be expanded to literals
+    case
+        lists:all(
+            fun
+                ({ok, _}) -> true;
+                (_) -> false
+            end,
+            ExpandResults
+        )
+    of
+        false ->
             not_all_literals;
-        {ok, EnumValues} ->
-            JsonType = infer_json_type(Types),
-            case JsonType of
-                undefined ->
-                    {ok, #{enum => EnumValues}};
-                Type ->
-                    {ok, #{type => Type, enum => EnumValues}}
+        true ->
+            %% Flatten all the literal lists
+            ExpandedTypes = lists:flatmap(
+                fun
+                    ({ok, Lits}) -> Lits;
+                    (_) -> []
+                end,
+                ExpandResults
+            ),
+            %% Now try to extract literal values from all expanded types
+            Enums = spectra_util:map_until_error(
+                fun(Type) -> extract_literal_value(Type) end,
+                ExpandedTypes
+            ),
+            case Enums of
+                {error, not_all_literals} ->
+                    not_all_literals;
+                {ok, EnumValues} ->
+                    JsonType = infer_json_type(ExpandedTypes),
+                    case JsonType of
+                        undefined ->
+                            {ok, #{enum => EnumValues}};
+                        Type ->
+                            {ok, #{type => Type, enum => EnumValues}}
+                    end
             end
     end.
+
+%% Expand a type to a list of literal types, resolving references and unions
+-spec expand_to_literals(spectra:sp_type(), spectra:type_info() | undefined) ->
+    {ok, [spectra:sp_type()]} | {error, not_all_literals}.
+expand_to_literals(#sp_literal{} = Literal, _TypeInfo) ->
+    {ok, [Literal]};
+%% Resolve remote types
+expand_to_literals(#sp_remote_type{mfargs = {Module, TypeName, Args}}, _TypeInfo) ->
+    RemoteTypeInfo = spectra_module_types:get(Module),
+    TypeArity = length(Args),
+    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+    expand_to_literals(TypeWithoutVars, RemoteTypeInfo);
+%% Resolve user type references
+expand_to_literals(#sp_user_type_ref{type_name = TypeName, variables = TypeArgs}, TypeInfo) when
+    TypeInfo =/= undefined
+->
+    TypeArity = length(TypeArgs),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    expand_to_literals(TypeWithoutVars, TypeInfo);
+%% Flatten unions - all members must expand to literals
+expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo) ->
+    Results = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, UnionTypes),
+    case
+        lists:all(
+            fun
+                ({ok, _}) -> true;
+                (_) -> false
+            end,
+            Results
+        )
+    of
+        true ->
+            AllLiterals = lists:flatmap(
+                fun
+                    ({ok, Lits}) -> Lits;
+                    (_) -> []
+                end,
+                Results
+            ),
+            {ok, AllLiterals};
+        false ->
+            {error, not_all_literals}
+    end;
+%% Anything else cannot be expanded to literals
+expand_to_literals(_Type, _TypeInfo) ->
+    {error, not_all_literals}.
+
+%% Helper to extract literal value from a type (non-recursive, only handles direct literals)
+-spec extract_literal_value(spectra:sp_type()) -> {ok, term()} | {error, not_all_literals}.
+extract_literal_value(#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
+    {ok, null};
+extract_literal_value(#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
+    {ok, Value};
+extract_literal_value(#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
+    {ok, BinaryValue};
+extract_literal_value(#sp_literal{value = Value}) when is_integer(Value) ->
+    {ok, Value};
+extract_literal_value(_Type) ->
+    {error, not_all_literals}.
 
 infer_json_type(Types) ->
     JsonTypes = lists:map(fun literal_to_json_type/1, Types),
