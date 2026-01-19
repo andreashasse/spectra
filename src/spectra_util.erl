@@ -163,16 +163,8 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
             ),
             NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
             type_replace_vars(TypeInfo, NewRec, NamedTypes);
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            % Replace variables in Args with their actual types from NamedTypes
-            ResolvedArgs = lists:map(
-                fun(Arg) -> type_replace_vars(TypeInfo, Arg, NamedTypes) end,
-                Args
-            ),
-            % Return the remote type with resolved args, preserving module context
-            #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}};
-        #sp_list{type = ListType} ->
-            #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
+        _ ->
+            type_replace_vars(TypeInfo, Type, NamedTypes)
     end;
 type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
     Rec#sp_rec{
