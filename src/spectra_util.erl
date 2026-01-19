@@ -164,10 +164,13 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
             NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
             type_replace_vars(TypeInfo, NewRec, NamedTypes);
         #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes);
+            % Replace variables in Args with their actual types from NamedTypes
+            ResolvedArgs = lists:map(
+                fun(Arg) -> type_replace_vars(TypeInfo, Arg, NamedTypes) end,
+                Args
+            ),
+            % Return the remote type with resolved args, preserving module context
+            #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}};
         #sp_list{type = ListType} ->
             #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
     end;
@@ -195,5 +198,15 @@ type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
                 Types
             )
     };
+type_replace_vars(
+    TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, NamedTypes
+) ->
+    % Replace variables in Args with their actual types from NamedTypes
+    ResolvedArgs = lists:map(
+        fun(Arg) -> type_replace_vars(TypeInfo, Arg, NamedTypes) end,
+        Args
+    ),
+    % Return the remote type with resolved args, preserving module context
+    #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}};
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
     Type.

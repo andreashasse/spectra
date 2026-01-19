@@ -19,6 +19,7 @@ Once that is done, run `make proper`.
   - Don't define types in .hrl files. Types that the user of this library should use should be defined in spectra.erl
   - When using a type that is defined in the same file, you don't have to prefix it with the module name
   - When the property based tests uncover an error. Make a unit test that reproduces the error and fix the error.
+  - Unit tests that tests the decoders, encoders and schemas should call spectra.erl, not eg spectra_json.erl
 
 ## Library Architecture
   - The library uses Erlang types during runtime to support type-safe serialization and deserialization
