@@ -11,7 +11,7 @@
 %% Test function to validate non_atom_enum type
 validate_non_atom_enum_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, NonAtomEnumType} = spectra_type_info:get_type(TypeInfo, non_atom_enum, 0),
+    NonAtomEnumType = spectra_type_info:get_type(TypeInfo, non_atom_enum, 0),
 
     % Test JSON conversion using to_json
     ValidData1 = 1,
@@ -48,7 +48,7 @@ validate_non_atom_enum_test() ->
 %% Test function to validate role type
 validate_role_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, RoleType} = spectra_type_info:get_type(TypeInfo, role, 0),
+    RoleType = spectra_type_info:get_type(TypeInfo, role, 0),
 
     % Test JSON conversion using to_json
     ValidData1 = admin,

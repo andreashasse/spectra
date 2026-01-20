@@ -12,7 +12,7 @@
 %% Test function to validate nonempty_list
 validate_nonempty_list_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, NonemptyItemsType} = spectra_type_info:get_type(TypeInfo, nonempty_items, 0),
+    NonemptyItemsType = spectra_type_info:get_type(TypeInfo, nonempty_items, 0),
 
     % Test JSON conversion using to_json
     ValidUser = #{name => "John", items => [1, 2, 3]},

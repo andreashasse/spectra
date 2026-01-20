@@ -23,6 +23,18 @@ invalid_int_result_from_json_test() ->
     Result = from_json_int_result(InvalidJson),
     ?assertMatch({error, [_ | _]}, Result).
 
+list_to_json_schema_test() ->
+    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"array">>,
+            items => #{type => <<"integer">>}
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_schema_2020_12(Schema).
+
 -spec to_json_int_result(int_result()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_int_result(Result) ->

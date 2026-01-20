@@ -12,7 +12,7 @@
 
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, IntResultType} = spectra_type_info:get_type(TypeInfo, int_result, 0),
+    IntResultType = spectra_type_info:get_type(TypeInfo, int_result, 0),
     ?assertEqual(
         #sp_user_type_ref{
             type_name = result_t,
@@ -20,7 +20,7 @@ type_in_form_test() ->
         },
         IntResultType
     ),
-    {ok, ResultTType} = spectra_type_info:get_type(TypeInfo, result_t, 1),
+    ResultTType = spectra_type_info:get_type(TypeInfo, result_t, 1),
     ?assertEqual(
         #sp_type_with_variables{
             type =
@@ -72,6 +72,23 @@ map1_from_json_test() ->
         ]},
         from_json_result_1(#{<<"value">> => <<"hej">>, <<"errors">> => []})
     ).
+
+record_to_json_schema_test() ->
+    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            properties =>
+                #{
+                    <<"value">> => #{type => <<"integer">>},
+                    <<"errors">> => #{type => <<"array">>, items => #{type => <<"string">>}}
+                },
+            required => [<<"value">>, <<"errors">>]
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_schema_2020_12(Schema).
 
 -spec from_json_result_1(term()) -> int_result().
 from_json_result_1(Data) ->

@@ -168,7 +168,7 @@ single_endpoint_to_openapi_test() ->
 
     ?assertMatch(
         #{
-            <<"openapi">> := <<"3.0.0">>,
+            <<"openapi">> := <<"3.1.0">>,
             <<"info">> := #{<<"title">> := _, <<"version">> := _},
             <<"paths">> := #{
                 <<"/users">> := #{<<"get">> := #{<<"responses">> := #{<<"200">> := _}}}

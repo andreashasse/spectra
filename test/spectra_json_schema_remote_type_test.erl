@@ -4,6 +4,10 @@
 
 -compile(nowarn_unused_type).
 
+%% Helper to validate schemas with Python validator
+validate_with_python(Schema) ->
+    json_schema_validator_helper:validate_or_skip(Schema).
+
 -type user_with_account() :: #{
     name := string(),
     account := other:account()
@@ -57,7 +61,8 @@ simple_remote_type_test() ->
             }
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 remote_type_with_variables_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, user_with_result, 0}),
@@ -74,7 +79,8 @@ remote_type_with_variables_test() ->
             }
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 multiple_remote_types_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, organization, 0}),
@@ -91,7 +97,8 @@ multiple_remote_types_test() ->
         Schema
     ),
     #{required := Required} = Schema,
-    ?assertEqual([<<"primary_account">>, <<"status">>], lists:sort(Required)).
+    ?assertEqual([<<"primary_account">>, <<"status">>], lists:sort(Required)),
+    validate_with_python(Schema).
 
 remote_type_in_record_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {record, transaction}),
@@ -108,7 +115,8 @@ remote_type_in_record_test() ->
             }
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 optional_remote_type_field_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {record, optional_account_holder}),
@@ -125,7 +133,8 @@ optional_remote_type_field_test() ->
         Schema
     ),
     #{required := Required} = Schema,
-    ?assertEqual([<<"id">>, <<"name">>], lists:sort(Required)).
+    ?assertEqual([<<"id">>, <<"name">>], lists:sort(Required)),
+    validate_with_python(Schema).
 
 remote_type_in_list_test() ->
     {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, account_list, 0}),
@@ -138,9 +147,12 @@ remote_type_in_list_test() ->
             }
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 remote_type_in_union_test() ->
-    {ok, #{oneOf := OneOf}} = spectra_json_schema:to_schema(?MODULE, {type, account_or_string, 0}),
+    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, account_or_string, 0}),
+    #{oneOf := OneOf} = Schema,
     Types = lists:sort([maps:get(type, S) || S <- OneOf]),
-    ?assertEqual([<<"object">>, <<"string">>], Types).
+    ?assertEqual([<<"object">>, <<"string">>], Types),
+    validate_with_python(Schema).

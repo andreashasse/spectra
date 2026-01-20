@@ -122,7 +122,7 @@ function_spec_extraction_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test my_function/2 spec extraction
-    {ok, [MyFunctionSpec]} = spectra_type_info:get_function(TypeInfo, my_function, 2),
+    {ok, [MyFunctionSpec]} = spectra_type_info:find_function(TypeInfo, my_function, 2),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -136,7 +136,7 @@ function_spec_extraction_test() ->
     ),
 
     %% Test simple_func/1 spec extraction
-    {ok, [SimpleFuncSpec]} = spectra_type_info:get_function(TypeInfo, simple_func, 1),
+    {ok, [SimpleFuncSpec]} = spectra_type_info:find_function(TypeInfo, simple_func, 1),
     ?assertMatch(
         #sp_function_spec{
             args = [#sp_simple_type{type = atom}],
@@ -146,14 +146,14 @@ function_spec_extraction_test() ->
     ),
 
     %% Test no_arg_func/0 spec extraction
-    {ok, [NoArgFuncSpec]} = spectra_type_info:get_function(TypeInfo, no_arg_func, 0),
+    {ok, [NoArgFuncSpec]} = spectra_type_info:find_function(TypeInfo, no_arg_func, 0),
     ?assertMatch(
         #sp_function_spec{args = [], return = #sp_simple_type{type = integer}},
         NoArgFuncSpec
     ),
 
     %% Test complex_func/2 spec extraction - more complex types
-    {ok, [ComplexFuncSpec]} = spectra_type_info:get_function(TypeInfo, complex_func, 2),
+    {ok, [ComplexFuncSpec]} = spectra_type_info:find_function(TypeInfo, complex_func, 2),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -201,7 +201,7 @@ user_defined_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test function with user-defined record argument
-    {ok, [ProcessUserSpec]} = spectra_type_info:get_function(TypeInfo, process_user, 1),
+    {ok, [ProcessUserSpec]} = spectra_type_info:find_function(TypeInfo, process_user, 1),
     ?assertMatch(
         #sp_function_spec{
             args = [#sp_rec_ref{record_name = user}],
@@ -211,7 +211,7 @@ user_defined_types_test() ->
     ),
 
     %% Test function returning user-defined record
-    {ok, [CreateUserSpec]} = spectra_type_info:get_function(TypeInfo, create_user, 2),
+    {ok, [CreateUserSpec]} = spectra_type_info:find_function(TypeInfo, create_user, 2),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -226,7 +226,7 @@ user_defined_types_test() ->
 
     %% Test function with record argument and tuple return
     {ok, [HandleResponseSpec]} =
-        spectra_type_info:get_function(TypeInfo, handle_response, 1),
+        spectra_type_info:find_function(TypeInfo, handle_response, 1),
     ?assertMatch(
         #sp_function_spec{
             args = [#sp_rec_ref{record_name = response}],
@@ -243,7 +243,7 @@ user_defined_types_test() ->
     ),
 
     %% Test function using remote types
-    {ok, [GetKeysSpec]} = spectra_type_info:get_function(TypeInfo, get_keys, 1),
+    {ok, [GetKeysSpec]} = spectra_type_info:find_function(TypeInfo, get_keys, 1),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -267,7 +267,7 @@ user_defined_types_test() ->
 
     %% Test function with remote type argument
     {ok, [FormatDatetimeSpec]} =
-        spectra_type_info:get_function(TypeInfo, format_datetime, 1),
+        spectra_type_info:find_function(TypeInfo, format_datetime, 1),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -281,7 +281,7 @@ parametrized_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test function using parametrized user-defined types
-    {ok, [ProcessListSpec]} = spectra_type_info:get_function(TypeInfo, process_list, 1),
+    {ok, [ProcessListSpec]} = spectra_type_info:find_function(TypeInfo, process_list, 1),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -303,7 +303,7 @@ parametrized_types_test() ->
     ),
 
     %% Test function with type variables in spec
-    {ok, [MakePairSpec]} = spectra_type_info:get_function(TypeInfo, make_pair, 2),
+    {ok, [MakePairSpec]} = spectra_type_info:find_function(TypeInfo, make_pair, 2),
     ?assertMatch(
         #sp_function_spec{
             args = [#sp_var{name = 'A'}, #sp_var{name = 'B'}],
@@ -321,7 +321,7 @@ parametrized_types_test() ->
     ),
 
     %% Test function with complex type variables and functions
-    {ok, [TransformPairSpec]} = spectra_type_info:get_function(TypeInfo, transform_pair, 3),
+    {ok, [TransformPairSpec]} = spectra_type_info:find_function(TypeInfo, transform_pair, 3),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -360,7 +360,7 @@ complex_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test function with union of user-defined and built-in types
-    {ok, [ProcessIdSpec]} = spectra_type_info:get_function(TypeInfo, process_id, 1),
+    {ok, [ProcessIdSpec]} = spectra_type_info:find_function(TypeInfo, process_id, 1),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -405,7 +405,7 @@ complex_types_test() ->
 
     %% Test function with external module record type
     {ok, [ExternalTypeFuncSpec]} =
-        spectra_type_info:get_function(TypeInfo, external_type_func, 1),
+        spectra_type_info:find_function(TypeInfo, external_type_func, 1),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -419,7 +419,7 @@ bounded_fun_spec_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test bounded_fun spec with when constraints
-    {ok, [WithBoundFunSpec]} = spectra_type_info:get_function(TypeInfo, with_bound_fun, 2),
+    {ok, [WithBoundFunSpec]} = spectra_type_info:find_function(TypeInfo, with_bound_fun, 2),
     ?assertMatch(
         #sp_function_spec{
             args =
@@ -434,7 +434,7 @@ bounded_fun_spec_test() ->
 
 multi_clause_spec_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, MultiClauseSpecs} = spectra_type_info:get_function(TypeInfo, multi_clause_func, 2),
+    {ok, MultiClauseSpecs} = spectra_type_info:find_function(TypeInfo, multi_clause_func, 2),
     ?assertEqual(
         [
             #sp_function_spec{
@@ -459,7 +459,7 @@ multi_clause_spec_test() ->
 
 mixed_bounded_fun_spec_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
-    {ok, MixedSpecs} = spectra_type_info:get_function(TypeInfo, mixed_spec_func, 2),
+    {ok, MixedSpecs} = spectra_type_info:find_function(TypeInfo, mixed_spec_func, 2),
     ?assertEqual(2, length(MixedSpecs)),
     ?assertEqual(
         [

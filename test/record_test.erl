@@ -14,7 +14,7 @@
 missing_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     %% arity
-    {ok, PersonRecord} = spectra_type_info:get_record(TypeInfo, person),
+    {ok, PersonRecord} = spectra_type_info:find_record(TypeInfo, person),
     ?assertEqual(
         #sp_rec{
             name = person,

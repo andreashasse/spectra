@@ -16,11 +16,11 @@ to_schema(Module, Type) when is_atom(Module) ->
     to_schema(TypeInfo, Type);
 %% Type references
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    do_to_schema(TypeInfo, TypeWithoutVars);
+    add_schema_version(do_to_schema(TypeInfo, TypeWithoutVars));
 to_schema(TypeInfo, Type) ->
-    do_to_schema(TypeInfo, Type).
+    add_schema_version(do_to_schema(TypeInfo, Type)).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
@@ -59,6 +59,9 @@ do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
 do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
     % any type
     {ok, #{}};
+do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
+    % generic map type - allows any keys and values
+    {ok, #{type => <<"object">>}};
 %% Range types
 do_to_schema(
     _TypeInfo,
@@ -119,14 +122,14 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
         {[_MissingLiteral], [SingleType]} ->
             do_to_schema(TypeInfo, SingleType);
         {[], NonMissingTypes} ->
-            case try_generate_enum_schema(NonMissingTypes) of
+            case try_generate_enum_schema(NonMissingTypes, TypeInfo) of
                 {ok, _} = EnumSchema ->
                     EnumSchema;
                 not_all_literals ->
                     generate_oneof_schema(TypeInfo, NonMissingTypes)
             end;
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
-            case try_generate_enum_schema(OtherTypes) of
+            case try_generate_enum_schema(OtherTypes, TypeInfo) of
                 {ok, _} = EnumSchema ->
                     EnumSchema;
                 not_all_literals ->
@@ -147,13 +150,14 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
 %% User type references
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    do_to_schema(TypeInfo, Type);
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    do_to_schema(TypeInfo, TypeWithoutVars);
 %% Remote types
 do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     do_to_schema(TypeInfo, TypeWithoutVars);
 %% Unsupported types
@@ -170,6 +174,10 @@ do_to_schema(_TypeInfo, #sp_tuple{} = Type) ->
     erlang:error({type_not_supported, Type});
 do_to_schema(_TypeInfo, #sp_function{} = Type) ->
     erlang:error({type_not_supported, Type});
+do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
+    erlang:error({type_not_supported, Type});
+do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
+    erlang:error({type_not_supported, Type});
 %% Fallback
 do_to_schema(_TypeInfo, Type) ->
     {error, [
@@ -182,88 +190,35 @@ do_to_schema(_TypeInfo, Type) ->
 
 %% Helper functions
 
-record_replace_vars(RecordInfo, TypeArgs) ->
-    lists:foldl(
-        fun({FieldName, Type}, Fields) ->
-            lists:map(
-                fun
-                    (#sp_rec_field{name = Name} = Field) when Name =:= FieldName ->
-                        Field#sp_rec_field{type = Type};
-                    (Field) ->
-                        Field
-                end,
-                Fields
-            )
-        end,
-        RecordInfo,
-        TypeArgs
-    ).
+%% Check if a type can be used as a JSON object key (must be string-like)
+-spec can_be_json_key(spectra:type_info(), spectra:sp_type()) -> boolean().
+can_be_json_key(_TypeInfo, #sp_simple_type{type = Type}) when
+    Type =:= string orelse
+        Type =:= binary orelse
+        Type =:= nonempty_string orelse
+        Type =:= nonempty_binary orelse
+        Type =:= atom
+->
+    true;
+can_be_json_key(_TypeInfo, #sp_literal{value = Value}) when is_atom(Value) ->
+    true;
+can_be_json_key(TypeInfo, #sp_union{types = Types}) ->
+    lists:all(fun(T) -> can_be_json_key(TypeInfo, T) end, Types);
+can_be_json_key(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
+    TypeArity = length(TypeArgs),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    can_be_json_key(TypeInfo, TypeWithoutVars);
+can_be_json_key(_TypeInfo, _Type) ->
+    false.
 
--spec type_replace_vars(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    NamedTypes :: #{atom() => spectra:sp_type()}
-) ->
-    spectra:sp_type().
-type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    maps:get(Name, NamedTypes, #sp_simple_type{type = term});
-type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
-    case Type of
-        #sp_union{types = UnionTypes} ->
-            #sp_union{
-                types =
-                    lists:map(
-                        fun(UnionType) ->
-                            type_replace_vars(TypeInfo, UnionType, NamedTypes)
-                        end,
-                        UnionTypes
-                    )
-            };
-        #sp_map{fields = Fields} = Map ->
-            Map#sp_map{
-                fields =
-                    lists:map(
-                        fun
-                            (#literal_map_field{val_type = FieldType} = Field) ->
-                                Field#literal_map_field{
-                                    val_type = type_replace_vars(TypeInfo, FieldType, NamedTypes)
-                                };
-                            (#typed_map_field{key_type = KeyType, val_type = ValueType} = Field) ->
-                                Field#typed_map_field{
-                                    key_type = type_replace_vars(TypeInfo, KeyType, NamedTypes),
-                                    val_type = type_replace_vars(TypeInfo, ValueType, NamedTypes)
-                                }
-                        end,
-                        Fields
-                    )
-            };
-        #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes} ->
-            {ok, #sp_rec{fields = Fields} = Rec} =
-                spectra_type_info:get_record(TypeInfo, RecordName),
-            NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
-            type_replace_vars(TypeInfo, NewRec, NamedTypes);
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes);
-        #sp_list{type = ListType} ->
-            #sp_list{type = type_replace_vars(TypeInfo, ListType, NamedTypes)}
-    end;
-type_replace_vars(_TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
-    Rec#sp_rec{
-        fields =
-            lists:map(
-                fun(#sp_rec_field{type = NType} = Field) ->
-                    Field#sp_rec_field{
-                        type = type_replace_vars(_TypeInfo, NType, NamedTypes)
-                    }
-                end,
-                Fields
-            )
-    };
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
-    Type.
+%% Add JSON Schema version to the schema
+-spec add_schema_version({ok, map()} | {error, [spectra:error()]}) ->
+    {ok, map()} | {error, [spectra:error()]}.
+add_schema_version({ok, Schema}) ->
+    {ok, Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}};
+add_schema_version({error, _} = Error) ->
+    Error.
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
@@ -276,7 +231,7 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         maps:from_list(
             lists:zip(ArgNames, TypeArgs)
         ),
-    type_replace_vars(TypeInfo, Type, NamedTypes).
+    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
     {ok, map()} | {error, [spectra:error()]}.
@@ -308,7 +263,7 @@ process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional) ->
     {ok, Properties, Required, HasAdditional};
 process_map_fields(
     TypeInfo,
-    [#literal_map_field{kind = assoc, binary_name = BinaryName, val_type = FieldType} | Rest],
+    [#literal_map_field{kind = Kind, binary_name = BinaryName, val_type = FieldType} | Rest],
     Properties,
     Required,
     HasAdditional
@@ -316,49 +271,51 @@ process_map_fields(
     case do_to_schema(TypeInfo, FieldType) of
         {ok, FieldSchema} ->
             NewProperties = maps:put(BinaryName, FieldSchema, Properties),
-            process_map_fields(TypeInfo, Rest, NewProperties, Required, HasAdditional);
-        {error, _} = Err ->
-            Err
-    end;
-process_map_fields(
-    TypeInfo,
-    [#literal_map_field{kind = exact, binary_name = BinaryName, val_type = FieldType} | Rest],
-    Properties,
-    Required,
-    HasAdditional
-) ->
-    case do_to_schema(TypeInfo, FieldType) of
-        {ok, FieldSchema} ->
-            NewProperties = maps:put(BinaryName, FieldSchema, Properties),
-            NewRequired = [BinaryName | Required],
+            NewRequired =
+                case Kind of
+                    exact -> [BinaryName | Required];
+                    assoc -> Required
+                end,
             process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional);
         {error, _} = Err ->
             Err
     end;
 process_map_fields(
-    _TypeInfo,
-    [#typed_map_field{kind = assoc} | Rest],
+    TypeInfo,
+    [#typed_map_field{key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
     _HasAdditional
 ) ->
-    %% Generic key-value map allows additional properties
-    process_map_fields(_TypeInfo, Rest, Properties, Required, true);
-process_map_fields(
-    _TypeInfo,
-    [#typed_map_field{kind = exact} | Rest],
-    Properties,
-    Required,
-    _HasAdditional
-) ->
-    %% Generic key-value map allows additional properties
-    process_map_fields(_TypeInfo, Rest, Properties, Required, true).
+    case can_be_json_key(TypeInfo, KeyType) of
+        false ->
+            erlang:error({type_not_supported, Field});
+        true ->
+            validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required)
+    end.
+
+validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required) ->
+    case do_to_schema(TypeInfo, KeyType) of
+        {error, _} = Err ->
+            Err;
+        {ok, _} ->
+            case do_to_schema(TypeInfo, ValType) of
+                {error, _} = Err ->
+                    Err;
+                {ok, _} ->
+                    process_map_fields(TypeInfo, Rest, Properties, Required, true)
+            end
+    end.
 
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
     {ok, map()} | {error, [spectra:error()]}.
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
-    {ok, RecordInfo} = spectra_type_info:get_record(TypeInfo, RecordName),
-    record_to_schema_internal(TypeInfo, RecordInfo);
+    case spectra_type_info:find_record(TypeInfo, RecordName) of
+        {ok, RecordInfo} ->
+            record_to_schema_internal(TypeInfo, RecordInfo);
+        error ->
+            erlang:error({record_not_found, RecordName})
+    end;
 record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
     case process_record_fields(TypeInfo, Fields, #{}, []) of
         {ok, Properties, Required} ->
@@ -425,40 +382,109 @@ generate_oneof_schema(TypeInfo, Types) ->
             Err
     end.
 
-try_generate_enum_schema(Types) ->
+try_generate_enum_schema(Types, TypeInfo) ->
+    %% First, expand all types to their base forms (resolving references)
+    ExpandResults = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, Types),
+    %% Check if all types could be expanded to literals
     case
         lists:all(
             fun
-                (#sp_literal{}) -> true;
+                ({ok, _}) -> true;
                 (_) -> false
             end,
-            Types
+            ExpandResults
+        )
+    of
+        false ->
+            not_all_literals;
+        true ->
+            %% Flatten all the literal lists
+            ExpandedTypes = lists:flatmap(
+                fun
+                    ({ok, Lits}) -> Lits;
+                    (_) -> []
+                end,
+                ExpandResults
+            ),
+            %% Now try to extract literal values from all expanded types
+            Enums = spectra_util:map_until_error(
+                fun(Type) -> extract_literal_value(Type) end,
+                ExpandedTypes
+            ),
+            case Enums of
+                {error, not_all_literals} ->
+                    not_all_literals;
+                {ok, EnumValues} ->
+                    JsonType = infer_json_type(ExpandedTypes),
+                    case JsonType of
+                        undefined ->
+                            {ok, #{enum => EnumValues}};
+                        Type ->
+                            {ok, #{type => Type, enum => EnumValues}}
+                    end
+            end
+    end.
+
+%% Expand a type to a list of literal types, resolving references and unions
+-spec expand_to_literals(spectra:sp_type(), spectra:type_info() | undefined) ->
+    {ok, [spectra:sp_type()]} | {error, not_all_literals}.
+expand_to_literals(#sp_literal{} = Literal, _TypeInfo) ->
+    {ok, [Literal]};
+%% Resolve remote types
+expand_to_literals(#sp_remote_type{mfargs = {Module, TypeName, Args}}, _TypeInfo) ->
+    RemoteTypeInfo = spectra_module_types:get(Module),
+    TypeArity = length(Args),
+    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+    expand_to_literals(TypeWithoutVars, RemoteTypeInfo);
+%% Resolve user type references
+expand_to_literals(#sp_user_type_ref{type_name = TypeName, variables = TypeArgs}, TypeInfo) when
+    TypeInfo =/= undefined
+->
+    TypeArity = length(TypeArgs),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    expand_to_literals(TypeWithoutVars, TypeInfo);
+%% Flatten unions - all members must expand to literals
+expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo) ->
+    Results = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, UnionTypes),
+    case
+        lists:all(
+            fun
+                ({ok, _}) -> true;
+                (_) -> false
+            end,
+            Results
         )
     of
         true ->
-            EnumValues = lists:map(
+            AllLiterals = lists:flatmap(
                 fun
-                    (#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
-                        null;
-                    (#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
-                        Value;
-                    (#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
-                        BinaryValue;
-                    (#sp_literal{value = Value}) ->
-                        Value
+                    ({ok, Lits}) -> Lits;
+                    (_) -> []
                 end,
-                Types
+                Results
             ),
-            JsonType = infer_json_type(Types),
-            case JsonType of
-                undefined ->
-                    {ok, #{enum => EnumValues}};
-                Type ->
-                    {ok, #{type => Type, enum => EnumValues}}
-            end;
+            {ok, AllLiterals};
         false ->
-            not_all_literals
-    end.
+            {error, not_all_literals}
+    end;
+%% Anything else cannot be expanded to literals
+expand_to_literals(_Type, _TypeInfo) ->
+    {error, not_all_literals}.
+
+%% Helper to extract literal value from a type (non-recursive, only handles direct literals)
+-spec extract_literal_value(spectra:sp_type()) -> {ok, term()} | {error, not_all_literals}.
+extract_literal_value(#sp_literal{value = Value}) when Value =:= undefined orelse Value =:= nil ->
+    {ok, null};
+extract_literal_value(#sp_literal{value = Value}) when Value =:= true orelse Value =:= false ->
+    {ok, Value};
+extract_literal_value(#sp_literal{value = Value, binary_value = BinaryValue}) when is_atom(Value) ->
+    {ok, BinaryValue};
+extract_literal_value(#sp_literal{value = Value}) when is_integer(Value) ->
+    {ok, Value};
+extract_literal_value(_Type) ->
+    {error, not_all_literals}.
 
 infer_json_type(Types) ->
     JsonTypes = lists:map(fun literal_to_json_type/1, Types),

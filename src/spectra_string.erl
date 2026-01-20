@@ -34,7 +34,7 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, term()} | {error, [spectra:error()]}.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
 from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
@@ -70,7 +70,7 @@ from_string(
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     from_string(TypeInfo, TypeWithoutVars, String);
 from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
@@ -105,7 +105,7 @@ and converts it to a string representation.
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_string(TypeInfo, Type, Data);
 to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
@@ -141,7 +141,7 @@ to_string(
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     to_string(TypeInfo, TypeWithoutVars, Data);
 to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
@@ -316,41 +316,12 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         maps:from_list(
             lists:zip(ArgNames, TypeArgs)
         ),
-    type_replace_vars(TypeInfo, Type, NamedTypes).
+    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
 arg_names(_) ->
     [].
-
--spec type_replace_vars(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    NamedTypes :: #{atom() => spectra:sp_type()}
-) ->
-    spectra:sp_type().
-type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
-    maps:get(Name, NamedTypes, #sp_simple_type{type = term});
-type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
-    case Type of
-        #sp_union{types = UnionTypes} ->
-            #sp_union{
-                types =
-                    lists:map(
-                        fun(UnionType) ->
-                            type_replace_vars(TypeInfo, UnionType, NamedTypes)
-                        end,
-                        UnionTypes
-                    )
-            };
-        #sp_remote_type{mfargs = {Module, TypeName, Args}} ->
-            TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
-            {ok, Type} = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            type_replace_vars(TypeInfo, Type, NamedTypes)
-    end;
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
-    Type.
 
 convert_type_to_string(integer, Data) when is_integer(Data) ->
     {ok, integer_to_list(Data)};
@@ -380,11 +351,11 @@ convert_type_to_string(atom, Data) when is_atom(Data) ->
 convert_type_to_string(atom, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = atom}, Data)]};
 convert_type_to_string(string, Data) when is_list(Data) ->
-    lits_to_charlist(Data);
+    list_to_charlist(Data);
 convert_type_to_string(string, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = string}, Data)]};
 convert_type_to_string(nonempty_string, Data) when is_list(Data), Data =/= [] ->
-    lits_to_charlist(Data);
+    list_to_charlist(Data);
 convert_type_to_string(nonempty_string, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, Data)]};
 convert_type_to_string(binary, Data) when is_binary(Data) ->
@@ -410,7 +381,7 @@ convert_type_to_string(neg_integer, Data) ->
 convert_type_to_string(Type, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
 
-lits_to_charlist(Data) ->
+list_to_charlist(Data) ->
     case application:get_env(spectra, check_unicode, false) of
         true ->
             case unicode:characters_to_list(Data) of
