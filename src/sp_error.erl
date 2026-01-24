@@ -13,14 +13,14 @@
 
 -spec type_mismatch(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term()
+    dynamic()
 ) -> #sp_error{}.
 type_mismatch(Type, Value) ->
     type_mismatch(Type, Value, #{}).
 
 -spec type_mismatch(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term(),
+    dynamic(),
     map()
 ) -> #sp_error{}.
 type_mismatch(Type, Value, Ctx) ->
@@ -32,7 +32,7 @@ type_mismatch(Type, Value, Ctx) ->
 
 -spec missing_data(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term(),
+    dynamic(),
     [string() | atom()]
 ) -> #sp_error{}.
 missing_data(Type, Value, Location) ->
@@ -44,7 +44,7 @@ missing_data(Type, Value, Location) ->
 
 -spec not_matched_fields(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term()
+    dynamic()
 ) -> #sp_error{}.
 not_matched_fields(Type, Value) ->
     #sp_error{
@@ -55,7 +55,7 @@ not_matched_fields(Type, Value) ->
 
 -spec no_match(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
-    term(),
+    dynamic(),
     [{spectra:sp_type(), [#sp_error{}]}]
 ) -> #sp_error{}.
 no_match(Type, Value, Errors) ->

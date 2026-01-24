@@ -32,7 +32,7 @@ and converts it to the corresponding Erlang value.
     Type :: spectra:sp_type_or_ref(),
     String :: list()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
@@ -101,7 +101,7 @@ and converts it to a string representation.
 -spec to_string(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type_or_ref(),
-    Data :: term()
+    Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
@@ -156,14 +156,14 @@ to_string(_TypeInfo, Type, Data) ->
     Type :: spectra:simple_types(),
     String :: string()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 convert_string_to_type(Type, String) when is_atom(Type), is_list(String) ->
     do_convert_string_to_type(Type, String);
 convert_string_to_type(Type, NotString) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, NotString)]}.
 
 -spec do_convert_string_to_type(Type :: spectra:simple_types(), String :: string()) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 do_convert_string_to_type(integer, String) ->
     try
         {ok, list_to_integer(String)}
@@ -241,7 +241,7 @@ do_convert_string_to_type(Type, String) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, String)]}.
 
 -spec try_convert_string_to_literal(Literal :: spectra:literal_value(), String :: string()) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 try_convert_string_to_literal(Literal, String) when is_boolean(Literal) ->
     case convert_string_to_type(boolean, String) of
         {ok, Literal} ->
@@ -394,7 +394,7 @@ list_to_charlist(Data) ->
             {ok, Data}
     end.
 
--spec try_convert_literal_to_string(Literal :: spectra:literal_value(), Data :: term()) ->
+-spec try_convert_literal_to_string(Literal :: spectra:literal_value(), Data :: dynamic()) ->
     {ok, string()} | {error, [spectra:error()]}.
 try_convert_literal_to_string(Literal, Literal) when is_atom(Literal) ->
     {ok, atom_to_list(Literal)};
