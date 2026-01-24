@@ -121,7 +121,7 @@ do_to_json(_TypeInfo, #sp_function{} = Type, _Data) ->
 do_to_json(_TypeInfo, Type, OtherValue) ->
     {error, [sp_error:type_mismatch(Type, OtherValue)]}.
 
--spec prim_type_to_json(Type :: spectra:sp_type(), Value :: term()) ->
+-spec prim_type_to_json(Type :: spectra:sp_type(), Value :: dynamic()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
     case check_type_to_json(Type, Value) of
@@ -143,7 +143,7 @@ nonempty_list_to_json(_TypeInfo, Type, Data) ->
 -spec list_to_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type_or_ref(),
-    Data :: [term()]
+    Data :: [dynamic()]
 ) ->
     {ok, [json:encode_value()]} | {error, [spectra:error()]}.
 list_to_json(TypeInfo, Type, Data) when is_list(Data) ->
@@ -342,7 +342,7 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
 -spec record_to_json(
     TypeInfo :: spectra:type_info(),
     RecordName :: atom() | #sp_rec{},
-    Record :: term(),
+    Record :: dynamic(),
     TypeArgs :: [{atom(), spectra:sp_type()}]
 ) ->
     {ok, #{atom() => json:encode_value()}} | {error, [spectra:error()]}.
@@ -376,7 +376,7 @@ record_to_json(_TypeInfo, RecordType, Record, TypeArgs) ->
 
 -spec do_record_to_json(
     spectra:type_info(),
-    [{#sp_rec_field{}, Value :: term()}]
+    [{#sp_rec_field{}, Value :: dynamic()}]
 ) ->
     {ok, #{atom() => json}} | {error, [spectra:error()]}.
 do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
@@ -415,7 +415,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
     Type :: spectra:sp_type_or_ref(),
     Json :: json:decode_value()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 from_json(Module, Type, Json) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     do_from_json(TypeInfo, Type, Json);
@@ -427,7 +427,7 @@ from_json(TypeInfo, Type, Json) ->
     Type :: spectra:sp_type_or_ref(),
     Json :: json:decode_value()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 do_from_json(TypeInfo, {record, RecordName}, Json) when is_atom(RecordName) ->
     record_from_json(TypeInfo, RecordName, Json, []);
 do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
@@ -537,7 +537,7 @@ do_from_json(_TypeInfo, Type, Value) ->
 
 -spec try_convert_to_literal(
     Type :: #sp_literal{},
-    Value :: term()
+    Value :: dynamic()
 ) -> {ok, integer() | atom() | []} | false.
 try_convert_to_literal(
     #sp_literal{value = []}, _Value
@@ -685,7 +685,7 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
     TypeArgs :: [spectra:sp_type()],
     Json :: json:decode_value()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 type_from_json(TypeInfo, TypeName, TypeArity, TypeArgs, Json) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
@@ -851,7 +851,7 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
     Json :: json:decode_value(),
     TypeArgs :: [spectra:record_field_arg()]
 ) ->
-    {ok, term()} | {error, list()}.
+    {ok, dynamic()} | {error, list()}.
 record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, Record} ->
@@ -871,7 +871,7 @@ record_from_json(
     #sp_rec{},
     Json :: json:decode_value()
 ) ->
-    {ok, term()} | {error, list()}.
+    {ok, dynamic()} | {error, list()}.
 do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, Json) when
     is_map(Json)
 ->

@@ -115,9 +115,9 @@ an error if the data doesn't match the expected type.
     Format :: atom(),
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
-    Binary :: any()
+    Binary :: binary() | list()
 ) ->
-    {ok, term()} | {error, [error()]}.
+    {ok, dynamic()} | {error, [error()]}.
 decode(Format, Module, TypeOrRef, Binary) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     decode(Format, TypeInfo, TypeOrRef, Binary);
@@ -165,9 +165,9 @@ and returns an error if the data doesn't match the expected type.
     Format :: atom(),
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
-    Binary :: any()
+    Data :: dynamic()
 ) ->
-    {ok, term()} | {error, [error()]}.
+    {ok, dynamic()} | {error, [error()]}.
 encode(Format, Module, TypeOrRef, Data) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     encode(Format, TypeInfo, TypeOrRef, Data);
