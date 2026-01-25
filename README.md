@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.3.1"}
+    {spectra, "~> 0.3.2"}
 ]}.
 ```
 
@@ -201,7 +201,7 @@ BadSourceJson = <<"[{\"number\":\"+1-555-123-4567\",\"verified\":{\"source\":\"a
 `#error{}` contains:
 
 - `location` - List showing the path to where the error occurred
-- `type` - Error type: `type_mismatch`, `no_match`, `missing_data`, `missing_type`, `type_not_supported`, `not_implemented`
+- `type` - Error type: `type_mismatch`, `no_match`, `missing_data`, `missing_type`, `type_not_supported`, `not_matched_fields`, `not_implemented`
 - `ctx` - Context information about the error
 
 ### Raised Exceptions
@@ -213,20 +213,24 @@ Configuration and structural errors raise exceptions. These occur when:
 
 These errors indicate a problem with your application's configuration or type definitions, not with the data being processed.
 
-### Extra Fields in JSON
+### Extra Fields in JSON (Deserialization)
 
-When deserializing JSON into maps, records, or structs, **extra fields that are not defined in the type are silently ignored**. This lenient behavior allows for flexible API evolution and backwards compatibility.
+When **deserializing JSON into Erlang** (using `spectra:decode/4`), extra fields that are not defined in the type are **silently ignored** for maps, records, and structs. This lenient behavior allows for flexible API evolution and backwards compatibility.
 
 Example:
 ```erlang
 -type user() :: #{name := binary(), age := integer()}.
 
-%% JSON with extra fields is accepted
+%% JSON with extra fields is accepted during deserialization
 Json = <<"{\"name\":\"Alice\",\"age\":30,\"extra\":\"ignored\"}">>,
 {ok, #{name := <<"Alice">>, age := 30}} = spectra:decode(json, ?MODULE, user, Json).
 ```
 
-This behavior was introduced in version 0.2.0. Previously, extra fields would cause a `not_matched_fields` error.
+This behavior was introduced in version 0.2.0. Previously, extra fields during deserialization would cause a `not_matched_fields` error.
+
+**Note:** The `not_matched_fields` error is still raised during **serialization** (Erlang → JSON) when encoding data with exact typed map fields that don't match the provided data structure.
+
+**Future changes:** This default behavior may change in future versions of spectra when decode/encode options are introduced, allowing users to configure whether extra fields should be ignored or cause errors.
 
 ## Special Handling
 
