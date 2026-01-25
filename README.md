@@ -4,11 +4,14 @@ A data validation library for Erlang inspired by Pydantic.
 Spectra provides type-safe data serialization and deserialization for Erlang records and types. Currently the focus is on JSON.
 
 - **Type-safe conversion**: Convert typed Erlang values to/from external formats such as JSON, making sure the data conforms to the type.
+- **OpenAPI documentation**: Generate OpenAPI 3.1 specifications from your type definitions
 - **Detailed errors**: Get error messages with location information when validation fails
 - **Support for complex scenarios**: Handles unions, records, atoms, nested structures, ...
 
 
-## Installation
+## Installation and Requirements
+
+**Requires Erlang/OTP 27 or later** - Spectra uses the native `json` module introduced in OTP 27.
 
 Add spectra to your rebar.config dependencies:
 
@@ -17,6 +20,8 @@ Add spectra to your rebar.config dependencies:
     {spectra, "~> 0.3.1"}
 ]}.
 ```
+
+Your modules must be compiled with `debug_info` for spectra to extract type information.
 
 ## Data (de)serialization
 
@@ -178,11 +183,6 @@ spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
 ```
 
 
-## Requirements
-
-* Modules must be compiled with `debug_info` for spectra to extract type information.
-
-
 ## Error Handling
 
 Spectra uses two different error handling strategies depending on the type of error:
@@ -201,7 +201,7 @@ BadSourceJson = <<"[{\"number\":\"+1-555-123-4567\",\"verified\":{\"source\":\"a
 `#error{}` contains:
 
 - `location` - List showing the path to where the error occurred
-- `type` - Error type: `type_mismatch`, `no_match`, `missing_data`, `missing_type`, `type_not_supported`, `not_matched_fields`, `not_implemented`
+- `type` - Error type: `type_mismatch`, `no_match`, `missing_data`, `missing_type`, `type_not_supported`, `not_implemented`
 - `ctx` - Context information about the error
 
 ### Raised Exceptions
@@ -212,6 +212,21 @@ Configuration and structural errors raise exceptions. These occur when:
 - Unsupported type used (e.g., `pid()`, `port()`, `tuple()`)
 
 These errors indicate a problem with your application's configuration or type definitions, not with the data being processed.
+
+### Extra Fields in JSON
+
+When deserializing JSON into maps, records, or structs, **extra fields that are not defined in the type are silently ignored**. This lenient behavior allows for flexible API evolution and backwards compatibility.
+
+Example:
+```erlang
+-type user() :: #{name := binary(), age := integer()}.
+
+%% JSON with extra fields is accepted
+Json = <<"{\"name\":\"Alice\",\"age\":30,\"extra\":\"ignored\"}">>,
+{ok, #{name := <<"Alice">>, age := 30}} = spectra:decode(json, ?MODULE, user, Json).
+```
+
+This behavior was introduced in version 0.2.0. Previously, extra fields would cause a `not_matched_fields` error.
 
 ## Special Handling
 
