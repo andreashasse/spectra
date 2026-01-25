@@ -4,19 +4,24 @@ A data validation library for Erlang inspired by Pydantic.
 Spectra provides type-safe data serialization and deserialization for Erlang records and types. Currently the focus is on JSON.
 
 - **Type-safe conversion**: Convert typed Erlang values to/from external formats such as JSON, making sure the data conforms to the type.
+- **OpenAPI documentation**: Generate OpenAPI 3.1 specifications from your type definitions
 - **Detailed errors**: Get error messages with location information when validation fails
 - **Support for complex scenarios**: Handles unions, records, atoms, nested structures, ...
 
 
-## Installation
+## Installation and Requirements
+
+**Requires Erlang/OTP 27 or later** - Spectra uses the native `json` module introduced in OTP 27.
 
 Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.3.1"}
+    {spectra, "~> 0.3.2"}
 ]}.
 ```
+
+Your modules must be compiled with `debug_info` for spectra to extract type information.
 
 ## Data (de)serialization
 
@@ -178,11 +183,6 @@ spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
 ```
 
 
-## Requirements
-
-* Modules must be compiled with `debug_info` for spectra to extract type information.
-
-
 ## Error Handling
 
 Spectra uses two different error handling strategies depending on the type of error:
@@ -212,6 +212,25 @@ Configuration and structural errors raise exceptions. These occur when:
 - Unsupported type used (e.g., `pid()`, `port()`, `tuple()`)
 
 These errors indicate a problem with your application's configuration or type definitions, not with the data being processed.
+
+### Extra Fields in JSON (Deserialization)
+
+When **deserializing JSON into Erlang** (using `spectra:decode/4`), extra fields that are not defined in the type are **silently ignored** for maps, records, and structs. This lenient behavior allows for flexible API evolution and backwards compatibility.
+
+Example:
+```erlang
+-type user() :: #{name := binary(), age := integer()}.
+
+%% JSON with extra fields is accepted during deserialization
+Json = <<"{\"name\":\"Alice\",\"age\":30,\"extra\":\"ignored\"}">>,
+{ok, #{name := <<"Alice">>, age := 30}} = spectra:decode(json, ?MODULE, user, Json).
+```
+
+This behavior was introduced in version 0.2.0. Previously, extra fields during deserialization would cause a `not_matched_fields` error.
+
+**Note:** The `not_matched_fields` error is still raised during **serialization** (Erlang → JSON) when encoding data with exact typed map fields that don't match the provided data structure.
+
+**Future changes:** This default behavior may change in future versions of spectra when decode/encode options are introduced, allowing users to configure whether extra fields should be ignored or cause errors.
 
 ## Special Handling
 
