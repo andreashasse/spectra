@@ -675,8 +675,8 @@ collect_endpoint_schema_refs(
                 [];
             #{schema := Schema, module := Module} ->
                 case filter_typeref(Schema, Module) of
-                    {true, TypeRef} ->
-                        [TypeRef];
+                    {true, ModuleTypeRef} ->
+                        [ModuleTypeRef];
                     false ->
                         []
                 end
@@ -704,8 +704,8 @@ collect_response_refs(Responses) ->
                     Acc;
                 {Schema, Module} ->
                     case filter_typeref(Schema, Module) of
-                        {true, TypeRef} ->
-                            [TypeRef | Acc];
+                        {true, ModuleTypeRef} ->
+                            [ModuleTypeRef | Acc];
                         false ->
                             Acc
                     end
@@ -725,6 +725,8 @@ collect_parameter_refs(Parameters) ->
         Parameters
     ).
 
+-spec filter_typeref(spectra:sp_type_or_ref(), module()) ->
+    {true, {module(), spectra:sp_type_reference()}} | false.
 filter_typeref(Schema, Module) ->
     case spectra_type:type_reference(Schema) of
         {true, TypeRef} ->
