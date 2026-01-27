@@ -177,16 +177,7 @@ do_to_schema(_TypeInfo, #sp_function{} = Type) ->
 do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
     erlang:error({type_not_supported, Type});
 do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
-    erlang:error({type_not_supported, Type});
-%% Fallback
-do_to_schema(_TypeInfo, Type) ->
-    {error, [
-        #sp_error{
-            type = no_match,
-            location = [],
-            ctx = #{type => Type}
-        }
-    ]}.
+    erlang:error({type_not_supported, Type}).
 
 %% Helper functions
 
