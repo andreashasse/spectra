@@ -69,8 +69,7 @@ binary_to_quality(Bin) ->
     spectra:decode(binary_string, ?MODULE, quality, Bin).
 
 json_schema() ->
-    {ok, IoSchema} = spectra:schema(json_schema, ?MODULE, contacts),
-    iolist_to_binary(IoSchema).
+    spectra:schema(json_schema, ?MODULE, contacts).
 
 ```
 
@@ -141,8 +140,7 @@ Where:
 ### Schema API
 
 ```erlang
-spectra:schema(Format, Module, Type) ->
-    {ok, Schema :: map()} | {error, [spectra:error()]}.
+spectra:schema(Format, Module, Type) -> Schema :: iodata().
 ```
 
 Where:
