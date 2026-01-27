@@ -24,7 +24,7 @@ invalid_int_result_from_json_test() ->
     ?assertMatch({error, [_ | _]}, Result).
 
 list_to_json_schema_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,

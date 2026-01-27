@@ -189,7 +189,7 @@ round_trip_nested_int_key_map_test() ->
 %%====================================================================
 
 schema_int_literal_key_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, int_literal_key_map, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, int_literal_key_map, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -206,7 +206,7 @@ schema_int_literal_key_test() ->
     validate_with_python(Schema).
 
 schema_int_literal_optional_map_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {
+    Schema = spectra_json_schema:to_schema(?MODULE, {
         type,
         int_literal_optional_map,
         0
@@ -222,7 +222,7 @@ schema_int_literal_optional_map_test() ->
     validate_with_python(Schema).
 
 schema_mixed_int_atom_keys_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, mixed_int_atom_keys, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, mixed_int_atom_keys, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -239,7 +239,7 @@ schema_mixed_int_atom_keys_test() ->
     validate_with_python(Schema).
 
 schema_nested_int_key_map_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, nested_int_key_map, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, nested_int_key_map, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,

@@ -26,7 +26,7 @@
 -type binary_key_map() :: #{binary() => integer()}.
 
 simple_type_validation_test() ->
-    {ok, IntSchema} = spectra_json_schema:to_schema(?MODULE, {type, user_id, 0}),
+    IntSchema = spectra_json_schema:to_schema(?MODULE, {type, user_id, 0}),
     %% Remove $schema field since jesse doesn't support 2020-12
     IntSchemaWithoutVersion = maps:remove(<<"$schema">>, IntSchema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(IntSchemaWithoutVersion))),
@@ -35,7 +35,7 @@ simple_type_validation_test() ->
     ?assertMatch({error, _}, jesse:validate_with_schema(JesseSchema, <<"not_an_integer">>)).
 
 string_type_validation_test() ->
-    {ok, StringSchema} = spectra_json_schema:to_schema(?MODULE, {type, user_name, 0}),
+    StringSchema = spectra_json_schema:to_schema(?MODULE, {type, user_name, 0}),
     %% Remove $schema field since jesse doesn't support 2020-12
     StringSchemaWithoutVersion = maps:remove(<<"$schema">>, StringSchema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(StringSchemaWithoutVersion))),
@@ -43,7 +43,7 @@ string_type_validation_test() ->
     ?assertMatch({error, _}, jesse:validate_with_schema(JesseSchema, 123)).
 
 binary_type_validation_test() ->
-    {ok, BinarySchema} = spectra_json_schema:to_schema(?MODULE, {type, user_email, 0}),
+    BinarySchema = spectra_json_schema:to_schema(?MODULE, {type, user_email, 0}),
     %% Remove $schema field since jesse doesn't support 2020-12
     BinarySchemaWithoutVersion = maps:remove(<<"$schema">>, BinarySchema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(BinarySchemaWithoutVersion))),
@@ -54,7 +54,7 @@ binary_type_validation_test() ->
     ?assertMatch({error, _}, jesse:validate_with_schema(JesseSchema, 123)).
 
 record_validation_test() ->
-    {ok, RecordSchema} = spectra_json_schema:to_schema(?MODULE, {record, user_profile}),
+    RecordSchema = spectra_json_schema:to_schema(?MODULE, {record, user_profile}),
     %% Remove $schema field since jesse doesn't support 2020-12
     RecordSchemaWithoutVersion = maps:remove(<<"$schema">>, RecordSchema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(RecordSchemaWithoutVersion))),
@@ -91,7 +91,7 @@ record_validation_test() ->
     ).
 
 complex_map_validation_test() ->
-    {ok, MapSchema} = spectra_json_schema:to_schema(?MODULE, {type, user_settings, 0}),
+    MapSchema = spectra_json_schema:to_schema(?MODULE, {type, user_settings, 0}),
     %% Remove $schema field since jesse doesn't support 2020-12
     MapSchemaWithoutVersion = maps:remove(<<"$schema">>, MapSchema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(MapSchemaWithoutVersion))),

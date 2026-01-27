@@ -35,7 +35,7 @@ validate_with_python(Schema) ->
 %% This test demonstrates the FIXME issue: remote types that resolve to literals
 %% should be handled in enum schema generation
 remote_enum_type_in_union_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, status_or_priority, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, status_or_priority, 0}),
     %% This test will fail if we get oneOf instead of a unified enum
     ?assertNot(maps:is_key(oneOf, Schema)),
     %% Should generate a single enum with all literal values
@@ -55,7 +55,7 @@ remote_enum_type_in_union_test() ->
 
 %% Test user type reference that resolves to literals
 user_type_ref_enum_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, optional_local_status, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, optional_local_status, 0}),
     %% Should resolve local_status() to its literals and handle the union with undefined
     ?assertEqual(
         #{
@@ -69,7 +69,7 @@ user_type_ref_enum_test() ->
 
 %% Test remote enum mixed with local literal
 extended_status_enum_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, extended_status, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, extended_status, 0}),
     %% Should combine remote enum literals with local literal
     ?assertNot(maps:is_key(oneOf, Schema)),
     ?assertMatch(#{enum := _}, Schema),
@@ -86,7 +86,7 @@ extended_status_enum_test() ->
 
 %% Test record with remote enum fields
 record_with_remote_enum_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {record, task}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {record, task}),
     ?assertMatch(
         #{
             type := <<"object">>,

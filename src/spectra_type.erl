@@ -2,7 +2,7 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([can_be_missing/2, is_type_reference/1]).
+-export([can_be_missing/2, type_reference/1]).
 
 -spec can_be_missing(
     TypeInfo :: spectra:type_info(), Type :: spectra:sp_type()
@@ -31,10 +31,10 @@ can_be_missing(TypeInfo, Type) ->
             false
     end.
 
--spec is_type_reference(spectra:sp_type_or_ref()) -> boolean().
-is_type_reference({type, _, _}) ->
-    true;
-is_type_reference({record, _}) ->
-    true;
-is_type_reference(_) ->
+-spec type_reference(spectra:sp_type_or_ref()) -> {true, spectra:sp_type_reference()} | false.
+type_reference({type, _, _} = Type) ->
+    {true, Type};
+type_reference({record, _} = Type) ->
+    {true, Type};
+type_reference(_) ->
     false.

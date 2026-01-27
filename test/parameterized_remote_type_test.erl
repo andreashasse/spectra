@@ -23,13 +23,8 @@
 %% Test generating JSON schema for a type using remote parameterized type
 json_schema_with_remote_param_test() ->
     %% This should generate a schema for #{result := integer(), error := binary() | nil}
-    Result = spectra:schema(json_schema, ?MODULE, int_wrapper),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, int_wrapper),
 
-    %% The test will fail with the bug because type_replace_vars doesn't
-    %% properly handle the type variable substitution for remote types
-    ?assertMatch({ok, _SchemaJson}, Result),
-
-    {ok, SchemaJson} = Result,
     %% Parse the JSON schema to verify structure (convert iodata to binary first)
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
@@ -55,11 +50,8 @@ json_to_from_with_remote_param_test() ->
 %% Test with list-based parameterized remote type
 json_schema_list_remote_param_test() ->
     %% This tests list_wrapper(binary()) which should become [binary()]
-    Result = spectra:schema(json_schema, ?MODULE, string_list),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, string_list),
 
-    ?assertMatch({ok, _SchemaJson}, Result),
-
-    {ok, SchemaJson} = Result,
     %% Parse the JSON schema to verify structure (convert iodata to binary first)
     Schema = json:decode(iolist_to_binary(SchemaJson)),
     %% Should be an array of strings
@@ -79,12 +71,8 @@ json_schema_list_remote_param_test() ->
 json_schema_nested_remote_param_test() ->
     %% This tests a more complex case with parameterized remote type inside a map
     %% user_response(integer()) contains a wrapper(integer()) inside
-    Result = spectra:schema(json_schema, ?MODULE, int_response),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, int_response),
 
-    %% With the bug, this will fail during type variable replacement
-    ?assertMatch({ok, _SchemaJson}, Result),
-
-    {ok, SchemaJson} = Result,
     %% Parse the JSON schema to verify structure (convert iodata to binary first)
     Schema = json:decode(iolist_to_binary(SchemaJson)),
     %% Should be an object with status and data fields
