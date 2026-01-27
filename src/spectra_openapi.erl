@@ -449,23 +449,19 @@ endpoints_to_openapi(MetaData, Endpoints) when is_list(Endpoints) ->
         ),
 
     SchemaRefs = collect_schema_refs(Endpoints),
-    case generate_components(SchemaRefs) of
-        {ok, ComponentsResult} ->
-            OpenAPISpec =
+    ComponentsResult = generate_components(SchemaRefs),
+    OpenAPISpec =
+        #{
+            openapi => <<"3.1.0">>,
+            info =>
                 #{
-                    openapi => <<"3.1.0">>,
-                    info =>
-                        #{
-                            title => maps:get(title, MetaData),
-                            version => maps:get(version, MetaData)
-                        },
-                    paths => Paths,
-                    components => ComponentsResult
+                    title => maps:get(title, MetaData),
+                    version => maps:get(version, MetaData)
                 },
-            spectra_json:to_json(?MODULE, {type, openapi_spec, 0}, OpenAPISpec);
-        {error, _} = Err ->
-            Err
-    end.
+            paths => Paths,
+            components => ComponentsResult
+        },
+    spectra_json:to_json(?MODULE, {type, openapi_spec, 0}, OpenAPISpec).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
 group_endpoints_by_path(Endpoints) ->
@@ -562,7 +558,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                             SchemaName = type_ref_to_component_name({record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
-                            {ok, InlineSchema} =
+                            InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
                             maps:remove(<<"$schema">>, InlineSchema)
                     end,
@@ -589,7 +585,7 @@ generate_response(#{description := Description} = ResponseSpec) when
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
-    {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     BaseHeader = #{schema => OpenApiSchema},
@@ -623,7 +619,7 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 SchemaName = type_ref_to_component_name({record, Name}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
-                {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
+                InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
                 maps:remove(<<"$schema">>, InlineSchema)
         end,
 
@@ -645,7 +641,7 @@ generate_parameter(
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
     Required = maps:get(required, ParameterSpec, false),
 
-    {ok, InlineSchema} = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
 
     #{
@@ -655,7 +651,7 @@ generate_parameter(
         schema => OpenApiSchema
     }.
 
--spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_or_ref()}].
+-spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_reference()}].
 collect_schema_refs(Endpoints) ->
     lists:foldl(
         fun(Endpoint, Acc) ->
@@ -667,7 +663,7 @@ collect_schema_refs(Endpoints) ->
     ).
 
 -spec collect_endpoint_schema_refs(endpoint_spec()) ->
-    [{module(), spectra:sp_type_or_ref()}].
+    [{module(), spectra:sp_type_reference()}].
 collect_endpoint_schema_refs(
     #{responses := Responses, parameters := Parameters} =
         Endpoint
@@ -678,9 +674,9 @@ collect_endpoint_schema_refs(
             undefined ->
                 [];
             #{schema := Schema, module := Module} ->
-                case spectra_type:is_type_reference(Schema) of
-                    true ->
-                        [{Module, Schema}];
+                case filter_typeref(Schema, Module) of
+                    {true, TypeRef} ->
+                        [TypeRef];
                     false ->
                         []
                 end
@@ -690,7 +686,7 @@ collect_endpoint_schema_refs(
     ResponseRefs ++ RequestBodyRefs ++ ParameterRefs.
 
 -spec collect_response_refs(#{http_status_code() => response_spec()}) ->
-    [{module(), spectra:sp_type_or_ref()}].
+    [{module(), spectra:sp_type_reference()}].
 collect_response_refs(Responses) ->
     maps:fold(
         fun(_StatusCode, ResponseSpec, Acc) ->
@@ -707,9 +703,9 @@ collect_response_refs(Responses) ->
                     %% Schema without module should not happen
                     Acc;
                 {Schema, Module} ->
-                    case spectra_type:is_type_reference(Schema) of
-                        true ->
-                            [{Module, Schema} | Acc];
+                    case filter_typeref(Schema, Module) of
+                        {true, TypeRef} ->
+                            [TypeRef | Acc];
                         false ->
                             Acc
                     end
@@ -720,57 +716,44 @@ collect_response_refs(Responses) ->
     ).
 
 -spec collect_parameter_refs([parameter_spec()]) ->
-    [{module(), spectra:sp_type_or_ref()}].
+    [{module(), spectra:sp_type_reference()}].
 collect_parameter_refs(Parameters) ->
     lists:filtermap(
         fun(#{schema := Schema, module := Module}) ->
-            case spectra_type:is_type_reference(Schema) of
-                true ->
-                    {true, {Module, Schema}};
-                false ->
-                    false
-            end
+            filter_typeref(Schema, Module)
         end,
         Parameters
     ).
 
--spec generate_components([{module(), spectra:sp_type_or_ref()}]) ->
-    {ok, #{schemas => #{binary() => openapi_schema()}}}
-    | {error, [spectra:error()]}.
+filter_typeref(Schema, Module) ->
+    case spectra_type:type_reference(Schema) of
+        {true, TypeRef} ->
+            {true, {Module, TypeRef}};
+        false ->
+            false
+    end.
+
+-spec generate_components([{module(), spectra:sp_type_reference()}]) ->
+    #{schemas => #{binary() => openapi_schema()}}.
 generate_components(SchemaRefs) ->
-    case
-        spectra_util:fold_until_error(
-            fun({Module, TypeRef}, Acc) ->
-                case
-                    spectra_json_schema:to_schema(
-                        spectra_abstract_code:types_in_module(Module),
-                        TypeRef
-                    )
-                of
-                    {ok, Schema} when is_map(Schema) ->
-                        SchemaName =
-                            type_ref_to_component_name(TypeRef),
-                        OpenApiSchema = maps:remove(<<"$schema">>, Schema),
-                        {ok, Acc#{SchemaName => OpenApiSchema}};
-                    {error, _} = Error ->
-                        Error
-                end
-            end,
-            #{},
-            SchemaRefs
-        )
-    of
-        {ok, Schemas} ->
-            ComponentsMap =
-                case maps:size(Schemas) > 0 of
-                    true ->
-                        #{schemas => Schemas};
-                    false ->
-                        #{}
-                end,
-            {ok, ComponentsMap};
-        {error, _} = Error ->
-            Error
+    Schemas = lists:foldl(
+        fun({Module, TypeRef}, Acc) ->
+            Schema = spectra_json_schema:to_schema(
+                spectra_abstract_code:types_in_module(Module),
+                TypeRef
+            ),
+            SchemaName = type_ref_to_component_name(TypeRef),
+            OpenApiSchema = maps:remove(<<"$schema">>, Schema),
+            Acc#{SchemaName => OpenApiSchema}
+        end,
+        #{},
+        SchemaRefs
+    ),
+    case maps:size(Schemas) > 0 of
+        true ->
+            #{schemas => Schemas};
+        false ->
+            #{}
     end.
 
 -spec type_ref_to_component_name(spectra:sp_type_reference()) -> binary().

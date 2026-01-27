@@ -156,7 +156,7 @@ save(Fun) ->
 %% When to_json succeeds, schema should succeed and from_json should succeed
 check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResult) ->
     case ToSchemaResult of
-        {ok, _Schema} ->
+        Schema when is_map(Schema) ->
             % Schema generation succeeded, now check from_json
             FromJsonResult = safe_from_json(TypeInfo, Type, JsonValue),
             case FromJsonResult of
@@ -201,18 +201,6 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
                         false
                     )
             end;
-        {error, SchemaError} ->
-            ?WHENFAIL(
-                io:format(
-                    "~nto_json worked, but schema failed. This can happen as (potentially) only part of the type is used when generating json:~n"
-                    "  Type: ~p~n"
-                    "  Original Data: ~p~n"
-                    "  JSON: ~p~n"
-                    "  Schema error: ~p~n",
-                    [Type, OriginalData, JsonValue, SchemaError]
-                ),
-                collect({success, type_category(Type)}, true)
-            );
         {exception, Exception} ->
             ?WHENFAIL(
                 io:format(

@@ -198,16 +198,13 @@ Generates a schema for the specified type in the given format.
 -record(user, {id :: user_id(), name :: binary(), age :: integer(), status :: status()}).
 
 1> spectra:schema(json_schema, my_module, user).
-{ok, <<"{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"},...}}">>}
+<<"{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"},...}}">>
 
 2> spectra:schema(json_schema, my_module, status).
-{ok, <<"{\"oneOf\":[{\"enum\":[\"active\"]},{\"enum\":[\"inactive\"]},{\"enum\":[\"pending\"]}]}">>}
+<<"{\"oneOf\":[{\"enum\":[\"active\"]},{\"enum\":[\"inactive\"]},{\"enum\":[\"pending\"]}]}">>
 
 3> spectra:schema(json_schema, my_module, {type, user_id, 0}).
-{ok, <<"{\"type\":\"integer\",\"minimum\":1}">>}
-
-4> spectra:schema(invalid_format, my_module, user).
-{error, [#sp_error{...}]}
+<<"{\"type\":\"integer\",\"minimum\":1}">>
 ```
 """.
 -spec schema(
@@ -215,7 +212,7 @@ Generates a schema for the specified type in the given format.
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref()
 ) ->
-    {ok, iodata()} | {error, [error()]}.
+    iodata().
 schema(Format, Module, TypeOrRef) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     schema(Format, TypeInfo, TypeOrRef);
@@ -223,12 +220,8 @@ schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
     Type = get_type_from_atom(TypeInfo, TypeAtom),
     schema(Format, TypeInfo, Type);
 schema(json_schema, Module, TypeOrRef) ->
-    case spectra_json_schema:to_schema(Module, TypeOrRef) of
-        {ok, SchemaMap} ->
-            {ok, json:encode(SchemaMap)};
-        {error, _} = Err ->
-            Err
-    end.
+    SchemaMap = spectra_json_schema:to_schema(Module, TypeOrRef),
+    json:encode(SchemaMap).
 
 get_type_from_atom(TypeInfo, RefAtom) ->
     case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of

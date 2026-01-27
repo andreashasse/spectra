@@ -9,8 +9,7 @@
 
 %% API
 
--spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) ->
-    {ok, Schema :: map()} | {error, [spectra:error()]}.
+-spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> map().
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
@@ -26,42 +25,42 @@ to_schema(TypeInfo, Type) ->
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type_or_ref()
 ) ->
-    {ok, Schema :: map()} | {error, [spectra:error()]}.
+    map().
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
-    {ok, #{type => <<"integer">>}};
+    #{type => <<"integer">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = string}) ->
-    {ok, #{type => <<"string">>}};
+    #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}) ->
-    {ok, #{type => <<"string">>}};
+    #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}) ->
-    {ok, #{type => <<"string">>}};
+    #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = boolean}) ->
-    {ok, #{type => <<"boolean">>}};
+    #{type => <<"boolean">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = number}) ->
-    {ok, #{type => <<"number">>}};
+    #{type => <<"number">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = float}) ->
-    {ok, #{type => <<"number">>, format => <<"float">>}};
+    #{type => <<"number">>, format => <<"float">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = atom}) ->
-    {ok, #{type => <<"string">>}};
+    #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = binary}) ->
-    {ok, #{type => <<"string">>}};
+    #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
-    {ok, #{type => <<"string">>, minLength => 1}};
+    #{type => <<"string">>, minLength => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
-    {ok, #{type => <<"string">>, minLength => 1}};
+    #{type => <<"string">>, minLength => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
-    {ok, #{type => <<"integer">>, minimum => 1}};
+    #{type => <<"integer">>, minimum => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
-    {ok, #{type => <<"integer">>, minimum => 0}};
+    #{type => <<"integer">>, minimum => 0};
 do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
-    {ok, #{type => <<"integer">>, maximum => -1}};
+    #{type => <<"integer">>, maximum => -1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
     % any type
-    {ok, #{}};
+    #{};
 do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
     % generic map type - allows any keys and values
-    {ok, #{type => <<"object">>}};
+    #{type => <<"object">>};
 %% Range types
 do_to_schema(
     _TypeInfo,
@@ -71,41 +70,33 @@ do_to_schema(
         upper_bound = Max
     }
 ) ->
-    {ok, #{
+    #{
         type => <<"integer">>,
         minimum => Min,
         maximum => Max
-    }};
+    };
 %% Literal types
 do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
     Value =:= undefined orelse Value =:= nil
 ->
-    {ok, #{enum => [null]}};
+    #{enum => [null]};
 do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) when
     is_atom(Value)
 ->
-    {ok, #{enum => [BinaryValue]}};
+    #{enum => [BinaryValue]};
 do_to_schema(_TypeInfo, #sp_literal{value = Value}) ->
-    {ok, #{enum => [Value]}};
+    #{enum => [Value]};
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
-    case do_to_schema(TypeInfo, ItemType) of
-        {ok, ItemSchema} ->
-            {ok, #{type => <<"array">>, items => ItemSchema}};
-        {error, _} = Err ->
-            Err
-    end;
+    ItemSchema = do_to_schema(TypeInfo, ItemType),
+    #{type => <<"array">>, items => ItemSchema};
 do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
-    case do_to_schema(TypeInfo, ItemType) of
-        {ok, ItemSchema} ->
-            {ok, #{
-                type => <<"array">>,
-                items => ItemSchema,
-                minItems => 1
-            }};
-        {error, _} = Err ->
-            Err
-    end;
+    ItemSchema = do_to_schema(TypeInfo, ItemType),
+    #{
+        type => <<"array">>,
+        items => ItemSchema,
+        minItems => 1
+    };
 %% Union types
 do_to_schema(TypeInfo, #sp_union{types = Types}) ->
     case
@@ -123,17 +114,17 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
             do_to_schema(TypeInfo, SingleType);
         {[], NonMissingTypes} ->
             case try_generate_enum_schema(NonMissingTypes, TypeInfo) of
-                {ok, _} = EnumSchema ->
-                    EnumSchema;
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, NonMissingTypes)
+                    generate_oneof_schema(TypeInfo, NonMissingTypes);
+                EnumSchema ->
+                    EnumSchema
             end;
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
             case try_generate_enum_schema(OtherTypes, TypeInfo) of
-                {ok, _} = EnumSchema ->
-                    EnumSchema;
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, Types)
+                    generate_oneof_schema(TypeInfo, Types);
+                EnumSchema ->
+                    EnumSchema
             end
     end;
 %% Map types
@@ -204,12 +195,9 @@ can_be_json_key(_TypeInfo, _Type) ->
     false.
 
 %% Add JSON Schema version to the schema
--spec add_schema_version({ok, map()} | {error, [spectra:error()]}) ->
-    {ok, map()} | {error, [spectra:error()]}.
-add_schema_version({ok, Schema}) ->
-    {ok, Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}};
-add_schema_version({error, _} = Error) ->
-    Error.
+-spec add_schema_version(map()) -> map().
+add_schema_version(Schema) ->
+    Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}.
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
@@ -224,23 +212,16 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         ),
     spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
--spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
-    {ok, map()} | {error, [spectra:error()]}.
+-spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) -> map().
 map_fields_to_schema(TypeInfo, Fields) ->
-    case process_map_fields(TypeInfo, Fields, #{}, [], false) of
-        {ok, Properties, Required, HasAdditional} ->
-            Schema =
-                lists:foldl(
-                    fun({Key, Value, SkipValue}, Acc) ->
-                        map_add_if_not_value(Acc, Key, Value, SkipValue)
-                    end,
-                    #{type => <<"object">>, additionalProperties => HasAdditional},
-                    [{properties, Properties, #{}}, {required, Required, []}]
-                ),
-            {ok, Schema};
-        {error, _} = Err ->
-            Err
-    end.
+    {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false),
+    lists:foldl(
+        fun({Key, Value, SkipValue}, Acc) ->
+            map_add_if_not_value(Acc, Key, Value, SkipValue)
+        end,
+        #{type => <<"object">>, additionalProperties => HasAdditional},
+        [{properties, Properties, #{}}, {required, Required, []}]
+    ).
 
 -spec process_map_fields(
     spectra:type_info(),
@@ -249,9 +230,9 @@ map_fields_to_schema(TypeInfo, Fields) ->
     [binary()],
     boolean()
 ) ->
-    {ok, map(), [binary()], boolean()} | {error, [spectra:error()]}.
+    {map(), [binary()], boolean()}.
 process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional) ->
-    {ok, Properties, Required, HasAdditional};
+    {Properties, Required, HasAdditional};
 process_map_fields(
     TypeInfo,
     [#literal_map_field{kind = Kind, binary_name = BinaryName, val_type = FieldType} | Rest],
@@ -259,18 +240,14 @@ process_map_fields(
     Required,
     HasAdditional
 ) ->
-    case do_to_schema(TypeInfo, FieldType) of
-        {ok, FieldSchema} ->
-            NewProperties = maps:put(BinaryName, FieldSchema, Properties),
-            NewRequired =
-                case Kind of
-                    exact -> [BinaryName | Required];
-                    assoc -> Required
-                end,
-            process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional);
-        {error, _} = Err ->
-            Err
-    end;
+    FieldSchema = do_to_schema(TypeInfo, FieldType),
+    NewProperties = maps:put(BinaryName, FieldSchema, Properties),
+    NewRequired =
+        case Kind of
+            exact -> [BinaryName | Required];
+            assoc -> Required
+        end,
+    process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional);
 process_map_fields(
     TypeInfo,
     [#typed_map_field{key_type = KeyType, val_type = ValType} = Field | Rest],
@@ -286,20 +263,12 @@ process_map_fields(
     end.
 
 validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required) ->
-    case do_to_schema(TypeInfo, KeyType) of
-        {error, _} = Err ->
-            Err;
-        {ok, _} ->
-            case do_to_schema(TypeInfo, ValType) of
-                {error, _} = Err ->
-                    Err;
-                {ok, _} ->
-                    process_map_fields(TypeInfo, Rest, Properties, Required, true)
-            end
-    end.
+    %% Validate that key and value types can generate JSON schemas (will crash if not)
+    _ = do_to_schema(TypeInfo, KeyType),
+    _ = do_to_schema(TypeInfo, ValType),
+    process_map_fields(TypeInfo, Rest, Properties, Required, true).
 
--spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
-    {ok, map()} | {error, [spectra:error()]}.
+-spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) -> map().
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
@@ -308,18 +277,12 @@ record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
             erlang:error({record_not_found, RecordName})
     end;
 record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
-    case process_record_fields(TypeInfo, Fields, #{}, []) of
-        {ok, Properties, Required} ->
-            Schema =
-                #{
-                    type => <<"object">>,
-                    properties => Properties,
-                    required => Required
-                },
-            {ok, Schema};
-        {error, _} = Err ->
-            Err
-    end.
+    {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
+    #{
+        type => <<"object">>,
+        properties => Properties,
+        required => Required
+    }.
 
 -spec process_record_fields(
     spectra:type_info(),
@@ -327,51 +290,30 @@ record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
     map(),
     [binary()]
 ) ->
-    {ok, map(), [binary()]} | {error, [spectra:error()]}.
+    {map(), [binary()]}.
 process_record_fields(_TypeInfo, [], Properties, Required) ->
-    {ok, Properties, lists:reverse(Required)};
+    {Properties, lists:reverse(Required)};
 process_record_fields(
     TypeInfo,
     [#sp_rec_field{binary_name = BinaryName, type = FieldType} | Rest],
     Properties,
     Required
 ) ->
-    case do_to_schema(TypeInfo, FieldType) of
-        {ok, FieldSchema} ->
-            NewProperties = Properties#{BinaryName => FieldSchema},
-            NewRequired =
-                case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                    {true, _} ->
-                        Required;
-                    false ->
-                        [BinaryName | Required]
-                end,
-            process_record_fields(TypeInfo, Rest, NewProperties, NewRequired);
-        {error, _} = Err ->
-            Err
-    end.
+    FieldSchema = do_to_schema(TypeInfo, FieldType),
+    NewProperties = Properties#{BinaryName => FieldSchema},
+    NewRequired =
+        case spectra_type:can_be_missing(TypeInfo, FieldType) of
+            {true, _} ->
+                Required;
+            false ->
+                [BinaryName | Required]
+        end,
+    process_record_fields(TypeInfo, Rest, NewProperties, NewRequired).
 
 %% Helper function to generate oneOf schemas
 generate_oneof_schema(TypeInfo, Types) ->
-    case
-        spectra_util:fold_until_error(
-            fun(T, Acc) ->
-                case do_to_schema(TypeInfo, T) of
-                    {ok, Schema} ->
-                        {ok, [Schema | Acc]};
-                    {error, _} = Err ->
-                        Err
-                end
-            end,
-            [],
-            Types
-        )
-    of
-        {ok, Schemas} ->
-            {ok, #{oneOf => lists:reverse(Schemas)}};
-        {error, _} = Err ->
-            Err
-    end.
+    Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T) end, Types),
+    #{oneOf => Schemas}.
 
 try_generate_enum_schema(Types, TypeInfo) ->
     %% First, expand all types to their base forms (resolving references)
@@ -409,9 +351,9 @@ try_generate_enum_schema(Types, TypeInfo) ->
                     JsonType = infer_json_type(ExpandedTypes),
                     case JsonType of
                         undefined ->
-                            {ok, #{enum => EnumValues}};
+                            #{enum => EnumValues};
                         Type ->
-                            {ok, #{type => Type, enum => EnumValues}}
+                            #{type => Type, enum => EnumValues}
                     end
             end
     end.

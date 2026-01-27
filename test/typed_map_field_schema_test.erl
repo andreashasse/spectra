@@ -27,7 +27,7 @@
 %%====================================================================
 
 schema_string_key_map_assoc_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, string_key_map_assoc, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, string_key_map_assoc, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -43,7 +43,7 @@ schema_string_key_map_assoc_test() ->
     ?assertEqual(false, maps:is_key(required, Schema)).
 
 schema_string_key_map_exact_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, string_key_map_exact, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, string_key_map_exact, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -59,7 +59,7 @@ schema_string_key_map_exact_test() ->
     ?assertEqual(false, maps:is_key(required, Schema)).
 
 schema_binary_key_map_assoc_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, binary_key_map_assoc, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, binary_key_map_assoc, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -69,7 +69,7 @@ schema_binary_key_map_assoc_test() ->
     ).
 
 schema_binary_key_map_exact_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, binary_key_map_exact, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, binary_key_map_exact, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -79,7 +79,7 @@ schema_binary_key_map_exact_test() ->
     ).
 
 schema_atom_key_map_assoc_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, atom_key_map_assoc, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, atom_key_map_assoc, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
@@ -89,7 +89,7 @@ schema_atom_key_map_assoc_test() ->
     ).
 
 schema_atom_key_map_exact_test() ->
-    {ok, Schema} = spectra_json_schema:to_schema(?MODULE, {type, atom_key_map_exact, 0}),
+    Schema = spectra_json_schema:to_schema(?MODULE, {type, atom_key_map_exact, 0}),
     ?assertMatch(
         #{
             type := <<"object">>,
