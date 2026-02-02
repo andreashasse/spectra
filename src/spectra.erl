@@ -14,7 +14,7 @@
 -type type_doc() :: #{
     title => binary(),
     description => binary(),
-    examples => [term()]
+    examples => [dynamic()]
 }.
 
 %% FIXME: Add doc here.
