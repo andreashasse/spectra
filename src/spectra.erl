@@ -17,13 +17,10 @@
     examples => [json:encode_value()],
     default => json:encode_value()
 }.
-%% JSON Schema type representing a valid JSON Schema Draft 2020-12 document.
-%% A JSON Schema is always a JSON object (map) that conforms to the JSON Schema specification.
-%% We use json:encode_map/1 which is the map type within json:encode_value/0.
--type json_schema() :: #{binary() | atom() | integer() => json:encode_value()}.
-%% Internal JSON Schema object type used during schema construction (before adding $schema key).
-%% This is the same structure as json_schema() but semantically represents incomplete schemas.
--type json_schema_object() :: #{binary() | atom() | integer() => json:encode_value()}.
+
+-type json_schema() :: #{binary() | atom() => json:encode_value()}.
+-type json_schema_object() :: #{binary() | atom() => json:encode_value()}.
+
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
