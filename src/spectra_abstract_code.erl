@@ -110,9 +110,7 @@ normalize_doc(DocMap) ->
             (description, Value, Acc) when is_binary(Value) ->
                 Acc#{description => Value};
             (examples, Value, Acc) when is_list(Value) ->
-                Acc#{examples => Value};
-            (default, Value, Acc) ->
-                Acc#{default => Value}
+                Acc#{examples => Value}
         end,
         #{},
         DocMap

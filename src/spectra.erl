@@ -14,8 +14,7 @@
 -type type_doc() :: #{
     title => binary(),
     description => binary(),
-    examples => [json:encode_value()],
-    default => json:encode_value()
+    examples => [term()]
 }.
 
 %% FIXME: Add doc here.

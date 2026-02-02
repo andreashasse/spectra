@@ -24,12 +24,6 @@
 }).
 -type email() :: binary().
 
--spectra(#{
-    title => <<"Age">>,
-    description => <<"User's age in years">>,
-    examples => [25, 30, 45],
-    default => 18
-}).
 -type age() :: non_neg_integer().
 
 -type simple_type() :: integer().
@@ -92,23 +86,6 @@ doc_with_string_test() ->
             <<"type">> => <<"string">>,
             <<"title">> => <<"Email Address">>,
             <<"description">> => <<"User's email address in standard format">>
-        },
-        Schema
-    ),
-    validate_with_python(Schema).
-
-doc_with_default_test() ->
-    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, age, 0}),
-    Schema = json:decode(iolist_to_binary(SchemaJson)),
-    ?assertEqual(
-        #{
-            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            <<"type">> => <<"integer">>,
-            <<"minimum">> => 0,
-            <<"title">> => <<"Age">>,
-            <<"description">> => <<"User's age in years">>,
-            <<"examples">> => [25, 30, 45],
-            <<"default">> => 18
         },
         Schema
     ),

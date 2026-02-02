@@ -463,7 +463,8 @@ map_add_if_not_value(Map, Key, Value, _SkipValue) ->
 add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     case spectra_type_info:find_doc(TypeInfo, TypeName, TypeArity) of
         {ok, Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(Doc));
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
         error ->
             Schema
     end.
@@ -473,23 +474,34 @@ add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
 add_record_doc(TypeInfo, Schema, RecordName) ->
     case spectra_type_info:find_record_doc(TypeInfo, RecordName) of
         {ok, Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(Doc));
+            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, {record, RecordName}, Doc));
         error ->
             Schema
     end.
 
--spec normalize_doc_for_json_schema(spectra:type_doc()) -> json_schema_object().
-normalize_doc_for_json_schema(Doc) ->
+-spec normalize_doc_for_json_schema(spectra:type_info(), spectra:sp_type_or_ref(), spectra:type_doc()) -> json_schema_object().
+normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
     maps:fold(
         fun
             (title, Value, Acc) when is_binary(Value) ->
                 Acc#{<<"title">> => Value};
             (description, Value, Acc) when is_binary(Value) ->
                 Acc#{<<"description">> => Value};
-            (examples, Value, Acc) when is_list(Value) ->
-                Acc#{<<"examples">> => Value};
-            (default, Value, Acc) ->
-                Acc#{<<"default">> => Value}
+            (examples, ExampleTerms, Acc) when is_list(ExampleTerms) ->
+                %% Convert each Erlang term example to JSON using spectra_json
+                JsonExamples = lists:map(
+                    fun(Term) ->
+                        case spectra_json:to_json(TypeInfo, Type, Term) of
+                            {ok, JsonValue} -> JsonValue;
+                            {error, _Errs} ->
+                                %% If conversion fails, just use the term as-is
+                                %% This allows for graceful degradation
+                                Term
+                        end
+                    end,
+                    ExampleTerms
+                ),
+                Acc#{<<"examples">> => JsonExamples}
         end,
         #{},
         Doc
