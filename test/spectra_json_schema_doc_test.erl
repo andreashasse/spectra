@@ -46,6 +46,10 @@
 %% Type without documentation
 -type simple_type() :: integer().
 
+%% Helper to validate schemas with Python validator
+validate_with_python(Schema) ->
+    json_schema_validator_helper:validate_or_skip(Schema).
+
 %% Test documentation in JSON Schema generation
 doc_basic_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, user_id, 0}),
@@ -59,7 +63,8 @@ doc_basic_test() ->
             examples => [1, 2, 100, 42]
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 doc_with_enum_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, status, 0}),
@@ -73,7 +78,8 @@ doc_with_enum_test() ->
             examples => [active, inactive]
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 doc_with_string_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, email, 0}),
@@ -85,7 +91,8 @@ doc_with_string_test() ->
             description => <<"User's email address in standard format">>
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 doc_with_default_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, age, 0}),
@@ -100,7 +107,8 @@ doc_with_default_test() ->
             default => 18
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
 
 no_doc_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, simple_type, 0}),
@@ -110,4 +118,5 @@ no_doc_test() ->
             type => <<"integer">>
         },
         Schema
-    ).
+    ),
+    validate_with_python(Schema).
