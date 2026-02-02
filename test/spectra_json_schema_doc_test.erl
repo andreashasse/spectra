@@ -2,49 +2,57 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--compile(nowarn_unused_type).
+-compile([nowarn_unused_type, nowarn_unused_record]).
 
 %% Test types with documentation
-%% Using type_doc attribute which will be stored in the :attributes chunk
+%% Using position-based spectra attribute (doc placed directly before type)
 
--type_doc([
-    {user_id, #{
-        title => <<"User ID">>,
-        description => <<"Unique identifier for users in the system">>,
-        examples => [1, 2, 100, 42]
-    }}
-]).
+-spectra(#{
+    title => <<"User ID">>,
+    description => <<"Unique identifier for users in the system">>,
+    examples => [1, 2, 100, 42]
+}).
 -type user_id() :: pos_integer().
 
--type_doc([
-    {status, #{
-        title => <<"User Status">>,
-        description => <<"Current status of the user account">>,
-        examples => [active, inactive]
-    }}
-]).
+-spectra(#{
+    title => <<"User Status">>,
+    description => <<"Current status of the user account">>,
+    examples => [active, inactive]
+}).
 -type status() :: active | inactive | pending.
 
--type_doc([
-    {email, #{
-        title => <<"Email Address">>,
-        description => <<"User's email address in standard format">>
-    }}
-]).
+-spectra(#{
+    title => <<"Email Address">>,
+    description => <<"User's email address in standard format">>
+}).
 -type email() :: binary().
 
--type_doc([
-    {age, #{
-        title => <<"Age">>,
-        description => <<"User's age in years">>,
-        examples => [25, 30, 45],
-        default => 18
-    }}
-]).
+-spectra(#{
+    title => <<"Age">>,
+    description => <<"User's age in years">>,
+    examples => [25, 30, 45],
+    default => 18
+}).
 -type age() :: non_neg_integer().
 
 %% Type without documentation
 -type simple_type() :: integer().
+
+%% Record with documentation
+-spectra(#{
+    title => <<"User Record">>,
+    description => <<"A user in the system">>
+}).
+-record(user, {
+    id :: user_id(),
+    name :: binary(),
+    status :: status()
+}).
+
+%% Record without documentation
+-record(simple_record, {
+    value :: integer()
+}).
 
 %% Helper to validate schemas with Python validator
 validate_with_python(Schema) ->
@@ -124,4 +132,32 @@ no_doc_test() ->
         },
         Schema
     ),
+    validate_with_python(Schema).
+
+record_doc_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {record, user}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% Check that the record documentation is included
+    ?assertEqual(<<"User Record">>, maps:get(<<"title">>, Schema)),
+    ?assertEqual(<<"A user in the system">>, maps:get(<<"description">>, Schema)),
+    ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),
+
+    %% Check that it has the expected properties
+    Properties = maps:get(<<"properties">>, Schema),
+    ?assert(maps:is_key(<<"id">>, Properties)),
+    ?assert(maps:is_key(<<"name">>, Properties)),
+    ?assert(maps:is_key(<<"status">>, Properties)),
+
+    validate_with_python(Schema).
+
+record_no_doc_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {record, simple_record}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% Check that there's no title or description
+    ?assertEqual(false, maps:is_key(<<"title">>, Schema)),
+    ?assertEqual(false, maps:is_key(<<"description">>, Schema)),
+    ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),
+
     validate_with_python(Schema).

@@ -282,17 +282,19 @@ validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Re
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
-            record_to_schema_internal(TypeInfo, RecordInfo);
+            Schema = record_to_schema_internal(TypeInfo, RecordInfo),
+            add_record_doc(TypeInfo, Schema, RecordName);
         error ->
             erlang:error({record_not_found, RecordName})
     end;
-record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
+record_to_schema_internal(TypeInfo, #sp_rec{name = RecordName, fields = Fields}) ->
     {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
-    #{
+    Schema = #{
         <<"type">> => <<"object">>,
         <<"properties">> => Properties,
         <<"required">> => Required
-    }.
+    },
+    add_record_doc(TypeInfo, Schema, RecordName).
 
 -spec process_record_fields(
     spectra:type_info(),
@@ -461,6 +463,17 @@ map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     json_schema_object().
 add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     case spectra_type_info:find_doc(TypeInfo, TypeName, TypeArity) of
+        {ok, Doc} ->
+            maps:merge(Schema, normalize_doc_for_json_schema(Doc));
+        error ->
+            Schema
+    end.
+
+%% Add documentation from type_info for a record to a schema
+-spec add_record_doc(spectra:type_info(), json_schema_object(), atom()) ->
+    json_schema_object().
+add_record_doc(TypeInfo, Schema, RecordName) ->
+    case spectra_type_info:find_record_doc(TypeInfo, RecordName) of
         {ok, Doc} ->
             maps:merge(Schema, normalize_doc_for_json_schema(Doc));
         error ->
