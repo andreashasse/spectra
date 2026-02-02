@@ -49,5 +49,6 @@
 -record(type_info, {
     types = #{} :: #{spectra_type_info:type_key() => spectra:sp_type()},
     records = #{} :: #{atom() => #sp_rec{}},
-    functions = #{} :: #{spectra_type_info:function_key() => [#sp_function_spec{}]}
+    functions = #{} :: #{spectra_type_info:function_key() => [#sp_function_spec{}]},
+    docs = #{} :: #{spectra_type_info:type_key() => spectra:type_doc()}
 }).

@@ -17,7 +17,10 @@ to_schema(Module, Type) when is_atom(Module) ->
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    add_schema_version(do_to_schema(TypeInfo, TypeWithoutVars));
+    Schema = do_to_schema(TypeInfo, TypeWithoutVars),
+    %% Add documentation if available
+    SchemaWithDoc = add_type_doc(TypeInfo, Schema, TypeName, TypeArity),
+    add_schema_version(SchemaWithDoc);
 to_schema(TypeInfo, Type) ->
     add_schema_version(do_to_schema(TypeInfo, Type)).
 
@@ -445,3 +448,28 @@ map_add_if_not_value(Map, _Key, Value, SkipValue) when Value =:= SkipValue ->
     Map;
 map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     Map#{Key => Value}.
+
+%% Add documentation from type_info to a schema
+-spec add_type_doc(spectra:type_info(), map(), atom(), arity()) -> map().
+add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
+    case spectra_type_info:find_doc(TypeInfo, TypeName, TypeArity) of
+        {ok, Doc} ->
+            maps:merge(Schema, normalize_doc_for_json_schema(Doc));
+        error ->
+            Schema
+    end.
+
+%% Convert documentation map to JSON Schema annotations
+-spec normalize_doc_for_json_schema(spectra:type_doc()) -> map().
+normalize_doc_for_json_schema(Doc) ->
+    maps:fold(
+        fun
+            (title, Value, Acc) -> Acc#{title => Value};
+            (description, Value, Acc) -> Acc#{description => Value};
+            (examples, Value, Acc) -> Acc#{examples => Value};
+            (default, Value, Acc) -> Acc#{default => Value};
+            (_Other, _Value, Acc) -> Acc
+        end,
+        #{},
+        Doc
+    ).

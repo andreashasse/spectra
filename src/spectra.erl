@@ -11,6 +11,12 @@
 -type var_type() :: {VarName :: atom(), sp_type()}.
 -type user_type_name() :: atom().
 -type record_field_arg() :: {FieldName :: atom(), sp_type()}.
+-type type_doc() :: #{
+    title => binary(),
+    description => binary(),
+    examples => [term()],
+    default => term()
+}.
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
@@ -73,6 +79,7 @@
     sp_type_or_ref/0,
     var_type/0,
     type_info/0,
+    type_doc/0,
     record_field_arg/0,
     error/0,
     map_field/0,

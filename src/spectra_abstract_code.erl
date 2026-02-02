@@ -36,18 +36,72 @@ types_in_module(Module) ->
     end.
 
 types_in_module_path(FilePath) ->
-    case beam_lib:chunks(FilePath, [abstract_code]) of
-        {ok, {_Module, [{abstract_code, {_, Forms}}]}} ->
+    case beam_lib:chunks(FilePath, [abstract_code, attributes]) of
+        {ok, {_Module, [{abstract_code, {_, Forms}}, {attributes, Attributes}]}} ->
             NamedTypes = lists:filtermap(fun(F) -> type_in_form(F) end, Forms),
-            build_type_info(NamedTypes);
-        {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
+            Docs = extract_type_docs(Attributes),
+            build_type_info(NamedTypes, Docs);
+        {ok, {Module, [{abstract_code, no_abstract_code}, _]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
         {error, beam_lib, Reason} ->
             erlang:error({beam_lib_error, FilePath, Reason})
     end.
 
-build_type_info(NamedTypes) ->
-    lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).
+%% Extract type documentation from module attributes
+%% Reads the -type_doc attribute from the attributes chunk
+-spec extract_type_docs(list()) -> #{type_key() => spectra:type_doc()}.
+-type type_key() :: {atom(), arity()}.
+extract_type_docs(Attributes) ->
+    case lists:keyfind(type_doc, 1, Attributes) of
+        {type_doc, TypeDocs} when is_list(TypeDocs) ->
+            %% TypeDocs is a list of {TypeName, DocMap} tuples
+            maps:from_list([
+                {{TypeName, 0}, normalize_doc(Doc)}
+             || {TypeName, Doc} <- TypeDocs, is_map(Doc)
+            ]);
+        false ->
+            #{}
+    end.
+
+%% Normalize documentation map, converting atoms to binaries where needed
+-spec normalize_doc(map()) -> spectra:type_doc().
+normalize_doc(DocMap) ->
+    maps:fold(
+        fun
+            (title, Value, Acc) when is_binary(Value) ->
+                Acc#{title => Value};
+            (title, Value, Acc) when is_list(Value) ->
+                Acc#{title => list_to_binary(Value)};
+            (title, Value, Acc) when is_atom(Value) ->
+                Acc#{title => atom_to_binary(Value, utf8)};
+            (description, Value, Acc) when is_binary(Value) ->
+                Acc#{description => Value};
+            (description, Value, Acc) when is_list(Value) ->
+                Acc#{description => list_to_binary(Value)};
+            (description, Value, Acc) when is_atom(Value) ->
+                Acc#{description => atom_to_binary(Value, utf8)};
+            (examples, Value, Acc) when is_list(Value) ->
+                Acc#{examples => Value};
+            (default, Value, Acc) ->
+                Acc#{default => Value};
+            (_Other, _Value, Acc) ->
+                %% Ignore unknown fields
+                Acc
+        end,
+        #{},
+        DocMap
+    ).
+
+build_type_info(NamedTypes, Docs) ->
+    TypeInfo = lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes),
+    %% Add documentation to type info
+    maps:fold(
+        fun({Name, Arity}, Doc, TI) ->
+            spectra_type_info:add_doc(TI, Name, Arity, Doc)
+        end,
+        TypeInfo,
+        Docs
+    ).
 
 build_type_info_fold({{type, Name, Arity}, Type}, TypeInfo) ->
     spectra_type_info:add_type(TypeInfo, Name, Arity, Type);
