@@ -472,11 +472,14 @@ add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
 normalize_doc_for_json_schema(Doc) ->
     maps:fold(
         fun
-            (title, Value, Acc) -> Acc#{<<"title">> => Value};
-            (description, Value, Acc) -> Acc#{<<"description">> => Value};
-            (examples, Value, Acc) -> Acc#{<<"examples">> => Value};
-            (default, Value, Acc) -> Acc#{<<"default">> => Value};
-            (_Other, _Value, Acc) -> Acc
+            (title, Value, Acc) when is_binary(Value) ->
+                Acc#{<<"title">> => Value};
+            (description, Value, Acc) when is_binary(Value) ->
+                Acc#{<<"description">> => Value};
+            (examples, Value, Acc) when is_list(Value) ->
+                Acc#{<<"examples">> => Value};
+            (default, Value, Acc) ->
+                Acc#{<<"default">> => Value}
         end,
         #{},
         Doc

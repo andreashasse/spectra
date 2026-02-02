@@ -69,23 +69,12 @@ normalize_doc(DocMap) ->
         fun
             (title, Value, Acc) when is_binary(Value) ->
                 Acc#{title => Value};
-            (title, Value, Acc) when is_list(Value) ->
-                Acc#{title => list_to_binary(Value)};
-            (title, Value, Acc) when is_atom(Value) ->
-                Acc#{title => atom_to_binary(Value, utf8)};
             (description, Value, Acc) when is_binary(Value) ->
                 Acc#{description => Value};
-            (description, Value, Acc) when is_list(Value) ->
-                Acc#{description => list_to_binary(Value)};
-            (description, Value, Acc) when is_atom(Value) ->
-                Acc#{description => atom_to_binary(Value, utf8)};
             (examples, Value, Acc) when is_list(Value) ->
                 Acc#{examples => Value};
             (default, Value, Acc) ->
-                Acc#{default => Value};
-            (_Other, _Value, Acc) ->
-                %% Ignore unknown fields
-                Acc
+                Acc#{default => Value}
         end,
         #{},
         DocMap
