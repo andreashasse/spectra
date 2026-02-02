@@ -268,14 +268,11 @@ process_map_fields(
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required)
+            %% Validate that key and value types can generate JSON schemas (will crash if not)
+            _ = do_to_schema(TypeInfo, KeyType),
+            _ = do_to_schema(TypeInfo, ValType),
+            process_map_fields(TypeInfo, Rest, Properties, Required, true)
     end.
-
-validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required) ->
-    %% Validate that key and value types can generate JSON schemas (will crash if not)
-    _ = do_to_schema(TypeInfo, KeyType),
-    _ = do_to_schema(TypeInfo, ValType),
-    process_map_fields(TypeInfo, Rest, Properties, Required, true).
 
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
     json_schema_object().
@@ -479,7 +476,9 @@ add_record_doc(TypeInfo, Schema, RecordName) ->
             Schema
     end.
 
--spec normalize_doc_for_json_schema(spectra:type_info(), spectra:sp_type_or_ref(), spectra:type_doc()) -> json_schema_object().
+-spec normalize_doc_for_json_schema(
+    spectra:type_info(), spectra:sp_type_or_ref(), spectra:type_doc()
+) -> json_schema_object().
 normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
     maps:fold(
         fun
@@ -492,7 +491,8 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
                 JsonExamples = lists:map(
                     fun(Term) ->
                         case spectra_json:to_json(TypeInfo, Type, Term) of
-                            {ok, JsonValue} -> JsonValue;
+                            {ok, JsonValue} ->
+                                JsonValue;
                             {error, _Errs} ->
                                 %% If conversion fails, just use the term as-is
                                 %% This allows for graceful degradation

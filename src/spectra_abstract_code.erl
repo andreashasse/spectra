@@ -67,32 +67,39 @@ process_forms_with_docs([], PendingDoc, NamedTypes, Docs) ->
         _ ->
             erlang:error({orphaned_spectra, PendingDoc})
     end;
-process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes, Docs) ->
-    case Form of
-        {attribute, _, spectra, DocMap} when is_map(DocMap) ->
-            case PendingDoc of
-                undefined ->
-                    process_forms_with_docs(Rest, DocMap, NamedTypes, Docs);
-                _ ->
-                    erlang:error({orphaned_spectra, PendingDoc})
-            end;
+process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, NamedTypes, Docs) when
+    is_map(DocMap)
+->
+    case PendingDoc of
+        undefined ->
+            process_forms_with_docs(Rest, DocMap, NamedTypes, Docs);
         _ ->
-            case type_in_form(Form) of
-                {true, TypeInfo} when PendingDoc =/= undefined ->
-                    case type_info_key(TypeInfo) of
-                        undefined ->
-                            erlang:error({orphaned_spectra, PendingDoc});
-                        Key ->
-                            NewDocs = Docs#{Key => normalize_doc(PendingDoc)},
-                            process_forms_with_docs(
-                                Rest, undefined, [TypeInfo | NamedTypes], NewDocs
-                            )
-                    end;
-                {true, TypeInfo} ->
-                    process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes], Docs);
-                false ->
-                    process_forms_with_docs(Rest, PendingDoc, NamedTypes, Docs)
-            end
+            erlang:error({orphaned_spectra, PendingDoc})
+    end;
+process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes, Docs) ->
+    case type_in_form(Form) of
+        {true, TypeInfo} ->
+            process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes, Docs);
+        false ->
+            process_forms_with_docs(Rest, PendingDoc, NamedTypes, Docs)
+    end.
+
+-spec process_type_form(
+    type_form_result(),
+    undefined | map(),
+    list(),
+    [type_form_result()],
+    #{doc_key() => spectra:type_doc()}
+) -> {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
+process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes, Docs) ->
+    case {PendingDoc, type_info_key(TypeInfo)} of
+        {undefined, _} ->
+            process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes], Docs);
+        {_, undefined} ->
+            erlang:error({orphaned_spectra, PendingDoc});
+        {_, Key} ->
+            NewDocs = Docs#{Key => normalize_doc(PendingDoc)},
+            process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes], NewDocs)
     end.
 
 -spec type_info_key(type_form_result()) ->
@@ -103,18 +110,17 @@ type_info_key({{function, _Name, _Arity}, _FuncSpec}) -> undefined.
 
 -spec normalize_doc(map()) -> spectra:type_doc().
 normalize_doc(DocMap) ->
-    maps:fold(
-        fun
-            (title, Value, Acc) when is_binary(Value) ->
-                Acc#{title => Value};
-            (description, Value, Acc) when is_binary(Value) ->
-                Acc#{description => Value};
-            (examples, Value, Acc) when is_list(Value) ->
-                Acc#{examples => Value}
-        end,
-        #{},
-        DocMap
-    ).
+    maps:fold(fun add_doc_field/3, #{}, DocMap).
+
+-spec add_doc_field(atom(), term(), spectra:type_doc()) -> spectra:type_doc().
+add_doc_field(title, Value, Acc) when is_binary(Value) ->
+    Acc#{title => Value};
+add_doc_field(description, Value, Acc) when is_binary(Value) ->
+    Acc#{description => Value};
+add_doc_field(examples, Value, Acc) when is_list(Value) ->
+    Acc#{examples => Value};
+add_doc_field(_Key, _Value, Acc) ->
+    Acc.
 
 build_type_info(NamedTypes, Docs) ->
     TypeInfo = lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes),
