@@ -14,9 +14,16 @@
 -type type_doc() :: #{
     title => binary(),
     description => binary(),
-    examples => [term()],
-    default => term()
+    examples => [json:encode_value()],
+    default => json:encode_value()
 }.
+%% JSON Schema type representing a valid JSON Schema Draft 2020-12 document.
+%% A JSON Schema is always a JSON object (map) that conforms to the JSON Schema specification.
+%% We use json:encode_map/1 which is the map type within json:encode_value/0.
+-type json_schema() :: #{binary() | atom() | integer() => json:encode_value()}.
+%% Internal JSON Schema object type used during schema construction (before adding $schema key).
+%% This is the same structure as json_schema() but semantically represents incomplete schemas.
+-type json_schema_object() :: #{binary() | atom() | integer() => json:encode_value()}.
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
@@ -80,6 +87,8 @@
     var_type/0,
     type_info/0,
     type_doc/0,
+    json_schema/0,
+    json_schema_object/0,
     record_field_arg/0,
     error/0,
     map_field/0,

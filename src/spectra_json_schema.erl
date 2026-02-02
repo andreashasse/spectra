@@ -9,7 +9,7 @@
 
 %% API
 
--spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> map().
+-spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> spectra:json_schema().
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
@@ -28,7 +28,7 @@ to_schema(TypeInfo, Type) ->
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type_or_ref()
 ) ->
-    map().
+    spectra:json_schema_object().
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
     #{type => <<"integer">>};
@@ -198,7 +198,7 @@ can_be_json_key(_TypeInfo, _Type) ->
     false.
 
 %% Add JSON Schema version to the schema
--spec add_schema_version(map()) -> map().
+-spec add_schema_version(spectra:json_schema_object()) -> spectra:json_schema().
 add_schema_version(Schema) ->
     Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}.
 
@@ -215,7 +215,8 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         ),
     spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
--spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) -> map().
+-spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
+    spectra:json_schema_object().
 map_fields_to_schema(TypeInfo, Fields) ->
     {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false),
     lists:foldl(
@@ -271,7 +272,8 @@ validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Re
     _ = do_to_schema(TypeInfo, ValType),
     process_map_fields(TypeInfo, Rest, Properties, Required, true).
 
--spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) -> map().
+-spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
+    spectra:json_schema_object().
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
@@ -450,7 +452,8 @@ map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     Map#{Key => Value}.
 
 %% Add documentation from type_info to a schema
--spec add_type_doc(spectra:type_info(), map(), atom(), arity()) -> map().
+-spec add_type_doc(spectra:type_info(), spectra:json_schema_object(), atom(), arity()) ->
+    spectra:json_schema_object().
 add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     case spectra_type_info:find_doc(TypeInfo, TypeName, TypeArity) of
         {ok, Doc} ->
@@ -460,7 +463,7 @@ add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     end.
 
 %% Convert documentation map to JSON Schema annotations
--spec normalize_doc_for_json_schema(spectra:type_doc()) -> map().
+-spec normalize_doc_for_json_schema(spectra:type_doc()) -> spectra:json_schema_object().
 normalize_doc_for_json_schema(Doc) ->
     maps:fold(
         fun
