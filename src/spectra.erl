@@ -18,9 +18,6 @@
     default => json:encode_value()
 }.
 
--type json_schema() :: #{binary() | atom() => json:encode_value()}.
--type json_schema_object() :: #{binary() | atom() => json:encode_value()}.
-
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
@@ -84,8 +81,6 @@
     var_type/0,
     type_info/0,
     type_doc/0,
-    json_schema/0,
-    json_schema_object/0,
     record_field_arg/0,
     error/0,
     map_field/0,

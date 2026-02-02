@@ -192,16 +192,16 @@ schema_int_literal_key_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, int_literal_key_map, 0}),
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{
-                <<"1">> := #{type := <<"string">>},
-                <<"2">> := #{type := <<"string">>}
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{
+                <<"1">> := #{<<"type">> := <<"string">>},
+                <<"2">> := #{<<"type">> := <<"string">>}
             },
-            required := _
+            <<"required">> := _
         },
         Schema
     ),
-    #{required := Required} = Schema,
+    #{<<"required">> := Required} = Schema,
     ?assertEqual([<<"1">>, <<"2">>], lists:sort(Required)),
     validate_with_python(Schema).
 
@@ -213,28 +213,28 @@ schema_int_literal_optional_map_test() ->
     }),
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{<<"1">> := _, <<"2">> := _}
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{<<"1">> := _, <<"2">> := _}
         },
         Schema
     ),
-    ?assertEqual(false, maps:is_key(required, Schema)),
+    ?assertEqual(false, maps:is_key(<<"required">>, Schema)),
     validate_with_python(Schema).
 
 schema_mixed_int_atom_keys_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, mixed_int_atom_keys, 0}),
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{
-                <<"1">> := #{type := <<"string">>},
-                <<"foo">> := #{type := <<"integer">>}
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{
+                <<"1">> := #{<<"type">> := <<"string">>},
+                <<"foo">> := #{<<"type">> := <<"integer">>}
             },
-            required := _
+            <<"required">> := _
         },
         Schema
     ),
-    #{required := Required} = Schema,
+    #{<<"required">> := Required} = Schema,
     ?assertEqual([<<"1">>, <<"foo">>], lists:sort(Required)),
     validate_with_python(Schema).
 
@@ -242,17 +242,17 @@ schema_nested_int_key_map_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, nested_int_key_map, 0}),
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{<<"outer">> := _},
-            required := [<<"outer">>]
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{<<"outer">> := _},
+            <<"required">> := [<<"outer">>]
         },
         Schema
     ),
-    #{properties := #{<<"outer">> := OuterSchema}} = Schema,
+    #{<<"properties">> := #{<<"outer">> := OuterSchema}} = Schema,
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{<<"1">> := _, <<"2">> := _}
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{<<"1">> := _, <<"2">> := _}
         },
         OuterSchema
     ),

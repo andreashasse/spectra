@@ -28,8 +28,8 @@ list_to_json_schema_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"array">>,
-            items => #{type => <<"integer">>}
+            <<"type">> => <<"array">>,
+            <<"items">> => #{<<"type">> => <<"integer">>}
         },
         Schema
     ),

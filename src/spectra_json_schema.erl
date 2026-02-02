@@ -7,9 +7,14 @@
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
+-type json_schema() :: #{binary() => json:encode_value()}.
+-type json_schema_object() :: #{binary() => json:encode_value()}.
+
+-export_type([json_schema/0, json_schema_object/0]).
+
 %% API
 
--spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> spectra:json_schema().
+-spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> json_schema().
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
@@ -28,42 +33,42 @@ to_schema(TypeInfo, Type) ->
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type_or_ref()
 ) ->
-    spectra:json_schema_object().
+    json_schema_object().
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
-    #{type => <<"integer">>};
+    #{<<"type">> => <<"integer">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = string}) ->
-    #{type => <<"string">>};
+    #{<<"type">> => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}) ->
-    #{type => <<"string">>};
+    #{<<"type">> => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}) ->
-    #{type => <<"string">>};
+    #{<<"type">> => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = boolean}) ->
-    #{type => <<"boolean">>};
+    #{<<"type">> => <<"boolean">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = number}) ->
-    #{type => <<"number">>};
+    #{<<"type">> => <<"number">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = float}) ->
-    #{type => <<"number">>, format => <<"float">>};
+    #{<<"type">> => <<"number">>, <<"format">> => <<"float">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = atom}) ->
-    #{type => <<"string">>};
+    #{<<"type">> => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = binary}) ->
-    #{type => <<"string">>};
+    #{<<"type">> => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
-    #{type => <<"string">>, minLength => 1};
+    #{<<"type">> => <<"string">>, <<"minLength">> => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
-    #{type => <<"string">>, minLength => 1};
+    #{<<"type">> => <<"string">>, <<"minLength">> => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
-    #{type => <<"integer">>, minimum => 1};
+    #{<<"type">> => <<"integer">>, <<"minimum">> => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
-    #{type => <<"integer">>, minimum => 0};
+    #{<<"type">> => <<"integer">>, <<"minimum">> => 0};
 do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
-    #{type => <<"integer">>, maximum => -1};
+    #{<<"type">> => <<"integer">>, <<"maximum">> => -1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
     % any type
     #{};
 do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
     % generic map type - allows any keys and values
-    #{type => <<"object">>};
+    #{<<"type">> => <<"object">>};
 %% Range types
 do_to_schema(
     _TypeInfo,
@@ -74,31 +79,31 @@ do_to_schema(
     }
 ) ->
     #{
-        type => <<"integer">>,
-        minimum => Min,
-        maximum => Max
+        <<"type">> => <<"integer">>,
+        <<"minimum">> => Min,
+        <<"maximum">> => Max
     };
 %% Literal types
 do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
     Value =:= undefined orelse Value =:= nil
 ->
-    #{enum => [null]};
+    #{<<"enum">> => [null]};
 do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) when
     is_atom(Value)
 ->
-    #{enum => [BinaryValue]};
+    #{<<"enum">> => [BinaryValue]};
 do_to_schema(_TypeInfo, #sp_literal{value = Value}) ->
-    #{enum => [Value]};
+    #{<<"enum">> => [Value]};
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
-    #{type => <<"array">>, items => ItemSchema};
+    #{<<"type">> => <<"array">>, <<"items">> => ItemSchema};
 do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
     #{
-        type => <<"array">>,
-        items => ItemSchema,
-        minItems => 1
+        <<"type">> => <<"array">>,
+        <<"items">> => ItemSchema,
+        <<"minItems">> => 1
     };
 %% Union types
 do_to_schema(TypeInfo, #sp_union{types = Types}) ->
@@ -198,7 +203,7 @@ can_be_json_key(_TypeInfo, _Type) ->
     false.
 
 %% Add JSON Schema version to the schema
--spec add_schema_version(spectra:json_schema_object()) -> spectra:json_schema().
+-spec add_schema_version(json_schema_object()) -> json_schema().
 add_schema_version(Schema) ->
     Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}.
 
@@ -216,15 +221,15 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
     spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
-    spectra:json_schema_object().
+    json_schema_object().
 map_fields_to_schema(TypeInfo, Fields) ->
     {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false),
     lists:foldl(
         fun({Key, Value, SkipValue}, Acc) ->
             map_add_if_not_value(Acc, Key, Value, SkipValue)
         end,
-        #{type => <<"object">>, additionalProperties => HasAdditional},
-        [{properties, Properties, #{}}, {required, Required, []}]
+        #{<<"type">> => <<"object">>, <<"additionalProperties">> => HasAdditional},
+        [{<<"properties">>, Properties, #{}}, {<<"required">>, Required, []}]
     ).
 
 -spec process_map_fields(
@@ -273,7 +278,7 @@ validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Re
     process_map_fields(TypeInfo, Rest, Properties, Required, true).
 
 -spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
-    spectra:json_schema_object().
+    json_schema_object().
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
@@ -284,9 +289,9 @@ record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
 record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
     {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
     #{
-        type => <<"object">>,
-        properties => Properties,
-        required => Required
+        <<"type">> => <<"object">>,
+        <<"properties">> => Properties,
+        <<"required">> => Required
     }.
 
 -spec process_record_fields(
@@ -318,7 +323,7 @@ process_record_fields(
 %% Helper function to generate oneOf schemas
 generate_oneof_schema(TypeInfo, Types) ->
     Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T) end, Types),
-    #{oneOf => Schemas}.
+    #{<<"oneOf">> => Schemas}.
 
 try_generate_enum_schema(Types, TypeInfo) ->
     %% First, expand all types to their base forms (resolving references)
@@ -356,9 +361,9 @@ try_generate_enum_schema(Types, TypeInfo) ->
                     JsonType = infer_json_type(ExpandedTypes),
                     case JsonType of
                         undefined ->
-                            #{enum => EnumValues};
+                            #{<<"enum">> => EnumValues};
                         Type ->
-                            #{type => Type, enum => EnumValues}
+                            #{<<"type">> => Type, <<"enum">> => EnumValues}
                     end
             end
     end.
@@ -452,8 +457,8 @@ map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     Map#{Key => Value}.
 
 %% Add documentation from type_info to a schema
--spec add_type_doc(spectra:type_info(), spectra:json_schema_object(), atom(), arity()) ->
-    spectra:json_schema_object().
+-spec add_type_doc(spectra:type_info(), json_schema_object(), atom(), arity()) ->
+    json_schema_object().
 add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     case spectra_type_info:find_doc(TypeInfo, TypeName, TypeArity) of
         {ok, Doc} ->
@@ -463,14 +468,14 @@ add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
     end.
 
 %% Convert documentation map to JSON Schema annotations
--spec normalize_doc_for_json_schema(spectra:type_doc()) -> spectra:json_schema_object().
+-spec normalize_doc_for_json_schema(spectra:type_doc()) -> json_schema_object().
 normalize_doc_for_json_schema(Doc) ->
     maps:fold(
         fun
-            (title, Value, Acc) -> Acc#{title => Value};
-            (description, Value, Acc) -> Acc#{description => Value};
-            (examples, Value, Acc) -> Acc#{examples => Value};
-            (default, Value, Acc) -> Acc#{default => Value};
+            (title, Value, Acc) -> Acc#{<<"title">> => Value};
+            (description, Value, Acc) -> Acc#{<<"description">> => Value};
+            (examples, Value, Acc) -> Acc#{<<"examples">> => Value};
+            (default, Value, Acc) -> Acc#{<<"default">> => Value};
             (_Other, _Value, Acc) -> Acc
         end,
         #{},

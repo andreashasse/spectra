@@ -70,7 +70,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>
+            <<"type">> => <<"integer">>
         },
         IntSchema
     ),
@@ -81,7 +81,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         StringSchema
     ),
@@ -92,7 +92,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"boolean">>
+            <<"type">> => <<"boolean">>
         },
         BoolSchema
     ),
@@ -103,7 +103,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"number">>
+            <<"type">> => <<"number">>
         },
         NumberSchema
     ),
@@ -114,7 +114,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         AtomSchema
     ),
@@ -125,7 +125,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         BinarySchema
     ),
@@ -136,8 +136,8 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"number">>,
-            format => <<"float">>
+            <<"type">> => <<"number">>,
+            <<"format">> => <<"float">>
         },
         FloatSchema
     ),
@@ -148,7 +148,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         IodataSchema
     ),
@@ -159,7 +159,7 @@ simple_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         IolistSchema
     ),
@@ -172,9 +172,9 @@ range_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            minimum => 1,
-            maximum => 10
+            <<"type">> => <<"integer">>,
+            <<"minimum">> => 1,
+            <<"maximum">> => 10
         },
         RangeSchema
     ),
@@ -185,9 +185,9 @@ range_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            minimum => 0,
-            maximum => 255
+            <<"type">> => <<"integer">>,
+            <<"minimum">> => 0,
+            <<"maximum">> => 255
         },
         ByteSchema
     ),
@@ -198,9 +198,9 @@ range_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            minimum => 0,
-            maximum => 1114111
+            <<"type">> => <<"integer">>,
+            <<"minimum">> => 0,
+            <<"maximum">> => 1114111
         },
         CharSchema
     ),
@@ -213,7 +213,7 @@ literal_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            enum => [<<"hello">>]
+            <<"enum">> => [<<"hello">>]
         },
         LiteralAtomSchema
     ),
@@ -222,7 +222,7 @@ literal_types_test() ->
     %% Literal integer
     LiteralIntSchema = spectra_json_schema:to_schema(?MODULE, {type, my_literal_integer, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [42]},
+        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, <<"enum">> => [42]},
         LiteralIntSchema
     ),
     validate_with_python(LiteralIntSchema).
@@ -234,8 +234,8 @@ list_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"array">>,
-            items => #{type => <<"integer">>}
+            <<"type">> => <<"array">>,
+            <<"items">> => #{<<"type">> => <<"integer">>}
         },
         ListSchema
     ),
@@ -246,9 +246,9 @@ list_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"array">>,
-            items => #{type => <<"string">>},
-            minItems => 1
+            <<"type">> => <<"array">>,
+            <<"items">> => #{<<"type">> => <<"string">>},
+            <<"minItems">> => 1
         },
         NonemptyListSchema
     ),
@@ -261,7 +261,7 @@ union_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+            <<"oneOf">> => [#{<<"type">> => <<"integer">>}, #{<<"type">> => <<"string">>}]
         },
         UnionSchema
     ),
@@ -272,7 +272,7 @@ union_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>
+            <<"type">> => <<"integer">>
         },
         OptionalSchema
     ),
@@ -285,11 +285,14 @@ map_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
-                #{<<"name">> => #{type => <<"string">>}, <<"age">> => #{type => <<"integer">>}},
-            required => [<<"age">>, <<"name">>],
-            additionalProperties => false
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
+                #{
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"age">> => #{<<"type">> => <<"integer">>}
+                },
+            <<"required">> => [<<"age">>, <<"name">>],
+            <<"additionalProperties">> => false
         },
         MapSchema
     ),
@@ -300,14 +303,14 @@ map_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"config">> => #{type => <<"string">>},
-                    <<"timeout">> => #{type => <<"integer">>}
+                    <<"config">> => #{<<"type">> => <<"string">>},
+                    <<"timeout">> => #{<<"type">> => <<"integer">>}
                 },
-            required => [<<"timeout">>, <<"config">>],
-            additionalProperties => false
+            <<"required">> => [<<"timeout">>, <<"config">>],
+            <<"additionalProperties">> => false
         },
         FlexibleMapSchema
     ),
@@ -320,8 +323,8 @@ generic_map_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            additionalProperties => true
+            <<"type">> => <<"object">>,
+            <<"additionalProperties">> => true
         },
         GenericMapSchema
     ),
@@ -332,10 +335,10 @@ generic_map_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties => #{<<"name">> => #{type => <<"string">>}},
-            required => [<<"name">>],
-            additionalProperties => true
+            <<"type">> => <<"object">>,
+            <<"properties">> => #{<<"name">> => #{<<"type">> => <<"string">>}},
+            <<"required">> => [<<"name">>],
+            <<"additionalProperties">> => true
         },
         MixedMapSchema
     ),
@@ -348,14 +351,14 @@ record_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"id">> => #{type => <<"integer">>},
-                    <<"name">> => #{type => <<"string">>},
-                    <<"email">> => #{type => <<"string">>}
+                    <<"id">> => #{<<"type">> => <<"integer">>},
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"email">> => #{<<"type">> => <<"string">>}
                 },
-            required => [<<"id">>, <<"name">>, <<"email">>]
+            <<"required">> => [<<"id">>, <<"name">>, <<"email">>]
         },
         UserSchema
     ),
@@ -365,17 +368,17 @@ record_types_test() ->
     ProductSchema = spectra_json_schema:to_schema(?MODULE, {record, product}),
     ExpectedProps =
         #{
-            <<"id">> => #{type => <<"integer">>},
-            <<"name">> => #{type => <<"string">>},
-            <<"price">> => #{type => <<"number">>, format => <<"float">>},
-            <<"tags">> => #{type => <<"array">>, items => #{type => <<"string">>}}
+            <<"id">> => #{<<"type">> => <<"integer">>},
+            <<"name">> => #{<<"type">> => <<"string">>},
+            <<"price">> => #{<<"type">> => <<"number">>, <<"format">> => <<"float">>},
+            <<"tags">> => #{<<"type">> => <<"array">>, <<"items">> => #{<<"type">> => <<"string">>}}
         },
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties => ExpectedProps,
-            required => [<<"id">>, <<"name">>, <<"price">>, <<"tags">>]
+            <<"type">> => <<"object">>,
+            <<"properties">> => ExpectedProps,
+            <<"required">> => [<<"id">>, <<"name">>, <<"price">>, <<"tags">>]
         },
         ProductSchema
     ),
@@ -391,14 +394,14 @@ record_with_optional_fields_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"id">> => #{type => <<"integer">>},
-                    <<"name">> => #{type => <<"string">>},
-                    <<"email">> => #{type => <<"string">>}
+                    <<"id">> => #{<<"type">> => <<"integer">>},
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"email">> => #{<<"type">> => <<"string">>}
                 },
-            required => [<<"id">>, <<"name">>]
+            <<"required">> => [<<"id">>, <<"name">>]
         },
         UserWithOptionalSchema
     ),
@@ -412,21 +415,22 @@ record_with_enum_fields_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"id">> => #{type => <<"integer">>},
-                    <<"name">> => #{type => <<"string">>},
+                    <<"id">> => #{<<"type">> => <<"integer">>},
+                    <<"name">> => #{<<"type">> => <<"string">>},
                     <<"role">> => #{
-                        type => <<"string">>, enum => [<<"admin">>, <<"user">>, <<"guest">>]
+                        <<"type">> => <<"string">>,
+                        <<"enum">> => [<<"admin">>, <<"user">>, <<"guest">>]
                     }
                 },
-            required => [<<"id">>, <<"name">>, <<"role">>]
+            <<"required">> => [<<"id">>, <<"name">>, <<"role">>]
         },
         UserWithRoleSchema
     ),
     %% Verify role field is required
-    ?assert(lists:member(<<"role">>, maps:get(required, UserWithRoleSchema))),
+    ?assert(lists:member(<<"role">>, maps:get(<<"required">>, UserWithRoleSchema))),
     validate_with_python(UserWithRoleSchema),
 
     %% Record with optional enum field (contains undefined)
@@ -435,19 +439,21 @@ record_with_enum_fields_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"id">> => #{type => <<"integer">>},
-                    <<"name">> => #{type => <<"string">>},
-                    <<"role">> => #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]}
+                    <<"id">> => #{<<"type">> => <<"integer">>},
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"role">> => #{
+                        <<"type">> => <<"string">>, <<"enum">> => [<<"admin">>, <<"user">>]
+                    }
                 },
-            required => [<<"id">>, <<"name">>]
+            <<"required">> => [<<"id">>, <<"name">>]
         },
         UserWithOptionalRoleSchema
     ),
     %% Verify role field is NOT required
-    ?assertNot(lists:member(<<"role">>, maps:get(required, UserWithOptionalRoleSchema))),
+    ?assertNot(lists:member(<<"role">>, maps:get(<<"required">>, UserWithOptionalRoleSchema))),
     validate_with_python(UserWithOptionalRoleSchema).
 
 %% Test enum type optimization (unions of literals should become single enum)
@@ -457,8 +463,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>, <<"guest">>]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"admin">>, <<"user">>, <<"guest">>]
         },
         RoleSchema
     ),
@@ -469,8 +475,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"active">>, <<"inactive">>, <<"pending">>]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"active">>, <<"inactive">>, <<"pending">>]
         },
         StatusSchema
     ),
@@ -481,8 +487,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            enum => [1, 2, 3]
+            <<"type">> => <<"integer">>,
+            <<"enum">> => [1, 2, 3]
         },
         NumberEnumSchema
     ),
@@ -493,8 +499,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"boolean">>,
-            enum => [true, false]
+            <<"type">> => <<"boolean">>,
+            <<"enum">> => [true, false]
         },
         BoolEnumSchema
     ),
@@ -505,8 +511,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"admin">>, <<"user">>]
         },
         OptionalEnumSchema
     ),
@@ -519,8 +525,8 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"admin">>, <<"user">>]
         },
         OptionalEnumWithNilSchema
     ),
@@ -531,7 +537,7 @@ enum_types_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            enum => [<<"admin">>, 42, true]
+            <<"enum">> => [<<"admin">>, 42, true]
         },
         MixedEnumSchema
     ),

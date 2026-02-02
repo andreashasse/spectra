@@ -37,10 +37,10 @@ validate_with_python(Schema) ->
 remote_enum_type_in_union_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, status_or_priority, 0}),
     %% This test will fail if we get oneOf instead of a unified enum
-    ?assertNot(maps:is_key(oneOf, Schema)),
+    ?assertNot(maps:is_key(<<"oneOf">>, Schema)),
     %% Should generate a single enum with all literal values
-    ?assertMatch(#{enum := _}, Schema),
-    #{enum := EnumValues} = Schema,
+    ?assertMatch(#{<<"enum">> := _}, Schema),
+    #{<<"enum">> := EnumValues} = Schema,
     ?assertEqual(6, length(EnumValues)),
     ExpectedValues = lists:sort([
         <<"active">>,
@@ -60,8 +60,8 @@ user_type_ref_enum_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"active">>, <<"inactive">>]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"active">>, <<"inactive">>]
         },
         Schema
     ),
@@ -71,9 +71,9 @@ user_type_ref_enum_test() ->
 extended_status_enum_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, extended_status, 0}),
     %% Should combine remote enum literals with local literal
-    ?assertNot(maps:is_key(oneOf, Schema)),
-    ?assertMatch(#{enum := _}, Schema),
-    #{enum := EnumValues} = Schema,
+    ?assertNot(maps:is_key(<<"oneOf">>, Schema)),
+    ?assertMatch(#{<<"enum">> := _}, Schema),
+    #{<<"enum">> := EnumValues} = Schema,
     ?assertEqual(4, length(EnumValues)),
     ExpectedValues = lists:sort([
         <<"active">>,
@@ -89,24 +89,24 @@ record_with_remote_enum_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {record, task}),
     ?assertMatch(
         #{
-            type := <<"object">>,
-            properties := #{
-                <<"id">> := #{type := <<"integer">>},
+            <<"type">> := <<"object">>,
+            <<"properties">> := #{
+                <<"id">> := #{<<"type">> := <<"integer">>},
                 <<"status">> := _,
                 <<"priority">> := _
             },
-            required := _
+            <<"required">> := _
         },
         Schema
     ),
 
     %% Check that enum fields are properly generated
-    #{properties := Props} = Schema,
+    #{<<"properties">> := Props} = Schema,
     #{<<"status">> := StatusSchema} = Props,
     #{<<"priority">> := PrioritySchema} = Props,
 
     %% These should be enum schemas
-    ?assertMatch(#{enum := _}, StatusSchema),
-    ?assertMatch(#{enum := _}, PrioritySchema),
+    ?assertMatch(#{<<"enum">> := _}, StatusSchema),
+    ?assertMatch(#{<<"enum">> := _}, PrioritySchema),
 
     validate_with_python(Schema).

@@ -49,8 +49,7 @@ types_in_module_path(FilePath) ->
 
 %% Extract type documentation from module attributes
 %% Reads the -type_doc attribute from the attributes chunk
--spec extract_type_docs(list()) -> #{type_key() => spectra:type_doc()}.
--type type_key() :: {atom(), arity()}.
+-spec extract_type_docs(list()) -> #{spectra_type_info:type_key() => spectra:type_doc()}.
 extract_type_docs(Attributes) ->
     case lists:keyfind(type_doc, 1, Attributes) of
         {type_doc, TypeDocs} when is_list(TypeDocs) ->

@@ -25,7 +25,7 @@ binary_format_issue_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            <<"type">> => <<"string">>
         },
         BinarySchema
     ),
@@ -43,8 +43,8 @@ binary_format_with_minlength_issue_test() ->
         spectra_json_schema:to_schema(?MODULE, {type, my_nonempty_binary, 0}),
     Expected = #{
         <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-        type => <<"string">>,
-        minLength => 1
+        <<"type">> => <<"string">>,
+        <<"minLength">> => 1
     },
     ?assertEqual(Expected, NonEmptyBinarySchema),
     validate_with_python(NonEmptyBinarySchema),
@@ -74,7 +74,10 @@ literal_values_translation_issue_test() ->
     AtomLiteralSchema =
         spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]},
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"enum">> => [<<"ok">>]
+        },
         AtomLiteralSchema
     ),
     validate_with_python(AtomLiteralSchema),
@@ -89,14 +92,16 @@ literal_values_translation_issue_test() ->
 correct_schemas_test() ->
     %% What binary schema should look like (simple string for JSON compatibility):
     CorrectBinarySchema = #{
-        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>
+        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+        <<"type">> => <<"string">>
     },
 
     %% What atom literal schema should look like:
 
     %% String, not atom
     CorrectAtomLiteralSchema = #{
-        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]
+        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+        <<"enum">> => [<<"ok">>]
     },
 
     %% Current implementation now matches these correct schemas

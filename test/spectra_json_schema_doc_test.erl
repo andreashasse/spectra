@@ -52,70 +52,75 @@ validate_with_python(Schema) ->
 
 %% Test documentation in JSON Schema generation
 doc_basic_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, user_id, 0}),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, user_id, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            minimum => 1,
-            title => <<"User ID">>,
-            description => <<"Unique identifier for users in the system">>,
-            examples => [1, 2, 100, 42]
+            <<"type">> => <<"integer">>,
+            <<"minimum">> => 1,
+            <<"title">> => <<"User ID">>,
+            <<"description">> => <<"Unique identifier for users in the system">>,
+            <<"examples">> => [1, 2, 100, 42]
         },
         Schema
     ),
     validate_with_python(Schema).
 
 doc_with_enum_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, status, 0}),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, status, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"active">>, <<"inactive">>, <<"pending">>],
-            title => <<"User Status">>,
-            description => <<"Current status of the user account">>,
-            examples => [active, inactive]
+            <<"type">> => <<"string">>,
+            <<"enum">> => [<<"active">>, <<"inactive">>, <<"pending">>],
+            <<"title">> => <<"User Status">>,
+            <<"description">> => <<"Current status of the user account">>,
+            <<"examples">> => [<<"active">>, <<"inactive">>]
         },
         Schema
     ),
     validate_with_python(Schema).
 
 doc_with_string_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, email, 0}),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, email, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            title => <<"Email Address">>,
-            description => <<"User's email address in standard format">>
+            <<"type">> => <<"string">>,
+            <<"title">> => <<"Email Address">>,
+            <<"description">> => <<"User's email address in standard format">>
         },
         Schema
     ),
     validate_with_python(Schema).
 
 doc_with_default_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, age, 0}),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, age, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>,
-            minimum => 0,
-            title => <<"Age">>,
-            description => <<"User's age in years">>,
-            examples => [25, 30, 45],
-            default => 18
+            <<"type">> => <<"integer">>,
+            <<"minimum">> => 0,
+            <<"title">> => <<"Age">>,
+            <<"description">> => <<"User's age in years">>,
+            <<"examples">> => [25, 30, 45],
+            <<"default">> => 18
         },
         Schema
     ),
     validate_with_python(Schema).
 
 no_doc_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, simple_type, 0}),
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, simple_type, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>
+            <<"type">> => <<"integer">>
         },
         Schema
     ),

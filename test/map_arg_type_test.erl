@@ -87,13 +87,15 @@ map_to_json_schema_test() ->
     ?assertEqual(
         #{
             <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties =>
+            <<"type">> => <<"object">>,
+            <<"properties">> =>
                 #{
-                    <<"result">> => #{type => <<"integer">>},
-                    <<"errors">> => #{type => <<"array">>, items => #{type => <<"string">>}}
+                    <<"result">> => #{<<"type">> => <<"integer">>},
+                    <<"errors">> => #{
+                        <<"type">> => <<"array">>, <<"items">> => #{<<"type">> => <<"string">>}
+                    }
                 },
-            additionalProperties => false
+            <<"additionalProperties">> => false
         },
         Schema
     ),
