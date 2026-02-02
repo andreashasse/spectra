@@ -458,7 +458,6 @@ map_add_if_not_value(Map, _Key, Value, SkipValue) when Value =:= SkipValue ->
 map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     Map#{Key => Value}.
 
-%% Add documentation from type_info to a schema
 -spec add_type_doc(spectra:type_info(), json_schema_object(), atom(), arity()) ->
     json_schema_object().
 add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
@@ -469,7 +468,6 @@ add_type_doc(TypeInfo, Schema, TypeName, TypeArity) ->
             Schema
     end.
 
-%% Add documentation from type_info for a record to a schema
 -spec add_record_doc(spectra:type_info(), json_schema_object(), atom()) ->
     json_schema_object().
 add_record_doc(TypeInfo, Schema, RecordName) ->
@@ -480,7 +478,6 @@ add_record_doc(TypeInfo, Schema, RecordName) ->
             Schema
     end.
 
-%% Convert documentation map to JSON Schema annotations
 -spec normalize_doc_for_json_schema(spectra:type_doc()) -> json_schema_object().
 normalize_doc_for_json_schema(Doc) ->
     maps:fold(

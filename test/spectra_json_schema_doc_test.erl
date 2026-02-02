@@ -4,9 +4,6 @@
 
 -compile([nowarn_unused_type, nowarn_unused_record]).
 
-%% Test types with documentation
-%% Using position-based spectra attribute (doc placed directly before type)
-
 -spectra(#{
     title => <<"User ID">>,
     description => <<"Unique identifier for users in the system">>,
@@ -35,10 +32,8 @@
 }).
 -type age() :: non_neg_integer().
 
-%% Type without documentation
 -type simple_type() :: integer().
 
-%% Record with documentation
 -spectra(#{
     title => <<"User Record">>,
     description => <<"A user in the system">>
@@ -49,16 +44,13 @@
     status :: status()
 }).
 
-%% Record without documentation
 -record(simple_record, {
     value :: integer()
 }).
 
-%% Helper to validate schemas with Python validator
 validate_with_python(Schema) ->
     json_schema_validator_helper:validate_or_skip(Schema).
 
-%% Test documentation in JSON Schema generation
 doc_basic_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {type, user_id, 0}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
@@ -138,12 +130,10 @@ record_doc_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {record, user}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    %% Check that the record documentation is included
     ?assertEqual(<<"User Record">>, maps:get(<<"title">>, Schema)),
     ?assertEqual(<<"A user in the system">>, maps:get(<<"description">>, Schema)),
     ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),
 
-    %% Check that it has the expected properties
     Properties = maps:get(<<"properties">>, Schema),
     ?assert(maps:is_key(<<"id">>, Properties)),
     ?assert(maps:is_key(<<"name">>, Properties)),
@@ -155,7 +145,6 @@ record_no_doc_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {record, simple_record}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    %% Check that there's no title or description
     ?assertEqual(false, maps:is_key(<<"title">>, Schema)),
     ?assertEqual(false, maps:is_key(<<"description">>, Schema)),
     ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),

@@ -47,8 +47,6 @@ types_in_module_path(FilePath) ->
             erlang:error({beam_lib_error, FilePath, Reason})
     end.
 
-%% Process forms sequentially to match -spectra attributes with types and records
-%% A -spectra attribute must be immediately followed by a type or record declaration
 -spec process_forms_with_docs(list()) ->
     {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
 process_forms_with_docs(Forms) ->
@@ -63,7 +61,6 @@ process_forms_with_docs(Forms) ->
     #{doc_key() => spectra:type_doc()}
 ) -> {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
 process_forms_with_docs([], PendingDoc, NamedTypes, Docs) ->
-    %% Error if there's an orphaned doc at the end
     case PendingDoc of
         undefined ->
             {lists:reverse(NamedTypes), Docs};
@@ -73,24 +70,17 @@ process_forms_with_docs([], PendingDoc, NamedTypes, Docs) ->
 process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes, Docs) ->
     case Form of
         {attribute, _, spectra, DocMap} when is_map(DocMap) ->
-            %% Found a -spectra attribute
             case PendingDoc of
                 undefined ->
-                    %% Save it to attach to next type or record
                     process_forms_with_docs(Rest, DocMap, NamedTypes, Docs);
                 _ ->
-                    %% Error: two consecutive -spectra without a type/record in between
                     erlang:error({orphaned_spectra, PendingDoc})
             end;
         _ ->
-            %% Not a spectra attribute, check if it's a type/record/function
             case type_in_form(Form) of
                 {true, TypeInfo} when PendingDoc =/= undefined ->
-                    %% Type/record with pending doc - attach the doc
                     case type_info_key(TypeInfo) of
                         undefined ->
-                            %% This form doesn't support docs (function specs)
-                            %% Treat the doc as orphaned
                             erlang:error({orphaned_spectra, PendingDoc});
                         Key ->
                             NewDocs = Docs#{Key => normalize_doc(PendingDoc)},
@@ -99,23 +89,18 @@ process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes, Docs) ->
                             )
                     end;
                 {true, TypeInfo} ->
-                    %% Type/record without doc
                     process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes], Docs);
                 false ->
-                    %% Not a type/record, keep processing
                     process_forms_with_docs(Rest, PendingDoc, NamedTypes, Docs)
             end
     end.
 
-%% Extract type key from type_form_result for documentation
-%% Returns a key that can be used to store/retrieve documentation
 -spec type_info_key(type_form_result()) ->
     {type, atom(), arity()} | {record, atom()} | undefined.
 type_info_key({{type, Name, Arity}, _Type}) -> {type, Name, Arity};
 type_info_key({{record, Name}, _Record}) -> {record, Name};
 type_info_key({{function, _Name, _Arity}, _FuncSpec}) -> undefined.
 
-%% Normalize documentation map, converting atoms to binaries where needed
 -spec normalize_doc(map()) -> spectra:type_doc().
 normalize_doc(DocMap) ->
     maps:fold(
@@ -135,7 +120,6 @@ normalize_doc(DocMap) ->
 
 build_type_info(NamedTypes, Docs) ->
     TypeInfo = lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes),
-    %% Add documentation to type info
     maps:fold(
         fun
             ({type, Name, Arity}, Doc, TI) ->
