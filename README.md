@@ -148,6 +148,60 @@ Where:
 
 And the rest of the arguments are the same as for the data serialization API.
 
+### Adding Documentation and Examples to Schemas
+
+You can enhance your generated schemas with documentation and examples using the `-spectra()` attribute. This metadata is included in the JSON Schema output and OpenAPI specifications.
+
+#### Basic Documentation
+
+```erlang
+-spectra(#{
+    title => <<"User Status">>,
+    description => <<"Current status of the user account">>,
+    examples => [active, inactive]
+}).
+-type status() :: active | inactive | pending.
+
+-spectra(#{
+    title => <<"User Record">>,
+    description => <<"A user in the system">>,
+    examples => [
+        {user, 1, <<"Alice">>, active},
+        {user, 42, <<"Bob">>, inactive}
+    ]
+}).
+-record(user, {
+    id :: user_id(),
+    name :: binary(),
+    status :: status()
+}).
+```
+
+**Note:** When using examples with records, you must use tuple syntax (e.g., `{user, 1, <<"Alice">>, active}`), which can be error-prone.
+For better maintainability, especially with records, use the `examples_function` field to generate examples dynamically:
+
+```erlang
+-record(person, {
+    name :: binary(),
+    age :: non_neg_integer()
+}).
+
+-spectra(#{
+    title => <<"Person">>,
+    description => <<"A person with name and age">>,
+    examples_function => {?MODULE, person_examples, []}
+}).
+-type person_type() :: #person{}.
+
+person_examples() ->
+    [
+        #person{name = <<"Alice">>, age = 30},
+        #person{name = <<"Bob">>, age = 25}
+    ].
+```
+
+The function specified in `examples_function` must be exported.
+
 ## OpenAPI Spec
 
 Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
