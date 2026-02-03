@@ -493,10 +493,8 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
                         case spectra_json:to_json(TypeInfo, Type, Term) of
                             {ok, JsonValue} ->
                                 JsonValue;
-                            {error, _Errs} ->
-                                %% If conversion fails, just use the term as-is
-                                %% This allows for graceful degradation
-                                Term
+                            {error, Errs} ->
+                                erlang:error({invalid_example_for_type, Type, Term, Errs})
                         end
                     end,
                     ExampleTerms

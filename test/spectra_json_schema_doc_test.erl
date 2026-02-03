@@ -30,7 +30,11 @@
 
 -spectra(#{
     title => <<"User Record">>,
-    description => <<"A user in the system">>
+    description => <<"A user in the system">>,
+    examples => [
+        {user, 1, <<"Alice">>, active},
+        {user, 42, <<"Bob">>, inactive}
+    ]
 }).
 -record(user, {
     id :: user_id(),
@@ -115,6 +119,15 @@ record_doc_test() ->
     ?assert(maps:is_key(<<"id">>, Properties)),
     ?assert(maps:is_key(<<"name">>, Properties)),
     ?assert(maps:is_key(<<"status">>, Properties)),
+
+    Examples = maps:get(<<"examples">>, Schema),
+    ?assertEqual(
+        [
+            #{<<"id">> => 1, <<"name">> => <<"Alice">>, <<"status">> => <<"active">>},
+            #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"status">> => <<"inactive">>}
+        ],
+        Examples
+    ),
 
     validate_with_python(Schema).
 
