@@ -4,7 +4,6 @@
 
 -ignore_xref([to_schema/2]).
 
--include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
 -type json_schema() :: #{binary() => json:encode_value()}.
