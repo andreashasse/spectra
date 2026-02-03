@@ -3,6 +3,7 @@
 -include("../include/spectra_internal.hrl").
 
 -export([types_in_module/1, types_in_module_path/1]).
+-ignore_xref([types_in_module_path/1]).
 
 -define(is_primary_type(PrimaryType),
     PrimaryType =:= string orelse

@@ -46,17 +46,17 @@ type_with_record_examples_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {type, person_type, 0}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    ?assertEqual(<<"Person">>, maps:get(<<"title">>, Schema)),
-    ?assertEqual(<<"A person with name and age">>, maps:get(<<"description">>, Schema)),
-
-    %% Check that examples were converted correctly
-    Examples = maps:get(<<"examples">>, Schema),
-    ?assertEqual(2, length(Examples)),
-
-    %% First example should be: {"name": "Alice", "age": 30}
-    [Example1, Example2] = Examples,
-    ?assertEqual(#{<<"name">> => <<"Alice">>, <<"age">> => 30}, Example1),
-    ?assertEqual(#{<<"name">> => <<"Bob">>, <<"age">> => 25}, Example2),
+    ?assertMatch(
+        #{
+            <<"title">> := <<"Person">>,
+            <<"description">> := <<"A person with name and age">>,
+            <<"examples">> := [
+                #{<<"name">> := <<"Alice">>, <<"age">> := 30},
+                #{<<"name">> := <<"Bob">>, <<"age">> := 25}
+            ]
+        },
+        Schema
+    ),
 
     ok.
 
@@ -65,16 +65,16 @@ record_direct_examples_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {record, product}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    ?assertEqual(<<"Product">>, maps:get(<<"title">>, Schema)),
-    ?assertEqual(<<"A product with price">>, maps:get(<<"description">>, Schema)),
-
-    %% Check that examples were converted correctly
-    Examples = maps:get(<<"examples">>, Schema),
-    ?assertEqual(2, length(Examples)),
-
-    %% Examples should be converted from record tuples to JSON objects
-    [Example1, Example2] = Examples,
-    ?assertEqual(#{<<"name">> => <<"Widget">>, <<"price_cents">> => 999}, Example1),
-    ?assertEqual(#{<<"name">> => <<"Gadget">>, <<"price_cents">> => 1499}, Example2),
+    ?assertMatch(
+        #{
+            <<"title">> := <<"Product">>,
+            <<"description">> := <<"A product with price">>,
+            <<"examples">> := [
+                #{<<"name">> := <<"Widget">>, <<"price_cents">> := 999},
+                #{<<"name">> := <<"Gadget">>, <<"price_cents">> := 1499}
+            ]
+        },
+        Schema
+    ),
 
     ok.
