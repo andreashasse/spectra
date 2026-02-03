@@ -111,22 +111,23 @@ record_doc_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {record, user}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    ?assertEqual(<<"User Record">>, maps:get(<<"title">>, Schema)),
-    ?assertEqual(<<"A user in the system">>, maps:get(<<"description">>, Schema)),
-    ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),
-
-    Properties = maps:get(<<"properties">>, Schema),
-    ?assert(maps:is_key(<<"id">>, Properties)),
-    ?assert(maps:is_key(<<"name">>, Properties)),
-    ?assert(maps:is_key(<<"status">>, Properties)),
-
-    Examples = maps:get(<<"examples">>, Schema),
-    ?assertEqual(
-        [
-            #{<<"id">> => 1, <<"name">> => <<"Alice">>, <<"status">> => <<"active">>},
-            #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"status">> => <<"inactive">>}
-        ],
-        Examples
+    ?assertMatch(
+        #{
+            <<"$schema">> := <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> := <<"object">>,
+            <<"title">> := <<"User Record">>,
+            <<"description">> := <<"A user in the system">>,
+            <<"properties">> := #{
+                <<"id">> := _,
+                <<"name">> := _,
+                <<"status">> := _
+            },
+            <<"examples">> := [
+                #{<<"id">> := 1, <<"name">> := <<"Alice">>, <<"status">> := <<"active">>},
+                #{<<"id">> := 42, <<"name">> := <<"Bob">>, <<"status">> := <<"inactive">>}
+            ]
+        },
+        Schema
     ),
 
     validate_with_python(Schema).
@@ -135,8 +136,19 @@ record_no_doc_test() ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {record, simple_record}),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
 
-    ?assertEqual(false, maps:is_key(<<"title">>, Schema)),
-    ?assertEqual(false, maps:is_key(<<"description">>, Schema)),
-    ?assertEqual(<<"object">>, maps:get(<<"type">>, Schema)),
+    %% Check the exact schema - no title, no description, just the required fields
+    ?assertEqual(
+        #{
+            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> => <<"object">>,
+            <<"properties">> => #{
+                <<"value">> => #{
+                    <<"type">> => <<"integer">>
+                }
+            },
+            <<"required">> => [<<"value">>]
+        },
+        Schema
+    ),
 
     validate_with_python(Schema).
