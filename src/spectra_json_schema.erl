@@ -486,20 +486,24 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
             (description, Value, Acc) when is_binary(Value) ->
                 Acc#{<<"description">> => Value};
             (examples, ExampleTerms, Acc) when is_list(ExampleTerms) ->
-                %% Convert each Erlang term example to JSON using spectra_json
-                JsonExamples = lists:map(
-                    fun(Term) ->
-                        case spectra_json:to_json(TypeInfo, Type, Term) of
-                            {ok, JsonValue} ->
-                                JsonValue;
-                            {error, Errs} ->
-                                erlang:error({invalid_example_for_type, Type, Term, Errs})
-                        end
-                    end,
-                    ExampleTerms
-                ),
-                Acc#{<<"examples">> => JsonExamples}
+                Acc#{<<"examples">> => convert_examples(TypeInfo, Type, ExampleTerms)};
+            (examples_function, {Module, Function, Args}, Acc) ->
+                ExampleTerms = erlang:apply(Module, Function, Args),
+                Acc#{<<"examples">> => convert_examples(TypeInfo, Type, ExampleTerms)}
         end,
         #{},
         Doc
+    ).
+
+convert_examples(TypeInfo, Type, ExampleTerms) ->
+    lists:map(
+        fun(Term) ->
+            case spectra_json:to_json(TypeInfo, Type, Term) of
+                {ok, JsonValue} ->
+                    JsonValue;
+                {error, Errs} ->
+                    erlang:error({invalid_example, Type, Term, Errs})
+            end
+        end,
+        ExampleTerms
     ).

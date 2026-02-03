@@ -4,6 +4,20 @@
 
 -compile([nowarn_unused_type, nowarn_unused_record]).
 
+%% This file demonstrates the traditional way of adding examples using tuple syntax.
+%% For a more flexible approach using functions with record syntax, see test_examples_function.erl
+%% which uses the examples_function field:
+%%
+%% -spectra(#{
+%%     examples_function => {my_module, person_examples, []}
+%% }).
+%%
+%% Where person_examples/0 returns:
+%% [
+%%     #person{name = <<"Alice">>, age = 30},
+%%     #person{name = <<"Bob">>, age = 25}
+%% ]
+
 -record(person, {
     name :: binary(),
     age :: non_neg_integer()
