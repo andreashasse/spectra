@@ -123,7 +123,9 @@ add_doc_field(examples, Value, Acc) when is_list(Value) ->
 add_doc_field(examples_function, {Module, Function, Args}, Acc) when
     is_atom(Module), is_atom(Function), is_list(Args)
 ->
-    Acc#{examples_function => {Module, Function, Args}}.
+    Acc#{examples_function => {Module, Function, Args}};
+add_doc_field(Key, Value, _Acc) ->
+    erlang:error({invalid_spectra_field, Key, Value}).
 
 build_type_info(NamedTypes, Docs) ->
     TypeInfo = lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes),
