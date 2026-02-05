@@ -152,8 +152,6 @@ And the rest of the arguments are the same as for the data serialization API.
 
 You can enhance your generated schemas with documentation and examples using the `-spectra()` attribute. This metadata is included in the JSON Schema output and OpenAPI specifications.
 
-#### Basic Documentation
-
 ```erlang
 -spectra(#{
     title => <<"User Status">>,
@@ -171,7 +169,7 @@ You can enhance your generated schemas with documentation and examples using the
     ]
 }).
 -record(user, {
-    id :: user_id(),
+    id :: non_neg_integer(),
     name :: binary(),
     status :: status()
 }).
