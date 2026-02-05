@@ -265,6 +265,45 @@ openapi_with_components_test() ->
             maps:is_key(<<"create_user_request">>, Schemas)
     ).
 
+%% Test OpenAPI spec works for records without -spectra() documentation
+openapi_without_documentation_test() ->
+    Response = spectra_openapi:response(200, <<"Success">>),
+    ResponseWithBody =
+        spectra_openapi:response_with_body(Response, ?MODULE, {record, user}),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/undocumented">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, ResponseWithBody),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"Test API">>,
+                version => <<"1.0.0">>
+            },
+            [Endpoint]
+        ),
+
+    #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
+    UserSchema = maps:get(<<"User">>, Schemas),
+
+    %% Verify basic schema structure exists
+    ?assertMatch(#{<<"type">> := <<"object">>}, UserSchema),
+    ?assertMatch(
+        #{
+            <<"properties">> :=
+                #{
+                    <<"id">> := #{<<"type">> := <<"integer">>},
+                    <<"name">> := #{<<"type">> := <<"string">>},
+                    <<"email">> := #{<<"type">> := <<"string">>}
+                }
+        },
+        UserSchema
+    ),
+
+    %% Verify documentation fields are NOT present (backward compatibility)
+    ?assertNot(maps:is_key(<<"title">>, UserSchema)),
+    ?assertNot(maps:is_key(<<"description">>, UserSchema)),
+    ?assertNot(maps:is_key(<<"examples">>, UserSchema)).
+
 %% Test error handling for invalid endpoints
 error_handling_test() ->
     Response = spectra_openapi:response(200, <<"List of users">>),
