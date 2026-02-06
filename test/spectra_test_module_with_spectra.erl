@@ -5,7 +5,7 @@
 -export(['__spectra__'/0]).
 
 %% This module has a __spectra__/0 function that returns hardcoded type info
-%% This is used to test that spectra_abstract_code:types_in_module/1 
+%% This is used to test that spectra_abstract_code:types_in_module/1
 %% calls __spectra__/0 when it exists
 
 -spec '__spectra__'() -> map().
