@@ -1,0 +1,55 @@
+-module(spectra_test_module_with_spectra).
+
+-include("../include/spectra_internal.hrl").
+
+-export(['__spectra__'/0]).
+
+%% This module has a __spectra__/0 function that returns hardcoded type info
+%% This is used to test that spectra_abstract_code:types_in_module/1 
+%% calls __spectra__/0 when it exists
+
+-spec '__spectra__'() -> map().
+'__spectra__'() ->
+    #{
+        types => #{
+            {my_type, 0} => #sp_simple_type{type = string}
+        },
+        records => #{
+            my_record => #sp_rec{
+                name = my_record,
+                fields = [
+                    #sp_rec_field{
+                        name = field1,
+                        binary_name = <<"field1">>,
+                        type = #sp_simple_type{type = integer}
+                    },
+                    #sp_rec_field{
+                        name = field2,
+                        binary_name = <<"field2">>,
+                        type = #sp_simple_type{type = string}
+                    }
+                ],
+                arity = 3
+            }
+        },
+        functions => #{
+            {my_function, 1} => [
+                #sp_function_spec{
+                    args = [#sp_simple_type{type = integer}],
+                    return = #sp_simple_type{type = string}
+                }
+            ]
+        },
+        docs => #{
+            {my_type, 0} => #{
+                title => <<"My Type">>,
+                description => <<"A test type">>
+            }
+        },
+        record_docs => #{
+            my_record => #{
+                title => <<"My Record">>,
+                description => <<"A test record">>
+            }
+        }
+    }.
