@@ -225,8 +225,8 @@ schema(Format, Module, TypeOrRef) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     schema(Format, TypeInfo, TypeOrRef);
 schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
-    Type = get_type_from_atom(TypeInfo, TypeAtom),
-    schema(Format, TypeInfo, Type);
+    TypeOrRef = get_type_ref(TypeInfo, TypeAtom),
+    schema(Format, TypeInfo, TypeOrRef);
 schema(json_schema, Module, TypeOrRef) ->
     SchemaMap = spectra_json_schema:to_schema(Module, TypeOrRef),
     json:encode(SchemaMap).
@@ -235,6 +235,21 @@ get_type_from_atom(TypeInfo, RefAtom) ->
     case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
         {ok, Type} ->
             Type;
+        error ->
+            case spectra_type_info:find_record(TypeInfo, RefAtom) of
+                {ok, Rec} ->
+                    Rec;
+                error ->
+                    erlang:error({type_or_record_not_found, RefAtom})
+            end
+    end.
+
+%% Returns a type/record reference tuple instead of resolving to the full type.
+%% Used by schema/3 so that spectra_json_schema can look up docs by name.
+get_type_ref(TypeInfo, RefAtom) ->
+    case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
+        {ok, _Type} ->
+            {type, RefAtom, 0};
         error ->
             case spectra_type_info:find_record(TypeInfo, RefAtom) of
                 {ok, Rec} ->

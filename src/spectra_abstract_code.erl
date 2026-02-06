@@ -68,6 +68,19 @@ process_forms_with_docs([], PendingDoc, NamedTypes, Docs) ->
         _ ->
             erlang:error({orphaned_spectra, PendingDoc})
     end;
+%% Named spectra attribute (with explicit type key) - add directly to Docs by name.
+%% This supports Elixir where persisted attributes may appear after the type in BEAM forms.
+process_forms_with_docs(
+    [{attribute, _, spectra, #{type := {Name, Arity}} = DocMap} | Rest],
+    PendingDoc,
+    NamedTypes,
+    Docs
+) when is_map(DocMap), is_atom(Name), is_integer(Arity) ->
+    Key = {type, Name, Arity},
+    CleanDoc = maps:remove(type, DocMap),
+    NewDocs = Docs#{Key => normalize_doc(CleanDoc)},
+    process_forms_with_docs(Rest, PendingDoc, NamedTypes, NewDocs);
+%% Positional spectra attribute (no type key) - buffer as PendingDoc for the next type.
 process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, NamedTypes, Docs) when
     is_map(DocMap)
 ->
