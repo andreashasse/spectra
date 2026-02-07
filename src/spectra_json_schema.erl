@@ -17,7 +17,6 @@
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
-%% Type references
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
@@ -30,7 +29,6 @@ to_schema(TypeInfo, Type) ->
 
 -spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema().
 to_schema_for_sp_type(TypeInfo, Type) ->
-    % Check if type has inline documentation in metadata (before do_to_schema which may error)
     MaybeDoc = get_inline_doc(Type),
     Schema = do_to_schema(TypeInfo, Type),
     SchemaWithDoc =
@@ -301,7 +299,6 @@ record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields, meta = Meta} = Reco
         <<"properties">> => Properties,
         <<"required">> => Required
     },
-    % Add documentation from inline metadata if available
     case Meta of
         #{doc := Doc} ->
             maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Record, Doc));
