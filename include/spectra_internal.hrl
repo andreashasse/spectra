@@ -1,3 +1,10 @@
+%% Wrapper for types that carry source information for documentation lookup
+%% This is used internally when resolving type atoms to preserve metadata
+-record(sp_annotated_type, {
+    type :: spectra:sp_type(),
+    source_ref :: spectra:sp_type_reference()
+}).
+
 -record(sp_simple_type, {
     type :: spectra:simple_types()
 }).

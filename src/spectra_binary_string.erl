@@ -36,6 +36,9 @@ and converts it to the corresponding Erlang value.
     BinaryString :: binary()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
+%% Unwrap annotated types
+from_binary_string(TypeInfo, #sp_annotated_type{type = InnerType}, BinaryString) ->
+    from_binary_string(TypeInfo, InnerType, BinaryString);
 from_binary_string(TypeInfo, {type, TypeName, TypeArity}, BinaryString) when
     is_atom(TypeName)
 ->
@@ -115,6 +118,9 @@ and converts it to a binary string representation.
     Data :: dynamic()
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
+%% Unwrap annotated types
+to_binary_string(TypeInfo, #sp_annotated_type{type = InnerType}, Data) ->
+    to_binary_string(TypeInfo, InnerType, Data);
 to_binary_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_binary_string(TypeInfo, Type, Data);

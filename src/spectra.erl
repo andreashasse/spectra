@@ -37,7 +37,8 @@
     | #sp_nonempty_list{}
     | #sp_maybe_improper_list{}
     | #sp_nonempty_improper_list{}
-    | #sp_remote_type{}.
+    | #sp_remote_type{}
+    | #sp_annotated_type{}.
 -type map_field() :: #literal_map_field{} | #typed_map_field{}.
 -type sp_type_reference() ::
     {type, Name :: atom(), Arity :: arity()} | {record, Name :: atom()}.
@@ -227,18 +228,26 @@ schema(Format, Module, TypeOrRef) when is_atom(Module) ->
 schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
     Type = get_type_from_atom(TypeInfo, TypeAtom),
     schema(Format, TypeInfo, Type);
-schema(json_schema, Module, TypeOrRef) ->
-    SchemaMap = spectra_json_schema:to_schema(Module, TypeOrRef),
+schema(json_schema, TypeInfo, TypeOrRef) ->
+    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
     json:encode(SchemaMap).
 
 get_type_from_atom(TypeInfo, RefAtom) ->
     case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
         {ok, Type} ->
-            Type;
+            % Annotate the type with its source reference for documentation lookup
+            #sp_annotated_type{
+                type = Type,
+                source_ref = {type, RefAtom, 0}
+            };
         error ->
             case spectra_type_info:find_record(TypeInfo, RefAtom) of
                 {ok, Rec} ->
-                    Rec;
+                    % Annotate the record with its source reference
+                    #sp_annotated_type{
+                        type = Rec,
+                        source_ref = {record, RefAtom}
+                    };
                 error ->
                     erlang:error({type_or_record_not_found, RefAtom})
             end

@@ -25,6 +25,11 @@ to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     %% Add documentation if available
     SchemaWithDoc = add_type_doc(TypeInfo, Schema, TypeName, TypeArity),
     add_schema_version(SchemaWithDoc);
+%% Annotated types (carry source reference for documentation)
+to_schema(TypeInfo, #sp_annotated_type{source_ref = SourceRef}) ->
+    % Handle annotated type by delegating to the source reference
+    % This ensures documentation is included
+    to_schema(TypeInfo, SourceRef);
 to_schema(TypeInfo, Type) ->
     add_schema_version(do_to_schema(TypeInfo, Type)).
 
@@ -158,6 +163,9 @@ do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     do_to_schema(TypeInfo, TypeWithoutVars);
+%% Annotated types - unwrap and process the inner type
+do_to_schema(TypeInfo, #sp_annotated_type{type = Type}) ->
+    do_to_schema(TypeInfo, Type);
 %% Unsupported types
 do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
     NotSupported =:= pid orelse
