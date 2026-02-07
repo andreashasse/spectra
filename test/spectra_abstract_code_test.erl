@@ -37,7 +37,7 @@ spectra_function_exported_test() ->
     ?assertMatch(#{title := <<"My Record">>}, MyRecordDoc).
 
 spectra_function_with_partial_data_test() ->
-    %% Test that missing keys in __spectra__() map default to empty maps
+    %% Test that type_info record fields use default values (empty maps) when not specified
     TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_partial_spectra),
     ?assert(is_record(TypeInfo, type_info)),
 
@@ -57,11 +57,11 @@ spectra_function_not_exported_test() ->
     ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, account, 0)).
 
 spectra_function_with_all_empty_test() ->
-    %% Test __spectra__/0 that returns an empty map
+    %% Test __spectra__/0 that returns an empty type_info record with default values
     TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_empty_spectra),
     ?assert(is_record(TypeInfo, type_info)),
 
-    %% Verify all type-related fields are empty maps
+    %% Verify all type-related fields are empty maps (default values)
     ?assertEqual(#{}, TypeInfo#type_info.types),
     ?assertEqual(#{}, TypeInfo#type_info.functions),
     ?assertEqual(#{}, TypeInfo#type_info.docs),

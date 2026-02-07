@@ -8,13 +8,13 @@
 %% This is used to test that spectra_abstract_code:types_in_module/1
 %% calls __spectra__/0 when it exists
 
--spec '__spectra__'() -> map().
+-spec '__spectra__'() -> spectra:type_info().
 '__spectra__'() ->
-    #{
-        types => #{
+    #type_info{
+        types = #{
             {my_type, 0} => #sp_simple_type{type = string}
         },
-        records => #{
+        records = #{
             my_record => #sp_rec{
                 name = my_record,
                 fields = [
@@ -32,7 +32,7 @@
                 arity = 3
             }
         },
-        functions => #{
+        functions = #{
             {my_function, 1} => [
                 #sp_function_spec{
                     args = [#sp_simple_type{type = integer}],
@@ -40,13 +40,13 @@
                 }
             ]
         },
-        docs => #{
+        docs = #{
             {my_type, 0} => #{
                 title => <<"My Type">>,
                 description => <<"A test type">>
             }
         },
-        record_docs => #{
+        record_docs = #{
             my_record => #{
                 title => <<"My Record">>,
                 description => <<"A test record">>
