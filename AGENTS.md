@@ -8,7 +8,29 @@ Spectra is a type-safe data validation library for Erlang inspired by Pydantic. 
 
 **Requirements**: Erlang/OTP 27+ (uses native `json` module)
 
+### Library Architecture
+- The library uses Erlang types during runtime to support type-safe serialization and deserialization
+- Types are extracted in `spectra_abstract_code` into an internal format (`spectra:sp_type()`)
+- Different modules can use the extracted type data to:
+  * Serialize data
+  * Deserialize data  
+  * Generate schemas
+- Supports multiple formats including:
+  * JSON
+  * OpenAPI Spec
+  * DynamoDB's JSON flavor
+
 ## Build & Test Commands
+
+### Standard Workflow
+After each change, run:
+```bash
+make format        # Format code
+make build-test    # Run all checks
+```
+
+When `make build-test` succeeds, review the code for cleanup opportunities.  
+Once cleanup is done, run `make proper` to verify property-based tests.
 
 ### Building
 ```bash
@@ -95,6 +117,8 @@ make all                  # Run format, build-test, doc
 - Test modules use `nowarn_missing_spec` to relax this requirement
 - Use specific types over general ones (e.g., `pos_integer()` vs `integer()`)
 - Export types that are part of the public API using `-export_type/1`
+- **Don't define types in .hrl files** - Types for library users should be defined in `spectra.erl`
+- When using a type defined in the same file, don't prefix it with the module name
 
 ### Naming Conventions
 - Module names: lowercase with underscores (e.g., `spectra_abstract_code`)
@@ -153,7 +177,9 @@ when Error =:= non_existing orelse Error =:= preloaded -> ...
 - Use EUnit macros: `?assert`, `?assertEqual`, `?assertMatch`, `?assertError`
 - **Consolidate assertions**: Use single `?assertMatch` with nested patterns instead of multiple separate assertions
 - Include type definitions in test modules for testing type extraction
-- Use `code:ensure_loaded/1` is called automatically by `types_in_module/1` - no need in tests
+- `code:ensure_loaded/1` is called automatically by `types_in_module/1` - no need in tests
+- **Unit tests should call public API**: Test decoders, encoders and schemas via `spectra.erl`, not internal modules like `spectra_json.erl`
+- **When property-based tests find bugs**: Create a unit test that reproduces the error, then fix it
 
 ### Type System Internals
 - `sp_type()`: Internal representation of Erlang types
