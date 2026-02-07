@@ -33,9 +33,6 @@ and converts it to the corresponding Erlang value.
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-%% Unwrap annotated types
-from_string(TypeInfo, #sp_annotated_type{type = InnerType}, String) ->
-    from_string(TypeInfo, InnerType, String);
 from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     from_string(TypeInfo, Type, String);
@@ -107,9 +104,6 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-%% Unwrap annotated types
-to_string(TypeInfo, #sp_annotated_type{type = InnerType}, Data) ->
-    to_string(TypeInfo, InnerType, Data);
 to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     to_string(TypeInfo, Type, Data);

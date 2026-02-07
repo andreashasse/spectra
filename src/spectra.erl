@@ -18,6 +18,11 @@
     examples_function => {module(), atom(), [term()]}
 }.
 
+%% Metadata for sp_type records - stores inline documentation for JSON schema
+-type sp_type_meta() :: #{
+    doc => type_doc()
+}.
+
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
@@ -37,8 +42,7 @@
     | #sp_nonempty_list{}
     | #sp_maybe_improper_list{}
     | #sp_nonempty_improper_list{}
-    | #sp_remote_type{}
-    | #sp_annotated_type{}.
+    | #sp_remote_type{}.
 -type map_field() :: #literal_map_field{} | #typed_map_field{}.
 -type sp_type_reference() ::
     {type, Name :: atom(), Arity :: arity()} | {record, Name :: atom()}.
@@ -235,19 +239,11 @@ schema(json_schema, TypeInfo, TypeOrRef) ->
 get_type_from_atom(TypeInfo, RefAtom) ->
     case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
         {ok, Type} ->
-            % Annotate the type with its source reference for documentation lookup
-            #sp_annotated_type{
-                type = Type,
-                source_ref = {type, RefAtom, 0}
-            };
+            Type;
         error ->
             case spectra_type_info:find_record(TypeInfo, RefAtom) of
                 {ok, Rec} ->
-                    % Annotate the record with its source reference
-                    #sp_annotated_type{
-                        type = Rec,
-                        source_ref = {record, RefAtom}
-                    };
+                    Rec;
                 error ->
                     erlang:error({type_or_record_not_found, RefAtom})
             end

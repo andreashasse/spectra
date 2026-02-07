@@ -33,9 +33,6 @@ to_json(TypeInfo, Type, Data) ->
     Data :: dynamic()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-%% Unwrap annotated types - they carry source info but should be processed as their inner type
-do_to_json(TypeInfo, #sp_annotated_type{type = InnerType}, Data) ->
-    do_to_json(TypeInfo, InnerType, Data);
 do_to_json(TypeInfo, {record, RecordName}, Record) when is_atom(RecordName) ->
     record_to_json(TypeInfo, RecordName, Record, []);
 do_to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
@@ -431,9 +428,6 @@ from_json(TypeInfo, Type, Json) ->
     Json :: json:decode_value()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-%% Unwrap annotated types - they carry source info but should be processed as their inner type
-do_from_json(TypeInfo, #sp_annotated_type{type = InnerType}, Json) ->
-    do_from_json(TypeInfo, InnerType, Json);
 do_from_json(TypeInfo, {record, RecordName}, Json) when is_atom(RecordName) ->
     record_from_json(TypeInfo, RecordName, Json, []);
 do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->

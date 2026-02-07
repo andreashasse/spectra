@@ -129,7 +129,7 @@ type_replace_vars(_TypeInfo, #sp_var{name = Name}, NamedTypes) ->
     end;
 type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
     case Type of
-        #sp_union{types = UnionTypes} ->
+        #sp_union{types = UnionTypes, meta = Meta} ->
             #sp_union{
                 types =
                     lists:map(
@@ -137,7 +137,8 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
                             type_replace_vars(TypeInfo, UnionType, NamedTypes)
                         end,
                         UnionTypes
-                    )
+                    ),
+                meta = Meta
             };
         #sp_map{fields = Fields} = Map ->
             Map#sp_map{
@@ -178,27 +179,34 @@ type_replace_vars(TypeInfo, #sp_rec{fields = Fields} = Rec, NamedTypes) ->
                 Fields
             )
     };
-type_replace_vars(TypeInfo, #sp_list{type = ItemType}, NamedTypes) ->
-    #sp_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType}, NamedTypes) ->
-    #sp_nonempty_list{type = type_replace_vars(TypeInfo, ItemType, NamedTypes)};
-type_replace_vars(TypeInfo, #sp_union{types = Types}, NamedTypes) ->
+type_replace_vars(TypeInfo, #sp_list{type = ItemType, meta = Meta}, NamedTypes) ->
+    #sp_list{
+        type = type_replace_vars(TypeInfo, ItemType, NamedTypes),
+        meta = Meta
+    };
+type_replace_vars(TypeInfo, #sp_nonempty_list{type = ItemType, meta = Meta}, NamedTypes) ->
+    #sp_nonempty_list{
+        type = type_replace_vars(TypeInfo, ItemType, NamedTypes),
+        meta = Meta
+    };
+type_replace_vars(TypeInfo, #sp_union{types = Types, meta = Meta}, NamedTypes) ->
     #sp_union{
         types =
             lists:map(
                 fun(T) -> type_replace_vars(TypeInfo, T, NamedTypes) end,
                 Types
-            )
+            ),
+        meta = Meta
     };
 type_replace_vars(
-    TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, NamedTypes
+    TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}, meta = Meta}, NamedTypes
 ) ->
     % Replace variables in Args with their actual types from NamedTypes
     ResolvedArgs = lists:map(
         fun(Arg) -> type_replace_vars(TypeInfo, Arg, NamedTypes) end,
         Args
     ),
-    % Return the remote type with resolved args, preserving module context
-    #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}};
+    % Return the remote type with resolved args, preserving module context and meta
+    #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}, meta = Meta};
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
     Type.

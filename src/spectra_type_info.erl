@@ -2,14 +2,12 @@
 
 -include("../include/spectra_internal.hrl").
 
--ignore_xref([find_function/3, find_record_doc/2]).
+-ignore_xref([find_function/3]).
 
 -export([new/0]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2]).
 -export([add_function/4, find_function/3]).
--export([add_doc/4, find_doc/3]).
--export([add_record_doc/3, find_record_doc/2]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -55,19 +53,3 @@ add_function(#type_info{functions = Functions} = TypeInfo, Name, Arity, FuncSpec
     {ok, [spectra:sp_function_spec()]} | error.
 find_function(#type_info{functions = Functions}, Name, Arity) ->
     maps:find({Name, Arity}, Functions).
-
--spec add_doc(type_info(), atom(), arity(), spectra:type_doc()) -> type_info().
-add_doc(#type_info{docs = Docs} = TypeInfo, Name, Arity, Doc) ->
-    TypeInfo#type_info{docs = Docs#{{Name, Arity} => Doc}}.
-
--spec find_doc(type_info(), atom(), arity()) -> {ok, spectra:type_doc()} | error.
-find_doc(#type_info{docs = Docs}, Name, Arity) ->
-    maps:find({Name, Arity}, Docs).
-
--spec add_record_doc(type_info(), atom(), spectra:type_doc()) -> type_info().
-add_record_doc(#type_info{record_docs = RecordDocs} = TypeInfo, Name, Doc) ->
-    TypeInfo#type_info{record_docs = RecordDocs#{Name => Doc}}.
-
--spec find_record_doc(type_info(), atom()) -> {ok, spectra:type_doc()} | error.
-find_record_doc(#type_info{record_docs = RecordDocs}, Name) ->
-    maps:find(Name, RecordDocs).

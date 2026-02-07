@@ -8,7 +8,15 @@
 '__spectra__'() ->
     #type_info{
         types = #{
-            {my_type, 0} => #sp_simple_type{type = string}
+            {my_type, 0} => #sp_simple_type{
+                type = string,
+                meta = #{
+                    doc => #{
+                        title => <<"My Type">>,
+                        description => <<"A test type">>
+                    }
+                }
+            }
         },
         records = #{
             my_record => #sp_rec{
@@ -25,7 +33,13 @@
                         type = #sp_simple_type{type = string}
                     }
                 ],
-                arity = 3
+                arity = 3,
+                meta = #{
+                    doc => #{
+                        title => <<"My Record">>,
+                        description => <<"A test record">>
+                    }
+                }
             }
         },
         functions = #{
@@ -35,17 +49,5 @@
                     return = #sp_simple_type{type = string}
                 }
             ]
-        },
-        docs = #{
-            {my_type, 0} => #{
-                title => <<"My Type">>,
-                description => <<"A test type">>
-            }
-        },
-        record_docs = #{
-            my_record => #{
-                title => <<"My Record">>,
-                description => <<"A test record">>
-            }
         }
     }.

@@ -1,6 +1,7 @@
 -module(spectra_type_doc_errors_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 orphaned_doc_at_eof_test() ->
     Code =
@@ -68,13 +69,16 @@ multiple_types_with_docs_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    {ok, FirstDoc} = spectra_type_info:find_doc(TypeInfo, first, 0),
+    {ok, FirstType} = spectra_type_info:find_type(TypeInfo, first, 0),
+    #{doc := FirstDoc} = FirstType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"First Type">>}, FirstDoc),
 
-    {ok, SecondDoc} = spectra_type_info:find_doc(TypeInfo, second, 0),
+    {ok, SecondType} = spectra_type_info:find_type(TypeInfo, second, 0),
+    #{doc := SecondDoc} = SecondType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Second Type">>}, SecondDoc),
 
-    {ok, ThirdDoc} = spectra_type_info:find_doc(TypeInfo, third, 0),
+    {ok, ThirdType} = spectra_type_info:find_type(TypeInfo, third, 0),
+    #{doc := ThirdDoc} = ThirdType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Third Type">>}, ThirdDoc),
 
     file:delete(TempFile).
@@ -98,12 +102,15 @@ mixed_docs_and_no_docs_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    error = spectra_type_info:find_doc(TypeInfo, no_doc_type, 0),
+    {ok, NoDocType} = spectra_type_info:find_type(TypeInfo, no_doc_type, 0),
+    #{} = NoDocType#sp_simple_type.meta,  % No doc field
 
-    {ok, Doc} = spectra_type_info:find_doc(TypeInfo, with_doc, 0),
+    {ok, WithDocType} = spectra_type_info:find_type(TypeInfo, with_doc, 0),
+    #{doc := Doc} = WithDocType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Has Doc">>}, Doc),
 
-    error = spectra_type_info:find_doc(TypeInfo, another_no_doc, 0),
+    {ok, AnotherNoDocType} = spectra_type_info:find_type(TypeInfo, another_no_doc, 0),
+    #{} = AnotherNoDocType#sp_simple_type.meta,  % No doc field
 
     file:delete(TempFile).
 
@@ -124,7 +131,8 @@ record_with_doc_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    {ok, Doc} = spectra_type_info:find_record_doc(TypeInfo, user),
+    {ok, Record} = spectra_type_info:find_record(TypeInfo, user),
+    #{doc := Doc} = Record#sp_rec.meta,
     ?assertEqual(#{title => <<"User Record">>, description => <<"Represents a user">>}, Doc),
 
     file:delete(TempFile).
@@ -150,13 +158,16 @@ mixed_types_and_records_with_docs_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    {ok, TypeDoc1} = spectra_type_info:find_doc(TypeInfo, user_id, 0),
+    {ok, TypeId} = spectra_type_info:find_type(TypeInfo, user_id, 0),
+    #{doc := TypeDoc1} = TypeId#sp_simple_type.meta,
     ?assertEqual(#{title => <<"User ID Type">>}, TypeDoc1),
 
-    {ok, TypeDoc2} = spectra_type_info:find_doc(TypeInfo, status, 0),
+    {ok, StatusType} = spectra_type_info:find_type(TypeInfo, status, 0),
+    #{doc := TypeDoc2} = StatusType#sp_union.meta,
     ?assertEqual(#{title => <<"Status Type">>}, TypeDoc2),
 
-    {ok, RecordDoc} = spectra_type_info:find_record_doc(TypeInfo, user),
+    {ok, UserRecord} = spectra_type_info:find_record(TypeInfo, user),
+    #{doc := RecordDoc} = UserRecord#sp_rec.meta,
     ?assertEqual(#{title => <<"User Record">>}, RecordDoc),
 
     file:delete(TempFile).

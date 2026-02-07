@@ -1,6 +1,7 @@
 -module(interleaved_attrs_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 interleaved_attrs_test() ->
     Code =
@@ -23,10 +24,12 @@ interleaved_attrs_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    {ok, TypeDoc} = spectra_type_info:find_doc(TypeInfo, my_type, 0),
+    {ok, Type} = spectra_type_info:find_type(TypeInfo, my_type, 0),
+    #{doc := TypeDoc} = Type#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Type with doc attr">>}, TypeDoc),
 
-    {ok, RecordDoc} = spectra_type_info:find_record_doc(TypeInfo, my_record),
+    {ok, Record} = spectra_type_info:find_record(TypeInfo, my_record),
+    #{doc := RecordDoc} = Record#sp_rec.meta,
     ?assertEqual(#{title => <<"Record with doc attr">>}, RecordDoc),
 
     file:delete(TempFile).
@@ -48,7 +51,8 @@ only_doc_no_spectra_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    error = spectra_type_info:find_doc(TypeInfo, my_type, 0),
+    {ok, Type} = spectra_type_info:find_type(TypeInfo, my_type, 0),
+    #{} = Type#sp_simple_type.meta,  % No doc field means error case
 
     file:delete(TempFile).
 
@@ -70,10 +74,12 @@ spectra_before_wrong_type_test() ->
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
-    {ok, FirstDoc} = spectra_type_info:find_doc(TypeInfo, first, 0),
+    {ok, FirstType} = spectra_type_info:find_type(TypeInfo, first, 0),
+    #{doc := FirstDoc} = FirstType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Should be on first">>}, FirstDoc),
 
-    error = spectra_type_info:find_doc(TypeInfo, second, 0),
+    {ok, SecondType} = spectra_type_info:find_type(TypeInfo, second, 0),
+    #{} = SecondType#sp_simple_type.meta,  % No doc field
 
     file:delete(TempFile).
 

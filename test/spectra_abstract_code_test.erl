@@ -10,8 +10,11 @@ spectra_function_exported_test() ->
     ?assertMatch({ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)),
     ?assertMatch({ok, #sp_rec{name = my_record, arity = 3}}, spectra_type_info:find_record(TypeInfo, my_record)),
     ?assertMatch({ok, [_]}, spectra_type_info:find_function(TypeInfo, my_function, 1)),
-    ?assertMatch({ok, #{title := <<"My Type">>}}, spectra_type_info:find_doc(TypeInfo, my_type, 0)),
-    ?assertMatch({ok, #{title := <<"My Record">>}}, spectra_type_info:find_record_doc(TypeInfo, my_record)).
+    % Check that docs are inline in the type metadata
+    {ok, Type} = spectra_type_info:find_type(TypeInfo, my_type, 0),
+    ?assertMatch(#sp_simple_type{meta = #{doc := #{title := <<"My Type">>}}}, Type),
+    {ok, Record} = spectra_type_info:find_record(TypeInfo, my_record),
+    ?assertMatch(#sp_rec{meta = #{doc := #{title := <<"My Record">>}}}, Record).
 
 spectra_function_with_partial_data_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_partial_spectra),
@@ -31,9 +34,7 @@ spectra_function_with_all_empty_test() ->
         #type_info{
             types = #{},
             records = _,
-            functions = #{},
-            docs = #{},
-            record_docs = #{}
+            functions = #{}
         },
         TypeInfo
     ).
