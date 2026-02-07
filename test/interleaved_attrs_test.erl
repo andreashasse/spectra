@@ -52,7 +52,8 @@ only_doc_no_spectra_test() ->
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
     {ok, Type} = spectra_type_info:find_type(TypeInfo, my_type, 0),
-    #{} = Type#sp_simple_type.meta,  % No doc field means error case
+    % No doc field means error case
+    #{} = Type#sp_simple_type.meta,
 
     file:delete(TempFile).
 
@@ -79,7 +80,8 @@ spectra_before_wrong_type_test() ->
     ?assertEqual(#{title => <<"Should be on first">>}, FirstDoc),
 
     {ok, SecondType} = spectra_type_info:find_type(TypeInfo, second, 0),
-    #{} = SecondType#sp_simple_type.meta,  % No doc field
+    % No doc field
+    #{} = SecondType#sp_simple_type.meta,
 
     file:delete(TempFile).
 

@@ -84,7 +84,7 @@ records_with_spectra() ->
     ]).
 
 %% Main property: schema/3 returns the same result for atom and tuple references
-%% 
+%%
 %% Note: When calling with a direct sp_type() that was retrieved via get_type,
 %% the type loses its source information unless it's wrapped in #sp_annotated_type{}.
 %% This test verifies that atom and tuple references (which preserve type names)
@@ -97,7 +97,7 @@ prop_schema_consistency_for_types() ->
             % Call schema/3 in two ways that preserve type name information
             SchemaFromAtom = call_schema_safe(?MODULE, TypeName),
             SchemaFromTuple = call_schema_safe(?MODULE, {type, TypeName, TypeArity}),
-            
+
             % Both should return the same result with full documentation
             ?WHENFAIL(
                 begin
@@ -118,7 +118,7 @@ prop_schema_consistency_for_records() ->
             % Call schema/3 in two ways that preserve record name information
             SchemaFromAtom = call_schema_safe(?MODULE, RecordName),
             SchemaFromTuple = call_schema_safe(?MODULE, {record, RecordName}),
-            
+
             % Both should return the same result with full documentation
             ?WHENFAIL(
                 begin
@@ -143,7 +143,11 @@ call_schema_safe(Module, TypeOrRef) ->
 
 %% EUnit test wrapper for easy running
 schema_consistency_types_test() ->
-    ?assert(proper:quickcheck(prop_schema_consistency_for_types(), [{to_file, user}, {numtests, 100}])).
+    ?assert(
+        proper:quickcheck(prop_schema_consistency_for_types(), [{to_file, user}, {numtests, 100}])
+    ).
 
 schema_consistency_records_test() ->
-    ?assert(proper:quickcheck(prop_schema_consistency_for_records(), [{to_file, user}, {numtests, 20}])).
+    ?assert(
+        proper:quickcheck(prop_schema_consistency_for_records(), [{to_file, user}, {numtests, 20}])
+    ).

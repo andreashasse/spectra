@@ -23,19 +23,19 @@ atom_vs_tuple_consistency_test() ->
     % Call schema/3 with an atom (type name)
     SchemaFromAtom = spectra:schema(json_schema, ?MODULE, user_age),
     DecodedFromAtom = json:decode(iolist_to_binary(SchemaFromAtom)),
-    
+
     % Call schema/3 with a 3-tuple reference
     SchemaFromTuple = spectra:schema(json_schema, ?MODULE, {type, user_age, 0}),
     DecodedFromTuple = json:decode(iolist_to_binary(SchemaFromTuple)),
-    
+
     % Both should be identical and include metadata
     ?assertEqual(DecodedFromTuple, DecodedFromAtom),
-    
+
     % Verify metadata is present
     ?assertEqual(<<"User Age">>, maps:get(<<"title">>, DecodedFromAtom)),
     ?assertEqual(<<"Age of a user in years">>, maps:get(<<"description">>, DecodedFromAtom)),
     ?assertEqual([18, 25, 42, 65], maps:get(<<"examples">>, DecodedFromAtom)),
-    
+
     % Verify the schema structure is correct
     ?assertEqual(<<"integer">>, maps:get(<<"type">>, DecodedFromAtom)),
     ?assertEqual(0, maps:get(<<"minimum">>, DecodedFromAtom)).

@@ -21,29 +21,30 @@ to_schema(Module, Type) when is_atom(Module) ->
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    Schema = do_to_schema(TypeInfo, TypeWithoutVars),
-    %% Add documentation from inline metadata if available
-    SchemaWithDoc = case get_inline_doc(TypeWithoutVars) of
-        {ok, Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, TypeWithoutVars, Doc));
-        error ->
-            Schema
-    end,
-    add_schema_version(SchemaWithDoc);
+    to_schema_for_sp_type(TypeInfo, TypeWithoutVars);
+to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    to_schema_for_sp_type(TypeInfo, Record);
 to_schema(TypeInfo, Type) ->
+    to_schema_for_sp_type(TypeInfo, Type).
+
+-spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema().
+to_schema_for_sp_type(TypeInfo, Type) ->
+    % Check if type has inline documentation in metadata (before do_to_schema which may error)
+    MaybeDoc = get_inline_doc(Type),
     Schema = do_to_schema(TypeInfo, Type),
-    % Check if type has inline documentation in metadata
-    SchemaWithDoc = case get_inline_doc(Type) of
-        {ok, Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
-        error ->
-            Schema
-    end,
+    SchemaWithDoc =
+        case MaybeDoc of
+            {ok, Doc} ->
+                maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
+            error ->
+                Schema
+        end,
     add_schema_version(SchemaWithDoc).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref()
+    Type :: spectra:sp_type()
 ) ->
     json_schema_object().
 %% Simple types
@@ -151,8 +152,6 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
 do_to_schema(TypeInfo, #sp_map{fields = Fields}) ->
     map_fields_to_schema(TypeInfo, Fields);
 %% Record types
-do_to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
-    record_to_schema_internal(TypeInfo, RecordName);
 do_to_schema(TypeInfo, #sp_rec{} = RecordInfo) ->
     record_to_schema_internal(TypeInfo, RecordInfo);
 %% Record references
@@ -494,7 +493,7 @@ get_inline_doc(#sp_nonempty_list{meta = #{doc := Doc}}) -> {ok, Doc};
 get_inline_doc(_) -> error.
 
 -spec normalize_doc_for_json_schema(
-    spectra:type_info(), spectra:sp_type_or_ref(), spectra:type_doc()
+    spectra:type_info(), spectra:sp_type(), spectra:type_doc()
 ) -> json_schema_object().
 normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
     maps:fold(

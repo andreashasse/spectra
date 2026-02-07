@@ -86,6 +86,7 @@
     var_type/0,
     type_info/0,
     type_doc/0,
+    sp_type_meta/0,
     record_field_arg/0,
     error/0,
     map_field/0,

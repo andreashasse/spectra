@@ -103,14 +103,16 @@ mixed_docs_and_no_docs_test() ->
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
 
     {ok, NoDocType} = spectra_type_info:find_type(TypeInfo, no_doc_type, 0),
-    #{} = NoDocType#sp_simple_type.meta,  % No doc field
+    % No doc field
+    #{} = NoDocType#sp_simple_type.meta,
 
     {ok, WithDocType} = spectra_type_info:find_type(TypeInfo, with_doc, 0),
     #{doc := Doc} = WithDocType#sp_simple_type.meta,
     ?assertEqual(#{title => <<"Has Doc">>}, Doc),
 
     {ok, AnotherNoDocType} = spectra_type_info:find_type(TypeInfo, another_no_doc, 0),
-    #{} = AnotherNoDocType#sp_simple_type.meta,  % No doc field
+    % No doc field
+    #{} = AnotherNoDocType#sp_simple_type.meta,
 
     file:delete(TempFile).
 

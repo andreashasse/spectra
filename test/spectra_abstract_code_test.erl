@@ -7,8 +7,13 @@
 spectra_function_exported_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_with_spectra),
     ?assert(is_record(TypeInfo, type_info)),
-    ?assertMatch({ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)),
-    ?assertMatch({ok, #sp_rec{name = my_record, arity = 3}}, spectra_type_info:find_record(TypeInfo, my_record)),
+    ?assertMatch(
+        {ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)
+    ),
+    ?assertMatch(
+        {ok, #sp_rec{name = my_record, arity = 3}},
+        spectra_type_info:find_record(TypeInfo, my_record)
+    ),
     ?assertMatch({ok, [_]}, spectra_type_info:find_function(TypeInfo, my_function, 1)),
     % Check that docs are inline in the type metadata
     {ok, Type} = spectra_type_info:find_type(TypeInfo, my_type, 0),
@@ -44,4 +49,6 @@ spectra_function_with_unloaded_module_test() ->
     code:delete(spectra_test_module_with_spectra),
     ?assertEqual(false, code:is_loaded(spectra_test_module_with_spectra)),
     TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_with_spectra),
-    ?assertMatch({ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)).
+    ?assertMatch(
+        {ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)
+    ).

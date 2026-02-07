@@ -48,8 +48,8 @@ types_in_module(Module) ->
 types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
         {ok, {_Module, [{abstract_code, {_, Forms}}]}} ->
-            {NamedTypes, Docs} = process_forms_with_docs(Forms),
-            build_type_info(NamedTypes, Docs);
+            {NamedTypes, _Docs} = process_forms_with_docs(Forms),
+            build_type_info(NamedTypes);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
         {error, beam_lib, Reason} ->
@@ -187,10 +187,10 @@ add_doc_to_type(#sp_nonempty_improper_list{meta = Meta} = Type, Doc) ->
     Type#sp_nonempty_improper_list{meta = merge_meta_with_doc(Meta, Doc)}.
 
 -spec merge_meta_with_doc(spectra:sp_type_meta(), spectra:type_doc()) -> spectra:sp_type_meta().
-merge_meta_with_doc(_ExistingMeta, Doc) ->
-    #{doc => Doc}.
+merge_meta_with_doc(ExistingMeta, Doc) ->
+    ExistingMeta#{doc => Doc}.
 
-build_type_info(NamedTypes, _Docs) ->
+build_type_info(NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).
 
 build_type_info_fold({{type, Name, Arity}, Type}, TypeInfo) ->
