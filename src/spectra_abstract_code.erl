@@ -31,15 +31,7 @@ types_in_module(Module) ->
     _ = code:ensure_loaded(Module),
     case erlang:function_exported(Module, '__spectra__', 0) of
         true ->
-            Map = apply(Module, '__spectra__', []),
-            Get = fun(Key) -> maps:get(Key, Map, #{}) end,
-            #type_info{
-                types = Get(types),
-                records = Get(records),
-                functions = Get(functions),
-                docs = Get(docs),
-                record_docs = Get(record_docs)
-            };
+            apply(Module, '__spectra__', []);
         false ->
             case code:which(Module) of
                 cover_compiled ->
