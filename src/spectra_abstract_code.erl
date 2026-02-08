@@ -40,7 +40,7 @@ types_in_module(Module) ->
 types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
         {ok, {_Module, [{abstract_code, {_, Forms}}]}} ->
-            {NamedTypes, _Docs} = process_forms_with_docs(Forms),
+            NamedTypes = process_forms_with_docs(Forms),
             build_type_info(NamedTypes);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
@@ -48,68 +48,48 @@ types_in_module_path(FilePath) ->
             erlang:error({beam_lib_error, FilePath, Reason})
     end.
 
--spec process_forms_with_docs(list()) ->
-    {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
+-spec process_forms_with_docs(list()) -> [type_form_result()].
 process_forms_with_docs(Forms) ->
-    process_forms_with_docs(Forms, undefined, [], #{}).
+    process_forms_with_docs(Forms, undefined, []).
 
--type doc_key() :: {type, atom(), arity()} | {record, atom()}.
-
--spec process_forms_with_docs(
-    list(),
-    undefined | map(),
-    [type_form_result()],
-    #{doc_key() => spectra:type_doc()}
-) -> {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
-process_forms_with_docs([], PendingDoc, NamedTypes, Docs) ->
+-spec process_forms_with_docs(list(), undefined | map(), [type_form_result()]) ->
+    [type_form_result()].
+process_forms_with_docs([], PendingDoc, NamedTypes) ->
     case PendingDoc of
         undefined ->
-            {lists:reverse(NamedTypes), Docs};
+            lists:reverse(NamedTypes);
         _ ->
             erlang:error({orphaned_spectra, PendingDoc})
     end;
-process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, NamedTypes, Docs) when
+process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, NamedTypes) when
     is_map(DocMap)
 ->
     case PendingDoc of
         undefined ->
-            process_forms_with_docs(Rest, DocMap, NamedTypes, Docs);
+            process_forms_with_docs(Rest, DocMap, NamedTypes);
         _ ->
             erlang:error({orphaned_spectra, PendingDoc})
     end;
-process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes, Docs) ->
+process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes) ->
     case type_in_form(Form) of
         {true, TypeInfo} ->
-            process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes, Docs);
+            process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes);
         false ->
-            process_forms_with_docs(Rest, PendingDoc, NamedTypes, Docs)
+            process_forms_with_docs(Rest, PendingDoc, NamedTypes)
     end.
 
--spec process_type_form(
-    type_form_result(),
-    undefined | map(),
-    list(),
-    [type_form_result()],
-    #{doc_key() => spectra:type_doc()}
-) -> {[type_form_result()], #{doc_key() => spectra:type_doc()}}.
-process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes, Docs) ->
-    case {PendingDoc, type_info_key(TypeInfo)} of
+-spec process_type_form(type_form_result(), undefined | map(), list(), [type_form_result()]) ->
+    [type_form_result()].
+process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes) ->
+    case {PendingDoc, TypeInfo} of
         {undefined, _} ->
-            process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes], Docs);
-        {_, undefined} ->
+            process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes]);
+        {_, {{function, _, _}, _}} ->
             erlang:error({orphaned_spectra, PendingDoc});
-        {_, Key} ->
-            % Attach documentation directly to the type/record
+        {_, _} ->
             TypeInfoWithDoc = attach_doc_to_type(TypeInfo, PendingDoc),
-            NewDocs = Docs#{Key => normalize_doc(PendingDoc)},
-            process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes], NewDocs)
+            process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
     end.
-
--spec type_info_key(type_form_result()) ->
-    {type, atom(), arity()} | {record, atom()} | undefined.
-type_info_key({{type, Name, Arity}, _Type}) -> {type, Name, Arity};
-type_info_key({{record, Name}, _Record}) -> {record, Name};
-type_info_key({{function, _Name, _Arity}, _FuncSpec}) -> undefined.
 
 -spec normalize_doc(map()) -> spectra:type_doc().
 normalize_doc(DocMap) ->
@@ -137,10 +117,7 @@ attach_doc_to_type({{type, Name, Arity}, Type}, DocMap) ->
 attach_doc_to_type({{record, Name}, Record}, DocMap) ->
     Doc = normalize_doc(DocMap),
     RecordWithDoc = add_doc_to_type(Record, Doc),
-    {{record, Name}, RecordWithDoc};
-attach_doc_to_type({{function, Name, Arity}, FuncSpec}, _DocMap) ->
-    % Functions don't support inline documentation yet
-    {{function, Name, Arity}, FuncSpec}.
+    {{record, Name}, RecordWithDoc}.
 
 -spec add_doc_to_type(spectra:sp_type(), spectra:type_doc()) -> spectra:sp_type().
 add_doc_to_type(#sp_simple_type{meta = Meta} = Type, Doc) ->
