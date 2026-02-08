@@ -560,8 +560,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            OpenApiSchema = maps:remove('$schema', InlineSchema),
-                            OpenApiSchema
+                            maps:remove('$schema', InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
                 #{

@@ -29,15 +29,8 @@ to_schema(TypeInfo, Type) ->
 
 -spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema().
 to_schema_for_sp_type(TypeInfo, Type) ->
-    MaybeDoc = get_inline_doc(Type),
     Schema = do_to_schema(TypeInfo, Type),
-    SchemaWithDoc =
-        case MaybeDoc of
-            {ok, Doc} ->
-                maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
-            error ->
-                Schema
-        end,
+    SchemaWithDoc = merge_type_doc_into_schema(TypeInfo, Type, Schema),
     add_schema_version(SchemaWithDoc).
 
 -spec do_to_schema(
@@ -288,23 +281,22 @@ process_map_fields(
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
-            record_to_schema_internal(TypeInfo, RecordInfo);
+            Schema = record_fields_to_schema(TypeInfo, RecordInfo),
+            merge_type_doc_into_schema(TypeInfo, RecordInfo, Schema);
         error ->
             erlang:error({record_not_found, RecordName})
     end;
-record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields, meta = Meta} = Record) ->
+record_to_schema_internal(TypeInfo, #sp_rec{} = Record) ->
+    record_fields_to_schema(TypeInfo, Record).
+
+-spec record_fields_to_schema(spectra:type_info(), #sp_rec{}) -> json_schema_object().
+record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}) ->
     {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
-    Schema = #{
+    #{
         type => <<"object">>,
         properties => Properties,
         required => Required
-    },
-    case Meta of
-        #{doc := Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Record, Doc));
-        #{} ->
-            Schema
-    end.
+    }.
 
 -spec process_record_fields(
     spectra:type_info(),
@@ -470,24 +462,21 @@ map_add_if_not_value(Map, Key, Value, _SkipValue) ->
 
 %% Extract inline doc from type metadata if present
 -spec get_inline_doc(spectra:sp_type()) -> {ok, spectra:type_doc()} | error.
-get_inline_doc(#sp_simple_type{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_tuple{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_map{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_rec{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_type_with_variables{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_function{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_union{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_literal{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_rec_ref{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_remote_type{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_maybe_improper_list{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_nonempty_improper_list{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_user_type_ref{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_var{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_range{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_list{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(#sp_nonempty_list{meta = #{doc := Doc}}) -> {ok, Doc};
-get_inline_doc(_) -> error.
+get_inline_doc(Type) ->
+    case spectra_type:get_meta(Type) of
+        #{doc := Doc} -> {ok, Doc};
+        #{} -> error
+    end.
+
+-spec merge_type_doc_into_schema(spectra:type_info(), spectra:sp_type(), json_schema_object()) ->
+    json_schema_object().
+merge_type_doc_into_schema(TypeInfo, Type, Schema) ->
+    case get_inline_doc(Type) of
+        {ok, Doc} ->
+            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
+        error ->
+            Schema
+    end.
 
 -spec normalize_doc_for_json_schema(
     spectra:type_info(), spectra:sp_type(), spectra:type_doc()

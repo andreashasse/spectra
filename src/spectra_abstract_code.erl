@@ -111,53 +111,15 @@ add_doc_field(Key, Value, _Acc) ->
 
 -spec attach_doc_to_type(type_form_result(), map()) -> type_form_result().
 attach_doc_to_type({{type, Name, Arity}, Type}, DocMap) ->
-    Doc = normalize_doc(DocMap),
-    TypeWithDoc = add_doc_to_type(Type, Doc),
-    {{type, Name, Arity}, TypeWithDoc};
+    {{type, Name, Arity}, add_doc_to_type(Type, DocMap)};
 attach_doc_to_type({{record, Name}, Record}, DocMap) ->
+    {{record, Name}, add_doc_to_type(Record, DocMap)}.
+
+-spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
+add_doc_to_type(Type, DocMap) ->
     Doc = normalize_doc(DocMap),
-    RecordWithDoc = add_doc_to_type(Record, Doc),
-    {{record, Name}, RecordWithDoc}.
-
--spec add_doc_to_type(spectra:sp_type(), spectra:type_doc()) -> spectra:sp_type().
-add_doc_to_type(#sp_simple_type{meta = Meta} = Type, Doc) ->
-    Type#sp_simple_type{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_tuple{meta = Meta} = Type, Doc) ->
-    Type#sp_tuple{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_map{meta = Meta} = Type, Doc) ->
-    Type#sp_map{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_rec{meta = Meta} = Type, Doc) ->
-    Type#sp_rec{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_union{meta = Meta} = Type, Doc) ->
-    Type#sp_union{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_literal{meta = Meta} = Type, Doc) ->
-    Type#sp_literal{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_range{meta = Meta} = Type, Doc) ->
-    Type#sp_range{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_list{meta = Meta} = Type, Doc) ->
-    Type#sp_list{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_nonempty_list{meta = Meta} = Type, Doc) ->
-    Type#sp_nonempty_list{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_rec_ref{meta = Meta} = Type, Doc) ->
-    Type#sp_rec_ref{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_user_type_ref{meta = Meta} = Type, Doc) ->
-    Type#sp_user_type_ref{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_remote_type{meta = Meta} = Type, Doc) ->
-    Type#sp_remote_type{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_var{meta = Meta} = Type, Doc) ->
-    Type#sp_var{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_function{meta = Meta} = Type, Doc) ->
-    Type#sp_function{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_type_with_variables{meta = Meta} = Type, Doc) ->
-    Type#sp_type_with_variables{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_maybe_improper_list{meta = Meta} = Type, Doc) ->
-    Type#sp_maybe_improper_list{meta = merge_meta_with_doc(Meta, Doc)};
-add_doc_to_type(#sp_nonempty_improper_list{meta = Meta} = Type, Doc) ->
-    Type#sp_nonempty_improper_list{meta = merge_meta_with_doc(Meta, Doc)}.
-
--spec merge_meta_with_doc(spectra:sp_type_meta(), spectra:type_doc()) -> spectra:sp_type_meta().
-merge_meta_with_doc(ExistingMeta, Doc) ->
-    ExistingMeta#{doc => Doc}.
+    Meta = spectra_type:get_meta(Type),
+    spectra_type:set_meta(Type, Meta#{doc => Doc}).
 
 build_type_info(NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).
