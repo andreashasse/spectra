@@ -8,14 +8,14 @@
 -type module_version() :: term().
 
 -define(APPLICATION, spectra).
-
+-define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 %% API
 -spec get(Module :: module()) -> spectra:type_info().
 get(Module) ->
     _ = code:ensure_loaded(Module),
-    case erlang:function_exported(Module, '__spectra__', 0) of
+    case erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0) of
         true ->
-            apply(Module, '__spectra__', []);
+            apply(Module, ?TYPE_INFO_FUNCTION, []);
         false ->
             case application:get_env(?APPLICATION, use_module_types_cache, false) of
                 true ->

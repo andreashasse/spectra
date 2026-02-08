@@ -1,7 +1,6 @@
 -module(prop_schema_consistency).
 
 -include_lib("proper/include/proper.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 %% Property-based test to verify that spectra:schema/3 returns the same result
 %% regardless of how the type is referenced (atom, 3-tuple, or sp_type()).
@@ -83,29 +82,28 @@ records_with_spectra() ->
         simple_rec
     ]).
 
-%% Main property: schema/3 returns the same result for atom and tuple references
-%%
-%% Note: When calling with a direct sp_type() that was retrieved via get_type,
-%% the type loses its source information unless it's wrapped in #sp_annotated_type{}.
-%% This test verifies that atom and tuple references (which preserve type names)
-%% return identical schemas including documentation metadata.
 prop_schema_consistency_for_types() ->
+    TypeInfo = spectra_module_types:get(?MODULE),
     ?FORALL(
+        %% FIXME: instead of these silly types we should generate random types
+        %% with -spectra attributes in sp_type_generator
         {TypeName, TypeArity},
         types_with_spectra(),
         begin
-            % Call schema/3 in two ways that preserve type name information
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            SchemaFromType = call_schema_safe(?MODULE, Type),
             SchemaFromAtom = call_schema_safe(?MODULE, TypeName),
             SchemaFromTuple = call_schema_safe(?MODULE, {type, TypeName, TypeArity}),
 
-            % Both should return the same result with full documentation
+            % All should return the same result with full documentation
             ?WHENFAIL(
                 begin
                     io:format("~nInconsistency detected for type: ~p/~p~n", [TypeName, TypeArity]),
+                    io:format("Schema from sp_type: ~p~n", [SchemaFromType]),
                     io:format("Schema from atom:  ~p~n", [SchemaFromAtom]),
                     io:format("Schema from tuple: ~p~n", [SchemaFromTuple])
                 end,
-                SchemaFromAtom =:= SchemaFromTuple
+                SchemaFromAtom =:= SchemaFromTuple andalso SchemaFromAtom =:= SchemaFromType
             )
         end
     ).
@@ -140,14 +138,3 @@ call_schema_safe(Module, TypeOrRef) ->
         Class:Reason:Stack ->
             {error, {Class, Reason, Stack}}
     end.
-
-%% EUnit test wrapper for easy running
-schema_consistency_types_test() ->
-    ?assert(
-        proper:quickcheck(prop_schema_consistency_for_types(), [{to_file, user}, {numtests, 100}])
-    ).
-
-schema_consistency_records_test() ->
-    ?assert(
-        proper:quickcheck(prop_schema_consistency_for_records(), [{to_file, user}, {numtests, 20}])
-    ).

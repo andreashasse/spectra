@@ -91,7 +91,7 @@ when Error =:= non_existing orelse Error =:= preloaded -> ...
 ### Type System Internals
 - `sp_type()`: Internal representation of Erlang types
 - `type_info` record: Container for module's types, records, functions, docs
-- `__spectra__/0`: Modules can export this function returning `#type_info{}` to provide precomputed type info
+- `__spectra_type_info__/0`: Modules can export this function returning `#type_info{}` to provide precomputed type info
 - All modules must be compiled with `debug_info` for type extraction from abstract code
 
 ### Common Patterns
