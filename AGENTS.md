@@ -33,9 +33,9 @@ Once cleanup is done, run `make proper` to verify property-based tests.
 
 ### Building
 ```bash
-rebar3 compile           # Compile the project
 make compile             # Same via Makefile
 ```
+
 ### Testing
 ```bash
 rebar3 eunit --module=MODULE_NAME    # Run single test module (e.g., spectra_abstract_code_test)
@@ -50,31 +50,6 @@ make all                  # Run format, build-test, doc
 ```
 
 ## Code Style Guidelines
-
-### Module Structure
-```erlang
--module(module_name).
-
--export([public_function/2]).
--ignore_xref([rarely_used_function/1]).  % For functions not called within codebase
-
--include("../include/spectra.hrl").
--include("../include/spectra_internal.hrl").
-
--type my_type() :: term().
--export_type([my_type/0]).
-
--spec public_function(Arg1, Arg2) -> Result when
-    Arg1 :: type1(),
-    Arg2 :: type2(),
-    Result :: result_type().
-```
-
-### Imports and Includes
-- Use `-include("../include/spectra.hrl")` for public API types
-- Use `-include("../include/spectra_internal.hrl")` for internal record definitions
-- Use `-include_lib("eunit/include/eunit.hrl")` for tests
-- **Always use relative paths** for includes (e.g., `"../include/..."`)
 
 ### Type Specifications
 - **All exported functions MUST have `-spec` declarations** (enforced by `warn_missing_spec`)
@@ -107,12 +82,9 @@ when Error =:= non_existing orelse Error =:= preloaded -> ...
 - Minimal comments in test files - let test names describe behavior
 
 ### Test Guidelines
-- Test module naming: `<module>_test.erl`
-- Test function naming: `descriptive_name_test/0`
 - Use EUnit macros: `?assert`, `?assertEqual`, `?assertMatch`, `?assertError`
 - **Consolidate assertions**: Use single `?assertMatch` with nested patterns instead of multiple separate assertions
 - Include type definitions in test modules for testing type extraction
-- `code:ensure_loaded/1` is called automatically by `types_in_module/1` - no need in tests
 - **Unit tests should call public API**: Test decoders, encoders and schemas via `spectra.erl`, not internal modules like `spectra_json.erl`
 - **When property-based tests find bugs**: Create a unit test that reproduces the error, then fix it
 
