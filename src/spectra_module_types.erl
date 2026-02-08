@@ -12,19 +12,25 @@
 %% API
 -spec get(Module :: module()) -> spectra:type_info().
 get(Module) ->
-    case application:get_env(?APPLICATION, use_module_types_cache, false) of
+    _ = code:ensure_loaded(Module),
+    case erlang:function_exported(Module, '__spectra__', 0) of
         true ->
-            {ok, Vsn} = module_vsn(Module),
-            case pers_type(Module) of
-                {Vsn, TypeInfo} ->
-                    TypeInfo;
-                undefined ->
-                    TypeInfo = spectra_abstract_code:types_in_module(Module),
-                    pers_types_set(Module, Vsn, TypeInfo),
-                    TypeInfo
-            end;
+            apply(Module, '__spectra__', []);
         false ->
-            spectra_abstract_code:types_in_module(Module)
+            case application:get_env(?APPLICATION, use_module_types_cache, false) of
+                true ->
+                    {ok, Vsn} = module_vsn(Module),
+                    case pers_type(Module) of
+                        {Vsn, TypeInfo} ->
+                            TypeInfo;
+                        undefined ->
+                            TypeInfo = spectra_abstract_code:types_in_module(Module),
+                            pers_types_set(Module, Vsn, TypeInfo),
+                            TypeInfo
+                    end;
+                false ->
+                    spectra_abstract_code:types_in_module(Module)
+            end
     end.
 
 -spec clear(Module :: module()) -> ok.

@@ -18,7 +18,6 @@
     examples_function => {module(), atom(), [term()]}
 }.
 
-%% Metadata for sp_type records - stores inline documentation for JSON schema
 -type sp_type_meta() :: #{
     doc => type_doc()
 }.

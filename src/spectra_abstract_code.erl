@@ -26,22 +26,14 @@
 
 -spec types_in_module(atom()) -> spectra:type_info().
 types_in_module(Module) ->
-    %% Ensure module is loaded before checking if __spectra__/0 is exported
-    %% because erlang:function_exported/3 returns false for unloaded modules
-    _ = code:ensure_loaded(Module),
-    case erlang:function_exported(Module, '__spectra__', 0) of
-        true ->
-            apply(Module, '__spectra__', []);
-        false ->
-            case code:which(Module) of
-                cover_compiled ->
-                    {_, _, FilePath} = code:get_object_code(Module),
-                    types_in_module_path(FilePath);
-                Error when Error =:= non_existing orelse Error =:= preloaded ->
-                    erlang:error({module_types_not_found, Module, Error});
-                FilePath ->
-                    types_in_module_path(FilePath)
-            end
+    case code:which(Module) of
+        cover_compiled ->
+            {_, _, FilePath} = code:get_object_code(Module),
+            types_in_module_path(FilePath);
+        Error when Error =:= non_existing orelse Error =:= preloaded ->
+            erlang:error({module_types_not_found, Module, Error});
+        FilePath ->
+            types_in_module_path(FilePath)
     end.
 
 -spec types_in_module_path(file:filename()) -> spectra:type_info().

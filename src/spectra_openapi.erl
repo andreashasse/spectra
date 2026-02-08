@@ -548,7 +548,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                 %% Schema without module should not happen, but handle defensively
                 #{description => Description};
             {Schema, Module} ->
-                ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+                ModuleTypeInfo = spectra_module_types:get(Module),
                 SchemaContent =
                     case Schema of
                         {type, Name, Arity} ->
@@ -585,7 +585,7 @@ generate_response(#{description := Description} = ResponseSpec) when
 
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
 
@@ -610,7 +610,7 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
 
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     SchemaContent =
         case Schema of
             {type, Name, Arity} ->
@@ -640,7 +640,7 @@ generate_parameter(
 ) when
     is_binary(Name)
 ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     Required = maps:get(required, ParameterSpec, false),
 
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
@@ -743,7 +743,7 @@ generate_components(SchemaRefs) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
             Schema = spectra_json_schema:to_schema(
-                spectra_abstract_code:types_in_module(Module),
+                spectra_module_types:get(Module),
                 TypeRef
             ),
             SchemaName = type_ref_to_component_name(TypeRef),

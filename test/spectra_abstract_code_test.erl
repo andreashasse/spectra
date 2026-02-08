@@ -5,7 +5,7 @@
 -include("../include/spectra_internal.hrl").
 
 spectra_function_exported_test() ->
-    TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_with_spectra),
+    TypeInfo = spectra_module_types:get(spectra_test_module_with_spectra),
     ?assert(is_record(TypeInfo, type_info)),
     ?assertMatch(
         {ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)
@@ -22,7 +22,7 @@ spectra_function_exported_test() ->
     ?assertMatch(#sp_rec{meta = #{doc := #{title := <<"My Record">>}}}, Record).
 
 spectra_function_with_partial_data_test() ->
-    TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_partial_spectra),
+    TypeInfo = spectra_module_types:get(spectra_test_module_partial_spectra),
     ?assert(is_record(TypeInfo, type_info)),
     ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, partial_type, 0)),
     ?assertEqual(error, spectra_type_info:find_record(TypeInfo, some_record)),
@@ -48,7 +48,7 @@ spectra_function_with_unloaded_module_test() ->
     code:purge(spectra_test_module_with_spectra),
     code:delete(spectra_test_module_with_spectra),
     ?assertEqual(false, code:is_loaded(spectra_test_module_with_spectra)),
-    TypeInfo = spectra_abstract_code:types_in_module(spectra_test_module_with_spectra),
+    TypeInfo = spectra_module_types:get(spectra_test_module_with_spectra),
     ?assertMatch(
         {ok, #sp_simple_type{type = string}}, spectra_type_info:find_type(TypeInfo, my_type, 0)
     ).
