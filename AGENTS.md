@@ -13,12 +13,11 @@ Spectra is a type-safe data validation library for Erlang inspired by Pydantic. 
 - Types are extracted in `spectra_abstract_code` into an internal format (`spectra:sp_type()`)
 - Different modules can use the extracted type data to:
   * Serialize data
-  * Deserialize data  
+  * Deserialize data
   * Generate schemas
 - Supports multiple formats including:
   * JSON
   * OpenAPI Spec
-  * DynamoDB's JSON flavor
 
 ## Build & Test Commands
 
@@ -29,7 +28,7 @@ make format        # Format code
 make build-test    # Run all checks
 ```
 
-When `make build-test` succeeds, review the code for cleanup opportunities.  
+When `make build-test` succeeds, review the code for cleanup opportunities.
 Once cleanup is done, run `make proper` to verify property-based tests.
 
 ### Building
@@ -37,46 +36,11 @@ Once cleanup is done, run `make proper` to verify property-based tests.
 rebar3 compile           # Compile the project
 make compile             # Same via Makefile
 ```
-
 ### Testing
 ```bash
-rebar3 eunit                         # Run all tests
 rebar3 eunit --module=MODULE_NAME    # Run single test module (e.g., spectra_abstract_code_test)
 make test                            # Run tests (includes Elixir compilation if available)
-rebar3 proper                        # Run property-based tests
 make proper                          # Same via Makefile
-```
-
-### Code Quality
-```bash
-rebar3 fmt                # Format code (auto-write)
-rebar3 fmt --check        # Check formatting without writing
-make format               # Format via Makefile
-make format_verify        # Verify formatting
-
-rebar3 dialyzer           # Run Dialyzer type checker
-make dialyzer             # Same via Makefile
-
-rebar3 xref               # Check cross-references
-make xref                 # Same via Makefile
-
-elp eqwalize-all          # Run eqWAlizer type checker
-make type_check           # Same via Makefile
-
-rebar3 hank               # Check for unused code
-make hank                 # Same via Makefile
-
-rebar3 check_app_calls    # Check application calls
-make check_app_calls      # Same via Makefile
-```
-
-### Coverage & Documentation
-```bash
-rebar3 cover              # Generate coverage report
-make cover                # Same via Makefile
-
-rebar3 ex_doc             # Generate documentation
-make doc                  # Same via Makefile
 ```
 
 ### Full Build
@@ -120,27 +84,6 @@ make all                  # Run format, build-test, doc
 - **Don't define types in .hrl files** - Types for library users should be defined in `spectra.erl`
 - When using a type defined in the same file, don't prefix it with the module name
 
-### Naming Conventions
-- Module names: lowercase with underscores (e.g., `spectra_abstract_code`)
-- Function names: lowercase with underscores (e.g., `types_in_module`)
-- Type names: lowercase with underscores (e.g., `type_info`, `sp_type`)
-- Record names: lowercase with underscores (e.g., `sp_simple_type`, `type_info`)
-- Variables: CamelCase starting with uppercase (e.g., `TypeInfo`, `Module`)
-- Private functions: lowercase with underscores, typically have helper suffix
-
-### Record Definitions
-Records are defined in `include/spectra_internal.hrl`:
-```erlang
--record(sp_simple_type, {
-    type :: spectra:simple_types()
-}).
-```
-
-Access records using pattern matching or field access:
-```erlang
-#type_info{types = Types} = TypeInfo
-TypeInfo#type_info.types
-```
 
 ### Error Handling
 - Use `erlang:error/1` for programmer errors (e.g., invalid arguments)
@@ -159,16 +102,8 @@ when is_atom(Name) andalso is_integer(Arity) -> ...
 when Error =:= non_existing orelse Error =:= preloaded -> ...
 ```
 
-### Formatting
-- Use `erlfmt` for automatic formatting
-- 4-space indentation (handled by erlfmt)
-- **Line length**: Let erlfmt decide (no manual line breaking needed)
-- **Commas**: Trailing commas in lists/maps encouraged for better diffs
-
 ### Comments
 - Avoid unnecessary comments - code should be self-documenting
-- Use `%%` for line comments
-- Remove TODO/FIXME comments after addressing them
 - Minimal comments in test files - let test names describe behavior
 
 ### Test Guidelines
@@ -201,12 +136,6 @@ Type = spectra_type_info:get_type(TypeInfo, type_name, Arity)  % Errors if not f
 #{optional_field => Value} = Map      % Optional field (may exist)
 ```
 
-### Warnings as Errors
-The project treats warnings as errors:
-- `warnings_as_errors` is enabled
-- `warn_unused_import` catches unused imports
-- `warn_missing_spec` requires specs on all exported functions (except tests)
-
 ### Dependencies
 - Only use standard library in main code
 - Test dependencies: `proper`, `jesse`, `eqwalizer_support`
@@ -215,6 +144,7 @@ The project treats warnings as errors:
 ## Key Files
 - `src/spectra.erl` - Main API module
 - `src/spectra_abstract_code.erl` - Type extraction from abstract code
+- `src/spectra_module_types.erl` - Get type info for a module
 - `src/spectra_type_info.erl` - Type info data structure management
 - `src/spectra_json.erl` - JSON encoding/decoding
 - `src/spectra_json_schema.erl` - JSON Schema generation
