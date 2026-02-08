@@ -72,22 +72,22 @@ process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, Na
     end;
 process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes) ->
     case type_in_form(Form) of
-        {true, TypeInfo} ->
-            process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes);
+        {true, TypeWithKey} ->
+            process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes);
         false ->
             process_forms_with_docs(Rest, PendingDoc, NamedTypes)
     end.
 
 -spec process_type_form(type_form_result(), undefined | map(), list(), [type_form_result()]) ->
     [type_form_result()].
-process_type_form(TypeInfo, PendingDoc, Rest, NamedTypes) ->
-    case {PendingDoc, TypeInfo} of
+process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
+    case {PendingDoc, TypeWithKey} of
         {undefined, _} ->
-            process_forms_with_docs(Rest, undefined, [TypeInfo | NamedTypes]);
+            process_forms_with_docs(Rest, undefined, [TypeWithKey | NamedTypes]);
         {_, {{function, _, _}, _}} ->
             erlang:error({orphaned_spectra, PendingDoc});
         {_, _} ->
-            TypeInfoWithDoc = attach_doc_to_type(TypeInfo, PendingDoc),
+            TypeInfoWithDoc = attach_doc_to_type(TypeWithKey, PendingDoc),
             process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
     end.
 
