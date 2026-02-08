@@ -45,18 +45,18 @@ openapi_includes_documentation_test() ->
             <<"components">> := #{
                 <<"schemas">> := #{
                     <<"UserType0">> := #{
-                        <<"title">> := <<"User">>,
-                        <<"description">> := <<"A user in the system">>,
-                        <<"examples">> := [
+                        title := <<"User">>,
+                        description := <<"A user in the system">>,
+                        examples := [
                             #{<<"id">> := 1, <<"name">> := <<"Alice">>},
                             #{<<"id">> := 2, <<"name">> := <<"Bob">>}
                         ],
-                        <<"type">> := <<"object">>,
-                        <<"properties">> := #{
-                            <<"id">> := #{<<"type">> := <<"integer">>, <<"minimum">> := 1},
-                            <<"name">> := #{<<"type">> := <<"string">>}
+                        type := <<"object">>,
+                        properties := #{
+                            <<"id">> := #{type := <<"integer">>, minimum := 1},
+                            <<"name">> := #{type := <<"string">>}
                         },
-                        <<"required">> := [<<"id">>, <<"name">>]
+                        required := [<<"id">>, <<"name">>]
                     }
                 }
             }

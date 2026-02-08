@@ -286,23 +286,23 @@ openapi_without_documentation_test() ->
     UserSchema = maps:get(<<"User">>, Schemas),
 
     %% Verify basic schema structure exists
-    ?assertMatch(#{<<"type">> := <<"object">>}, UserSchema),
+    ?assertMatch(#{type := <<"object">>}, UserSchema),
     ?assertMatch(
         #{
-            <<"properties">> :=
+            properties :=
                 #{
-                    <<"id">> := #{<<"type">> := <<"integer">>},
-                    <<"name">> := #{<<"type">> := <<"string">>},
-                    <<"email">> := #{<<"type">> := <<"string">>}
+                    <<"id">> := #{type := <<"integer">>},
+                    <<"name">> := #{type := <<"string">>},
+                    <<"email">> := #{type := <<"string">>}
                 }
         },
         UserSchema
     ),
 
     %% Verify documentation fields are NOT present (backward compatibility)
-    ?assertNot(maps:is_key(<<"title">>, UserSchema)),
-    ?assertNot(maps:is_key(<<"description">>, UserSchema)),
-    ?assertNot(maps:is_key(<<"examples">>, UserSchema)).
+    ?assertNot(maps:is_key(title, UserSchema)),
+    ?assertNot(maps:is_key(description, UserSchema)),
+    ?assertNot(maps:is_key(examples, UserSchema)).
 
 %% Test error handling for invalid endpoints
 error_handling_test() ->

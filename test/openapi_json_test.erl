@@ -201,7 +201,7 @@ openapi_json_serializable_test() ->
                 <<"name">> := <<"id">>,
                 <<"in">> := <<"path">>,
                 <<"required">> := true,
-                <<"schema">> := #{<<"type">> := <<"integer">>}
+                <<"schema">> := #{type := <<"integer">>}
             }
         ],
         GetByIdParameters
@@ -236,26 +236,26 @@ openapi_json_serializable_test() ->
             <<"components">> := #{
                 <<"schemas">> := #{
                     <<"User">> := #{
-                        <<"title">> := <<"User">>,
-                        <<"description">> := <<"A registered user in the system">>,
-                        <<"examples">> := [_ | _],
-                        <<"type">> := <<"object">>,
-                        <<"properties">> := _,
-                        <<"required">> := _
+                        title := <<"User">>,
+                        description := <<"A registered user in the system">>,
+                        examples := [_ | _],
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
                     },
                     <<"CreateUserRequest">> := #{
-                        <<"title">> := <<"Create User Request">>,
-                        <<"description">> := <<"Payload for user creation endpoint">>,
-                        <<"type">> := <<"object">>,
-                        <<"properties">> := _,
-                        <<"required">> := _
+                        title := <<"Create User Request">>,
+                        description := <<"Payload for user creation endpoint">>,
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
                     },
                     <<"ErrorResponse">> := #{
-                        <<"title">> := <<"Error Response">>,
-                        <<"description">> := <<"Standard error response format">>,
-                        <<"type">> := <<"object">>,
-                        <<"properties">> := _,
-                        <<"required">> := _
+                        title := <<"Error Response">>,
+                        description := <<"Standard error response format">>,
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
                     }
                 }
             }
@@ -274,12 +274,12 @@ schema_json_structure_test() ->
     %% Validate schema structure
     ?assertMatch(
         #{
-            <<"type">> := <<"object">>,
-            <<"properties">> :=
+            type := <<"object">>,
+            properties :=
                 #{
-                    <<"id">> := #{<<"type">> := <<"integer">>},
-                    <<"name">> := #{<<"type">> := <<"string">>},
-                    <<"email">> := #{<<"type">> := <<"string">>}
+                    <<"id">> := #{type := <<"integer">>},
+                    <<"name">> := #{type := <<"string">>},
+                    <<"email">> := #{type := <<"string">>}
                 }
         },
         UserSchema
@@ -471,12 +471,12 @@ json_encoding_test() ->
     %% Validate the original schema structure
     ?assertMatch(
         #{
-            <<"type">> := <<"object">>,
-            <<"properties">> :=
+            type := <<"object">>,
+            properties :=
                 #{
-                    <<"id">> := #{<<"type">> := <<"integer">>},
-                    <<"name">> := #{<<"type">> := <<"string">>},
-                    <<"email">> := #{<<"type">> := <<"string">>}
+                    <<"id">> := #{type := <<"integer">>},
+                    <<"name">> := #{type := <<"string">>},
+                    <<"email">> := #{type := <<"string">>}
                 }
         },
         UserSchema
@@ -831,7 +831,7 @@ response_headers_in_json_test() ->
                                                             <<"X-Rate-Limit">> :=
                                                                 #{
                                                                     <<"schema">> := #{
-                                                                        <<"type">> := <<"integer">>
+                                                                        type := <<"integer">>
                                                                     },
                                                                     <<"description">> :=
                                                                         <<"Request limit">>,
@@ -840,7 +840,7 @@ response_headers_in_json_test() ->
                                                             <<"X-Request-ID">> :=
                                                                 #{
                                                                     <<"schema">> := #{
-                                                                        <<"type">> := <<"string">>
+                                                                        type := <<"string">>
                                                                     },
                                                                     <<"required">> := true
                                                                 }
@@ -940,7 +940,7 @@ headers_on_different_responses_test() ->
                                                             <<"Location">> :=
                                                                 #{
                                                                     <<"schema">> := #{
-                                                                        <<"type">> := <<"string">>
+                                                                        type := <<"string">>
                                                                     }
                                                                 }
                                                         }
@@ -953,7 +953,7 @@ headers_on_different_responses_test() ->
                                                                 #{
                                                                     <<"schema">> :=
                                                                         #{
-                                                                            <<"type">> :=
+                                                                            type :=
                                                                                 <<"integer">>
                                                                         }
                                                                 }
@@ -1017,7 +1017,7 @@ response_builder_json_generation_test() ->
                                                             <<"X-Rate-Limit">> :=
                                                                 #{
                                                                     <<"schema">> := #{
-                                                                        <<"type">> := <<"integer">>
+                                                                        type := <<"integer">>
                                                                     },
                                                                     <<"description">> :=
                                                                         <<"Requests remaining">>,

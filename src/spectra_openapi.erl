@@ -560,7 +560,8 @@ generate_response(#{description := Description} = ResponseSpec) when
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            maps:remove(<<"$schema">>, InlineSchema)
+                            OpenApiSchema = maps:remove('$schema', InlineSchema),
+                            OpenApiSchema
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
                 #{
@@ -586,7 +587,7 @@ generate_response(#{description := Description} = ResponseSpec) when
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
+    OpenApiSchema = maps:remove('$schema', InlineSchema),
 
     BaseHeader = #{schema => OpenApiSchema},
 
@@ -620,7 +621,8 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                maps:remove(<<"$schema">>, InlineSchema)
+                OpenApiSchema = maps:remove('$schema', InlineSchema),
+                OpenApiSchema
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
@@ -642,7 +644,7 @@ generate_parameter(
     Required = maps:get(required, ParameterSpec, false),
 
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
+    OpenApiSchema = maps:remove('$schema', InlineSchema),
 
     #{
         name => Name,
@@ -745,7 +747,7 @@ generate_components(SchemaRefs) ->
                 TypeRef
             ),
             SchemaName = type_ref_to_component_name(TypeRef),
-            OpenApiSchema = maps:remove(<<"$schema">>, Schema),
+            OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
         end,
         #{},
