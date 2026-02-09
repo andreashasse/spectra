@@ -102,18 +102,18 @@ add_doc_field(description, Value, Acc) when is_binary(Value) ->
     Acc#{description => Value};
 add_doc_field(examples, Value, Acc) when is_list(Value) ->
     Acc#{examples => Value};
-add_doc_field(examples_function, {Module, Function, Args}, Acc) when
+add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when
     is_atom(Module), is_atom(Function), is_list(Args)
 ->
-    Acc#{examples_function => {Module, Function, Args}};
+    Acc#{examples_function => MFA};
 add_doc_field(Key, Value, _Acc) ->
     erlang:error({invalid_spectra_field, Key, Value}).
 
 -spec attach_doc_to_type(type_form_result(), map()) -> type_form_result().
-attach_doc_to_type({{type, Name, Arity}, Type}, DocMap) ->
-    {{type, Name, Arity}, add_doc_to_type(Type, DocMap)};
-attach_doc_to_type({{record, Name}, Record}, DocMap) ->
-    {{record, Name}, add_doc_to_type(Record, DocMap)}.
+attach_doc_to_type({{type, _Name, _Arity} = Key, Type}, DocMap) ->
+    {Key, add_doc_to_type(Type, DocMap)};
+attach_doc_to_type({{record, _Name} = Key, Record}, DocMap) ->
+    {Key, add_doc_to_type(Record, DocMap)}.
 
 -spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
 add_doc_to_type(Type, DocMap) ->

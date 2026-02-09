@@ -6,8 +6,42 @@
 
 -include("../include/spectra_internal.hrl").
 
--type json_schema() :: #{atom() => json:encode_value()}.
--type json_schema_object() :: #{atom() => json:encode_value()}.
+-type json_schema_object() :: #{
+    type => binary(),
+    format => binary(),
+    minLength => pos_integer(),
+    minimum => integer(),
+    maximum => integer(),
+    enum => [null | binary() | integer() | boolean() | atom() | []],
+    items => json_schema_object(),
+    minItems => pos_integer(),
+    oneOf => [json_schema_object()],
+    properties => #{binary() => json_schema_object()},
+    required => [binary()],
+    additionalProperties => boolean(),
+    title => binary(),
+    description => binary(),
+    examples => [json:encode_value()]
+}.
+
+-type json_schema() :: #{
+    '$schema' => binary(),
+    title => binary(),
+    description => binary(),
+    examples => [json:encode_value()],
+    type => binary(),
+    format => binary(),
+    minLength => pos_integer(),
+    minimum => integer(),
+    maximum => integer(),
+    enum => [null | binary() | integer() | boolean() | atom() | []],
+    items => json_schema_object(),
+    minItems => pos_integer(),
+    oneOf => [json_schema_object()],
+    properties => #{binary() => json_schema_object()},
+    required => [binary()],
+    additionalProperties => boolean()
+}.
 
 -export_type([json_schema/0, json_schema_object/0]).
 
