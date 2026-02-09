@@ -85,8 +85,8 @@ do_to_json(TypeInfo, #sp_union{} = Type, Data) ->
     union(fun do_to_json/3, TypeInfo, Type, Data);
 do_to_json(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_to_json(TypeInfo, Type, Data);
-do_to_json(TypeInfo, #sp_list{type = Type}, Data) when is_list(Data) ->
-    list_to_json(TypeInfo, Type, Data);
+do_to_json(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
+    list_to_json(TypeInfo, ListType, Data);
 do_to_json(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
     %% FIXME: For simple types without arity, default to 0
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
@@ -136,33 +136,38 @@ prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
 nonempty_list_to_json(TypeInfo, #sp_nonempty_list{type = Type}, Data) when
     is_list(Data) andalso Data =/= []
 ->
-    list_to_json(TypeInfo, Type, Data);
+    list_to_json(TypeInfo, #sp_list{type = Type}, Data);
 nonempty_list_to_json(_TypeInfo, Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 -spec list_to_json(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    ListType :: #sp_list{},
     Data :: [dynamic()]
 ) ->
     {ok, [json:encode_value()]} | {error, [spectra:error()]}.
-list_to_json(TypeInfo, Type, Data) when is_list(Data) ->
-    spectra_util:map_until_error(
-        fun({Nr, Item}) ->
-            case do_to_json(TypeInfo, Type, Item) of
-                {ok, Json} ->
-                    {ok, Json};
-                {error, Errs} ->
-                    Errs2 =
-                        lists:map(
-                            fun(Err) -> sp_error:append_location(Err, Nr) end,
-                            Errs
-                        ),
-                    {error, Errs2}
-            end
-        end,
-        lists:enumerate(Data)
-    ).
+list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data) when is_list(Data) ->
+    case safe_enumerate(Data) of
+        {ok, EnumeratedData} ->
+            spectra_util:map_until_error(
+                fun({Nr, Item}) ->
+                    case do_to_json(TypeInfo, Type, Item) of
+                        {ok, Json} ->
+                            {ok, Json};
+                        {error, Errs} ->
+                            Errs2 =
+                                lists:map(
+                                    fun(Err) -> sp_error:append_location(Err, Nr) end,
+                                    Errs
+                                ),
+                            {error, Errs2}
+                    end
+                end,
+                EnumeratedData
+            );
+        {error, improper_list} ->
+            {error, [sp_error:type_mismatch(ListType, Data)]}
+    end.
 
 -spec map_to_json(
     TypeInfo :: spectra:type_info(),
@@ -561,18 +566,24 @@ nonempty_list_from_json(TypeInfo, #sp_nonempty_list{type = ListType} = Type, Dat
 nonempty_list_from_json(_TypeInfo, Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
-list_from_json(TypeInfo, Type, Data, _) when is_list(Data) ->
-    Fun = fun({Nr, Item}) ->
-        case do_from_json(TypeInfo, Type, Item) of
-            {ok, Json} ->
-                {ok, Json};
-            {error, Errs} ->
-                Errs2 = lists:map(fun(Err) -> sp_error:append_location(Err, Nr) end, Errs),
+list_from_json(TypeInfo, Type, Data, ListType) when is_list(Data) ->
+    case safe_enumerate(Data) of
+        {ok, EnumeratedData} ->
+            Fun = fun({Nr, Item}) ->
+                case do_from_json(TypeInfo, Type, Item) of
+                    {ok, Json} ->
+                        {ok, Json};
+                    {error, Errs} ->
+                        Errs2 = lists:map(fun(Err) -> sp_error:append_location(Err, Nr) end, Errs),
 
-                {error, Errs2}
-        end
-    end,
-    spectra_util:map_until_error(Fun, lists:enumerate(Data));
+                        {error, Errs2}
+                end
+            end,
+            spectra_util:map_until_error(Fun, EnumeratedData);
+        {error, improper_list} ->
+            %% Improper lists cannot be decoded from JSON
+            {error, [sp_error:type_mismatch(ListType, Data)]}
+    end;
 list_from_json(_TypeInfo, _ListType, Data, Type) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
@@ -649,7 +660,7 @@ check_type(_Type, _Json) ->
     false.
 
 do_string_to_json(Type, Json) ->
-    case unicode:characters_to_binary(Json) of
+    try unicode:characters_to_binary(Json) of
         {Err, _, _} when Err =:= error orelse Err =:= incomplete ->
             {error, [
                 sp_error:type_mismatch(#sp_simple_type{type = Type}, Json, #{
@@ -658,6 +669,16 @@ do_string_to_json(Type, Json) ->
             ]};
         Bin when is_binary(Bin) ->
             {true, Bin}
+    catch
+        error:badarg ->
+            {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Json)]}
+    end.
+
+safe_enumerate(List) ->
+    try lists:enumerate(List) of
+        EnumeratedList -> {ok, EnumeratedList}
+    catch
+        error:function_clause -> {error, improper_list}
     end.
 
 union(Fun, TypeInfo, #sp_union{types = Types} = T, Json) ->
