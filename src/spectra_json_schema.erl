@@ -281,8 +281,7 @@ process_map_fields(
 record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, RecordInfo} ->
-            Schema = record_fields_to_schema(TypeInfo, RecordInfo),
-            merge_type_doc_into_schema(TypeInfo, RecordInfo, Schema);
+            record_fields_to_schema(TypeInfo, RecordInfo);
         error ->
             erlang:error({record_not_found, RecordName})
     end;
