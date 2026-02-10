@@ -46,6 +46,19 @@
     value :: integer()
 }).
 
+%% Test that record references include documentation from the record
+-type user_ref() :: #user{}.
+
+%% Test a type with its own -spectra attribute that references a record
+-spectra(#{
+    title => <<"Active User">>,
+    description => <<"A user that is currently active in the system">>,
+    examples => [
+        {user, 99, <<"Charlie">>, active}
+    ]
+}).
+-type active_user() :: #user{}.
+
 validate_with_python(Schema) ->
     json_schema_validator_helper:validate_or_skip(Schema).
 
@@ -147,6 +160,58 @@ record_no_doc_test() ->
                 }
             },
             <<"required">> => [<<"value">>]
+        },
+        Schema
+    ),
+
+    validate_with_python(Schema).
+
+record_ref_doc_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, user_ref, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% The schema should include the doc metadata from the user record
+    ?assertMatch(
+        #{
+            <<"$schema">> := <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> := <<"object">>,
+            <<"title">> := <<"User Record">>,
+            <<"description">> := <<"A user in the system">>,
+            <<"properties">> := #{
+                <<"id">> := _,
+                <<"name">> := _,
+                <<"status">> := _
+            },
+            <<"examples">> := [
+                #{<<"id">> := 1, <<"name">> := <<"Alice">>, <<"status">> := <<"active">>},
+                #{<<"id">> := 42, <<"name">> := <<"Bob">>, <<"status">> := <<"inactive">>}
+            ]
+        },
+        Schema
+    ),
+
+    validate_with_python(Schema).
+
+%% Test that a type's own -spectra attribute takes precedence over the record's
+record_ref_with_own_doc_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, active_user, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% The schema should use the type's own documentation, not the record's
+    ?assertMatch(
+        #{
+            <<"$schema">> := <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> := <<"object">>,
+            <<"title">> := <<"Active User">>,
+            <<"description">> := <<"A user that is currently active in the system">>,
+            <<"properties">> := #{
+                <<"id">> := _,
+                <<"name">> := _,
+                <<"status">> := _
+            },
+            <<"examples">> := [
+                #{<<"id">> := 99, <<"name">> := <<"Charlie">>, <<"status">> := <<"active">>}
+            ]
         },
         Schema
     ),

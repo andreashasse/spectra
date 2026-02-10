@@ -66,6 +66,9 @@
     name :: binary()
 }).
 
+%% Type that references the record - should get the record's metadata
+-type simple_rec_ref() :: #simple_rec{}.
+
 %% Types to test
 types_with_spectra() ->
     oneof([
@@ -109,22 +112,44 @@ prop_schema_consistency_for_types() ->
     ).
 
 prop_schema_consistency_for_records() ->
+    TypeInfo = spectra_module_types:get(?MODULE),
     ?FORALL(
         RecordName,
         records_with_spectra(),
         begin
-            % Call schema/3 in two ways that preserve record name information
-            SchemaFromAtom = call_schema_safe(?MODULE, RecordName),
-            SchemaFromTuple = call_schema_safe(?MODULE, {record, RecordName}),
+            %% Get the actual #sp_rec{} type
+            {ok, SpRec} = spectra_type_info:find_record(TypeInfo, RecordName),
 
-            % Both should return the same result with full documentation
+            %% Call schema/3 in four different ways:
+            %% 1. Via record atom
+            SchemaFromAtom = call_schema_safe(?MODULE, RecordName),
+            %% 2. Via {record, Name} tuple
+            SchemaFromTuple = call_schema_safe(?MODULE, {record, RecordName}),
+            %% 3. Via direct sp_type (the #sp_rec{} record)
+            SchemaFromSpRec = call_schema_safe(?MODULE, SpRec),
+            %% 4. Via a type that is a record reference (#sp_rec_ref{})
+            %%    For simple_rec, we have simple_rec_ref type
+            SchemaFromRecRef =
+                case RecordName of
+                    simple_rec ->
+                        call_schema_safe(?MODULE, {type, simple_rec_ref, 0});
+                    _ ->
+                        %% For other records, skip this check
+                        SchemaFromAtom
+                end,
+
+            %% All should return the same result with full documentation
             ?WHENFAIL(
                 begin
                     io:format("~nInconsistency detected for record: ~p~n", [RecordName]),
-                    io:format("Schema from atom:  ~p~n", [SchemaFromAtom]),
-                    io:format("Schema from tuple: ~p~n", [SchemaFromTuple])
+                    io:format("Schema from atom:       ~p~n", [SchemaFromAtom]),
+                    io:format("Schema from tuple:      ~p~n", [SchemaFromTuple]),
+                    io:format("Schema from sp_rec:     ~p~n", [SchemaFromSpRec]),
+                    io:format("Schema from rec_ref:    ~p~n", [SchemaFromRecRef])
                 end,
-                SchemaFromAtom =:= SchemaFromTuple
+                SchemaFromAtom =:= SchemaFromTuple andalso
+                    SchemaFromAtom =:= SchemaFromSpRec andalso
+                    SchemaFromAtom =:= SchemaFromRecRef
             )
         end
     ).

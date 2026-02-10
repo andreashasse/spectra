@@ -181,7 +181,9 @@ do_to_schema(TypeInfo, #sp_rec{} = RecordInfo) ->
     record_to_schema_internal(TypeInfo, RecordInfo);
 %% Record references
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
-    record_to_schema_internal(TypeInfo, RecordName);
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    Schema = record_to_schema_internal(TypeInfo, Record),
+    merge_type_doc_into_schema(TypeInfo, Record, Schema);
 %% User type references
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
@@ -310,15 +312,8 @@ process_map_fields(
             process_map_fields(TypeInfo, Rest, Properties, Required, true)
     end.
 
--spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) ->
+-spec record_to_schema_internal(spectra:type_info(), #sp_rec{}) ->
     json_schema_object().
-record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
-    case spectra_type_info:find_record(TypeInfo, RecordName) of
-        {ok, RecordInfo} ->
-            record_fields_to_schema(TypeInfo, RecordInfo);
-        error ->
-            erlang:error({record_not_found, RecordName})
-    end;
 record_to_schema_internal(TypeInfo, #sp_rec{} = Record) ->
     record_fields_to_schema(TypeInfo, Record).
 
