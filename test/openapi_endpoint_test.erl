@@ -28,7 +28,8 @@ basic_endpoint_test() ->
             method => get,
             path => <<"/users">>,
             responses => #{},
-            parameters => []
+            parameters => [],
+            doc => #{}
         },
         Endpoint
     ).

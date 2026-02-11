@@ -1,7 +1,7 @@
 -module(spectra_openapi).
 
 -export([
-    endpoint/2,
+    endpoint/2, endpoint/3,
     with_request_body/3, with_request_body/4,
     with_parameter/3,
     endpoints_to_openapi/2,
@@ -13,6 +13,7 @@
 
 -ignore_xref([
     {spectra_openapi, endpoint, 2},
+    {spectra_openapi, endpoint, 3},
     {spectra_openapi, with_request_body, 3},
     {spectra_openapi, with_request_body, 4},
     {spectra_openapi, with_parameter, 3},
@@ -32,6 +33,15 @@
 -type http_status_code() :: 100..599.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
+-type endpoint_doc() ::
+    #{
+        summary => binary(),
+        description => binary(),
+        operationId => binary(),
+        tags => [binary()],
+        deprecated => boolean(),
+        externalDocs => #{description => binary(), url := binary()}
+    }.
 -type request_body_spec() ::
     #{
         schema := spectra:sp_type_or_ref(),
@@ -75,11 +85,18 @@
         path := binary(),
         responses := #{http_status_code() => response_spec()},
         parameters := [parameter_spec()],
-        request_body => request_body_spec()
+        request_body => request_body_spec(),
+        doc => endpoint_doc()
     }.
 -type path_operations() :: #{http_method() => openapi_operation()}.
 -type openapi_operation() ::
     #{
+        summary => binary(),
+        description => binary(),
+        operationId => binary(),
+        tags => [binary()],
+        deprecated => boolean(),
+        externalDocs => #{description => binary(), url := binary()},
         responses => #{binary() => openapi_response()},
         requestBody => openapi_request_body(),
         parameters => [openapi_parameter()]
@@ -116,13 +133,13 @@
 -doc """
 Creates a basic endpoint specification.
 
-This function creates the foundation for an endpoint with the specified HTTP method and path.
-Additional details like responses, request body, and parameters can be added using the with_* functions.
+Equivalent to calling endpoint/3 with an empty documentation map.
 
 ### Returns
 Endpoint map with method and path set
 """.
 -doc #{
+    equiv => endpoint(Method, Path, #{}),
     params =>
         #{
             "Method" => "HTTP method (get, post, put, delete, patch, head, options)",
@@ -132,11 +149,44 @@ Endpoint map with method and path set
 
 -spec endpoint(Method :: http_method(), Path :: binary()) -> endpoint_spec().
 endpoint(Method, Path) when is_atom(Method) andalso is_binary(Path) ->
+    endpoint(Method, Path, #{}).
+
+-doc """
+Creates an endpoint specification with documentation.
+
+This function creates the foundation for an endpoint with the specified HTTP method, path, and documentation.
+Additional details like responses, request body, and parameters can be added using the with_* functions.
+
+### Documentation Fields
+The Doc map can contain:
+- summary: Short summary of the endpoint (binary)
+- description: Detailed description (binary)
+- operationId: Unique identifier for the operation (binary)
+- tags: List of tags for grouping (list of binaries)
+- deprecated: Whether the endpoint is deprecated (boolean)
+- externalDocs: External documentation link (map with url and optional description)
+
+### Returns
+Endpoint map with method, path, and documentation set
+""".
+-doc #{
+    params =>
+        #{
+            ~"Doc" => ~"Documentation map with summary, description, operationId, tags, etc.",
+            ~"Method" => ~"HTTP method (get, post, put, delete, patch, head, options)",
+            ~"Path" => ~"URL path for the endpoint (e.g., \"/users/{id}\")"
+        }
+}.
+
+-spec endpoint(Method :: http_method(), Path :: binary(), Doc :: endpoint_doc()) ->
+    endpoint_spec().
+endpoint(Method, Path, Doc) when is_atom(Method) andalso is_binary(Path) andalso is_map(Doc) ->
     #{
         method => Method,
         path => Path,
         responses => #{},
-        parameters => []
+        parameters => [],
+        doc => Doc
     }.
 
 -doc """
@@ -488,7 +538,8 @@ generate_path_operations(Endpoints) ->
 
 -spec generate_operation(endpoint_spec()) -> openapi_operation().
 generate_operation(Endpoint) ->
-    Operation = #{},
+    %% Start with documentation if present
+    Operation = maps:get(doc, Endpoint, #{}),
 
     %% Add responses
     Responses = maps:get(responses, Endpoint, #{}),

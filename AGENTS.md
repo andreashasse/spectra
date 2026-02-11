@@ -77,6 +77,46 @@ when is_atom(Name) andalso is_integer(Arity) -> ...
 when Error =:= non_existing orelse Error =:= preloaded -> ...
 ```
 
+### Function Arity Pattern
+When defining functions with multiple arities, the lower-arity function should call the higher-arity function with a default value. This applies to both the implementation and the documentation:
+```erlang
+% Good - arity-2 calls arity-3 with default
+-doc """
+Creates a basic endpoint specification.
+
+Equivalent to calling endpoint/3 with an empty documentation map.
+...
+""".
+-doc #{
+    equiv => endpoint(Method, Path, #{}),
+    params => #{...}
+}.
+-spec endpoint(Method :: http_method(), Path :: binary()) -> endpoint_spec().
+endpoint(Method, Path) ->
+    endpoint(Method, Path, #{}).
+
+-doc """
+Creates an endpoint specification with documentation.
+
+This function creates the foundation for an endpoint with the specified HTTP method, path, and documentation.
+...
+""".
+-spec endpoint(Method :: http_method(), Path :: binary(), Doc :: endpoint_doc()) ->
+    endpoint_spec().
+endpoint(Method, Path, Doc) ->
+    #{method => Method, path => Path, doc => Doc}.
+
+% Bad - duplicating implementation in both functions
+-spec endpoint(Method :: http_method(), Path :: binary()) -> endpoint_spec().
+endpoint(Method, Path) ->
+    #{method => Method, path => Path, doc => #{}}.
+
+-spec endpoint(Method :: http_method(), Path :: binary(), Doc :: endpoint_doc()) ->
+    endpoint_spec().
+endpoint(Method, Path, Doc) ->
+    #{method => Method, path => Path, doc => Doc}.
+```
+
 ### Comments
 - Avoid unnecessary comments - code should be self-documenting
 - Minimal comments in test files - let test names describe behavior

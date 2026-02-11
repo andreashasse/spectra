@@ -217,3 +217,54 @@ record_ref_with_own_doc_test() ->
     ),
 
     validate_with_python(Schema).
+
+%% Test passing sp_rec{} directly to to_schema
+record_sp_rec_direct_test() ->
+    TypeInfo = spectra_module_types:get(?MODULE),
+    {ok, UserRec} = spectra_type_info:find_record(TypeInfo, user),
+    SchemaJson = spectra:schema(json_schema, TypeInfo, UserRec),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% Should include documentation from the record
+    ?assertMatch(
+        #{
+            <<"$schema">> := <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> := <<"object">>,
+            <<"title">> := <<"User Record">>,
+            <<"description">> := <<"A user in the system">>,
+            <<"properties">> := #{
+                <<"id">> := _,
+                <<"name">> := _,
+                <<"status">> := _
+            }
+        },
+        Schema
+    ),
+
+    validate_with_python(Schema).
+
+%% Test passing sp_rec_ref{} directly to to_schema
+record_sp_rec_ref_direct_test() ->
+    TypeInfo = spectra_module_types:get(?MODULE),
+    % Get the user_ref type which is #sp_rec_ref{}
+    UserRefType = spectra_type_info:get_type(TypeInfo, user_ref, 0),
+    SchemaJson = spectra:schema(json_schema, TypeInfo, UserRefType),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+
+    %% Should include documentation from the resolved record
+    ?assertMatch(
+        #{
+            <<"$schema">> := <<"https://json-schema.org/draft/2020-12/schema">>,
+            <<"type">> := <<"object">>,
+            <<"title">> := <<"User Record">>,
+            <<"description">> := <<"A user in the system">>,
+            <<"properties">> := #{
+                <<"id">> := _,
+                <<"name">> := _,
+                <<"status">> := _
+            }
+        },
+        Schema
+    ),
+
+    validate_with_python(Schema).
