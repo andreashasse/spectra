@@ -3,6 +3,12 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/spectra_internal.hrl").
 
+temp_beam_path(Name) ->
+    TempDir = filename:basedir(user_cache, "spectra_tests"),
+    ok = filelib:ensure_dir(filename:join(TempDir, "dummy")),
+    Unique = integer_to_list(erlang:unique_integer([positive])),
+    filename:join(TempDir, Name ++ "_" ++ Unique ++ ".beam").
+
 orphaned_doc_at_eof_test() ->
     Code =
         "-module(test_orphaned_eof).\n"
@@ -15,7 +21,7 @@ orphaned_doc_at_eof_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_orphaned_eof.beam",
+    TempFile = temp_beam_path("test_orphaned_eof"),
     ok = file:write_file(TempFile, BeamBinary),
 
     ?assertError(
@@ -38,7 +44,7 @@ consecutive_type_docs_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_consecutive_docs.beam",
+    TempFile = temp_beam_path("test_consecutive_docs"),
     ok = file:write_file(TempFile, BeamBinary),
 
     ?assertError(
@@ -64,7 +70,7 @@ multiple_types_with_docs_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_multiple_docs.beam",
+    TempFile = temp_beam_path("test_multiple_docs"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -97,7 +103,7 @@ mixed_docs_and_no_docs_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_mixed_docs.beam",
+    TempFile = temp_beam_path("test_mixed_docs"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -128,7 +134,7 @@ record_with_doc_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_record_doc.beam",
+    TempFile = temp_beam_path("test_record_doc"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -155,7 +161,7 @@ mixed_types_and_records_with_docs_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_mixed_types_records.beam",
+    TempFile = temp_beam_path("test_mixed_types_records"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),

@@ -3,6 +3,12 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/spectra_internal.hrl").
 
+temp_beam_path(Name) ->
+    TempDir = filename:basedir(user_cache, "spectra_tests"),
+    ok = filelib:ensure_dir(filename:join(TempDir, "dummy")),
+    Unique = integer_to_list(erlang:unique_integer([positive])),
+    filename:join(TempDir, Name ++ "_" ++ Unique ++ ".beam").
+
 interleaved_attrs_test() ->
     Code =
         "-module(test_interleaved).\n"
@@ -19,7 +25,7 @@ interleaved_attrs_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_interleaved.beam",
+    TempFile = temp_beam_path("test_interleaved"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -46,7 +52,7 @@ only_doc_no_spectra_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_only_doc.beam",
+    TempFile = temp_beam_path("test_only_doc"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -70,7 +76,7 @@ spectra_before_wrong_type_test() ->
         [binary, return_errors, debug_info]
     ),
 
-    TempFile = "/tmp/test_wrong_type.beam",
+    TempFile = temp_beam_path("test_wrong_type"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
