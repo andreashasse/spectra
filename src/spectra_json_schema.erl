@@ -12,7 +12,7 @@
     minLength => pos_integer(),
     minimum => integer(),
     maximum => integer(),
-    enum => [null | binary() | integer() | boolean() | atom() | []],
+    enum => [null | binary() | integer() | boolean() | []],
     items => json_schema_object(),
     minItems => pos_integer(),
     oneOf => [json_schema_object()],
@@ -34,7 +34,7 @@
     minLength => pos_integer(),
     minimum => integer(),
     maximum => integer(),
-    enum => [null | binary() | integer() | boolean() | atom() | []],
+    enum => [null | binary() | integer() | boolean() | []],
     items => json_schema_object(),
     minItems => pos_integer(),
     oneOf => [json_schema_object()],
@@ -130,8 +130,12 @@ do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) 
     is_atom(Value)
 ->
     #{enum => [BinaryValue]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) ->
+do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+    is_integer(Value)
+->
     #{enum => [Value]};
+do_to_schema(_TypeInfo, #sp_literal{value = []}) ->
+    #{enum => [[]]};
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
