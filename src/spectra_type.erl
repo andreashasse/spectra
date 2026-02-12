@@ -2,7 +2,16 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([can_be_missing/2, type_reference/1, get_meta/1, set_meta/2]).
+-export([
+    can_be_missing/2,
+    type_reference/1,
+    get_meta/1,
+    set_meta/2,
+    add_doc_to_type/2
+]).
+
+%% Functions meant to be used by external libraries like Spectral
+-ignore_xref([get_meta/1, set_meta/2, add_doc_to_type/2]).
 
 -spec can_be_missing(
     TypeInfo :: spectra:type_info(), Type :: spectra:sp_type()
@@ -76,3 +85,27 @@ set_meta(#sp_var{} = T, Meta) -> T#sp_var{meta = Meta};
 set_meta(#sp_range{} = T, Meta) -> T#sp_range{meta = Meta};
 set_meta(#sp_list{} = T, Meta) -> T#sp_list{meta = Meta};
 set_meta(#sp_nonempty_list{} = T, Meta) -> T#sp_nonempty_list{meta = Meta}.
+
+-spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
+add_doc_to_type(Type, DocMap) ->
+    Doc = normalize_doc(DocMap),
+    Meta = get_meta(Type),
+    set_meta(Type, Meta#{doc => Doc}).
+
+-spec normalize_doc(map()) -> spectra:type_doc().
+normalize_doc(DocMap) ->
+    maps:fold(fun add_doc_field/3, #{}, DocMap).
+
+-spec add_doc_field(atom(), term(), spectra:type_doc()) -> spectra:type_doc().
+add_doc_field(title, Value, Acc) when is_binary(Value) ->
+    Acc#{title => Value};
+add_doc_field(description, Value, Acc) when is_binary(Value) ->
+    Acc#{description => Value};
+add_doc_field(examples, Value, Acc) when is_list(Value) ->
+    Acc#{examples => Value};
+add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when
+    is_atom(Module), is_atom(Function), is_list(Args)
+->
+    Acc#{examples_function => MFA};
+add_doc_field(Key, Value, _Acc) ->
+    erlang:error({invalid_spectra_field, Key, Value}).

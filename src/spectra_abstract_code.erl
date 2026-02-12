@@ -91,35 +91,11 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
             process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
     end.
 
--spec normalize_doc(map()) -> spectra:type_doc().
-normalize_doc(DocMap) ->
-    maps:fold(fun add_doc_field/3, #{}, DocMap).
-
--spec add_doc_field(atom(), term(), spectra:type_doc()) -> spectra:type_doc().
-add_doc_field(title, Value, Acc) when is_binary(Value) ->
-    Acc#{title => Value};
-add_doc_field(description, Value, Acc) when is_binary(Value) ->
-    Acc#{description => Value};
-add_doc_field(examples, Value, Acc) when is_list(Value) ->
-    Acc#{examples => Value};
-add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when
-    is_atom(Module), is_atom(Function), is_list(Args)
-->
-    Acc#{examples_function => MFA};
-add_doc_field(Key, Value, _Acc) ->
-    erlang:error({invalid_spectra_field, Key, Value}).
-
 -spec attach_doc_to_type(type_form_result(), map()) -> type_form_result().
 attach_doc_to_type({{type, _Name, _Arity} = Key, Type}, DocMap) ->
-    {Key, add_doc_to_type(Type, DocMap)};
+    {Key, spectra_type:add_doc_to_type(Type, DocMap)};
 attach_doc_to_type({{record, _Name} = Key, Record}, DocMap) ->
-    {Key, add_doc_to_type(Record, DocMap)}.
-
--spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
-add_doc_to_type(Type, DocMap) ->
-    Doc = normalize_doc(DocMap),
-    Meta = spectra_type:get_meta(Type),
-    spectra_type:set_meta(Type, Meta#{doc => Doc}).
+    {Key, spectra_type:add_doc_to_type(Record, DocMap)}.
 
 build_type_info(NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).
