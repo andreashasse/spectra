@@ -12,7 +12,12 @@
 %% API
 -spec get(Module :: module()) -> spectra:type_info().
 get(Module) ->
-    _ = code:ensure_loaded(Module),
+    case code:ensure_loaded(Module) of
+        {module, Module} ->
+            ok;
+        {error, Reason} ->
+            erlang:error({module_types_not_found, Module, Reason})
+    end,
     case erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0) of
         true ->
             apply(Module, ?TYPE_INFO_FUNCTION, []);
