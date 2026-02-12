@@ -238,8 +238,16 @@ shrink_union_gen(Types) ->
 sp_literal() ->
     ?SIZED(Size, sp_literal(Size)).
 
-sp_literal(Size) ->
-    ?LET(Value, resize(Size, term()), #sp_literal{value = Value}).
+sp_literal(_Size) ->
+    ?LET(
+        Value,
+        oneof([
+            integer(),
+            my_atom(),
+            []
+        ]),
+        #sp_literal{value = Value}
+    ).
 
 %% Record reference generator
 record_field(Size) ->

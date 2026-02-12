@@ -136,6 +136,8 @@ do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
     #{enum => [Value]};
 do_to_schema(_TypeInfo, #sp_literal{value = []}) ->
     #{enum => [[]]};
+do_to_schema(_TypeInfo, #sp_literal{} = Type) ->
+    erlang:error({type_not_supported, Type});
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),

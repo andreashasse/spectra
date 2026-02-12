@@ -1,6 +1,7 @@
 -module(spectra_json_schema_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 -compile(nowarn_unused_type).
 
@@ -226,6 +227,12 @@ literal_types_test() ->
         LiteralIntSchema
     ),
     validate_with_python(LiteralIntSchema).
+
+unsupported_literal_test() ->
+    FloatLiteral = #sp_literal{value = 3.14},
+    ?assertError(
+        {type_not_supported, FloatLiteral}, spectra_json_schema:to_schema(?MODULE, FloatLiteral)
+    ).
 
 %% Test list type mappings
 list_types_test() ->

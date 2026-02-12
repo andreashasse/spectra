@@ -79,7 +79,9 @@ do_to_json(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, Va
     is_atom(Value)
 ->
     {ok, BinaryValue};
-do_to_json(_TypeInfo, #sp_literal{value = Value}, Value) ->
+do_to_json(_TypeInfo, #sp_literal{value = Value}, Value) when
+    is_integer(Value) orelse Value =:= []
+->
     {ok, Value};
 do_to_json(TypeInfo, #sp_union{} = Type, Data) ->
     union(fun do_to_json/3, TypeInfo, Type, Data);
