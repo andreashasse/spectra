@@ -316,6 +316,40 @@ The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
 
 **Note**: If a union type includes both `undefined` and `nil` (e.g., `integer() | undefined | nil`), the selection of which missing value to use depends on the order they appear in the type definition. The last one encountered will be used. For predictable behavior, include only one missing value literal in your type definitions. The `nil` atom is primarily for Elixir interoperability.
 
+### Maps with Typed and Literal Fields
+
+When a map type contains both typed fields (e.g., `binary() => integer()`) and literal fields (e.g., `status := active`), the following precedence rules apply during JSON deserialization:
+
+**Exact literal fields** (`:=`) are processed first and take precedence for their specific keys:
+
+```erlang
+-type config() :: #{binary() := integer(), timeout := 30}.
+
+%% JSON: {"timeout": 30, "retries": 5}
+%% Result: #{timeout => 30, <<"retries">> => 5}
+%% The key "timeout" matches the exact literal field, "retries" matches the typed field
+```
+
+This ensures that when you have an exact literal field like `timeout := 30`, it will correctly match the JSON key `"timeout"` even if there's a broader typed field like `binary() := integer()` that could also match that key.
+
+**Assoc literal fields** (`=>`) do not have special precedence - they are processed in the order they appear in the type definition alongside typed fields. This means typed fields can shadow assoc literal fields depending on the order:
+
+```erlang
+-type metadata() :: #{atom() => atom(), version => <<"1.0">>}.
+
+%% If atom() => atom() is encountered first during processing:
+%% JSON: {"version": "1.0"}
+%% Result: #{version => '1.0'}  (matched by typed field as an atom)
+
+-type metadata2() :: #{version => <<"1.0">>, atom() => atom()}.
+
+%% If version => <<"1.0">> is encountered first:
+%% JSON: {"version": "1.0"}  
+%% Result: #{version => <<"1.0">>}  (matched by literal field)
+```
+
+**Note:** The order in which fields appear in your type definition can affect behavior for assoc fields. For predictable behavior, use exact fields (`:=`) for literal values that should always match their specific keys.
+
 ### `term()` | `any()`
 
 When using types with `term`, `spectra_json` will not reject any data, which means it can return data that `json.erl` cannot convert to JSON.

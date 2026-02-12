@@ -735,6 +735,17 @@ arg_names(_) ->
     {ok, #{json:encode_value() => json:encode_value()}}
     | {error, [spectra:error()]}.
 map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) ->
+    %% Partition fields: exact literal fields should be processed first to claim their keys
+    %% before typed fields try to match them
+    {ExactLiteralFields, OtherFields} = lists:partition(
+        fun
+            (#literal_map_field{kind = exact}) -> true;
+            (_) -> false
+        end,
+        MapFieldType
+    ),
+    SortedFields = ExactLiteralFields ++ OtherFields,
+
     Fun = fun
         (
             #literal_map_field{
@@ -812,7 +823,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) 
             end
     end,
 
-    case spectra_util:fold_until_error(Fun, {[], Json}, MapFieldType) of
+    case spectra_util:fold_until_error(Fun, {[], Json}, SortedFields) of
         {ok, {Fields, _NotMapped}} ->
             {ok, maps:from_list(Fields)};
         % TODO: Add config option to optionally error on extra fields
