@@ -603,10 +603,10 @@ generate_response(#{description := Description} = ResponseSpec) when
                 SchemaContent =
                     case Schema of
                         {type, Name, Arity} ->
-                            SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                            SchemaName = schema_component_name(Module, {type, Name, Arity}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         {record, Name} ->
-                            SchemaName = type_ref_to_component_name({record, Name}),
+                            SchemaName = schema_component_name(Module, {record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
                             InlineSchema =
@@ -664,10 +664,10 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
     SchemaContent =
         case Schema of
             {type, Name, Arity} ->
-                SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                SchemaName = schema_component_name(Module, {type, Name, Arity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
-                SchemaName = type_ref_to_component_name({record, Name}),
+                SchemaName = schema_component_name(Module, {record, Name}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -796,7 +796,7 @@ generate_components(SchemaRefs) ->
                 spectra_module_types:get(Module),
                 TypeRef
             ),
-            SchemaName = type_ref_to_component_name(TypeRef),
+            SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
         end,
@@ -822,6 +822,19 @@ type_ref_to_component_name({record, RecordName}) ->
     Words = string:split(TypeStr, "_", all),
     PascalCase = lists:map(fun capitalize_word/1, Words),
     iolist_to_binary(PascalCase).
+
+%% Generate a schema component name that is unique per (Module, TypeRef) pair.
+%% When the type name alone is ambiguous (e.g. the idiomatic Elixir `:t`),
+%% we prefix it with the last segment of the module name so that
+%% Example.Types.User.t() becomes "User" and Example.Types.Error.t() becomes "Error".
+-spec schema_component_name(module(), spectra:sp_type_reference()) -> binary().
+schema_component_name(Module, {type, t, 0}) ->
+    ModuleStr = atom_to_list(Module),
+    Parts = string:split(ModuleStr, ".", all),
+    LastPart = lists:last(Parts),
+    iolist_to_binary(capitalize_word(LastPart));
+schema_component_name(_Module, TypeRef) ->
+    type_ref_to_component_name(TypeRef).
 
 capitalize_word([]) ->
     [];

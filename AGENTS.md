@@ -61,6 +61,7 @@ make all                  # Run format, build-test, doc
 
 
 ### Error Handling
+- **Crash on bad code, error on bad user input.** Never silently swallow unexpected inputs with defensive catch-all clauses that return defaults or empty results. If a programmer passes invalid data, let it crash with a clear match error. Only return `{error, ...}` tuples for expected failures from user input (e.g., validation errors).
 - Use `erlang:error/1` for programmer errors (e.g., invalid arguments)
 - Return `{ok, Result} | error` tuples for expected failures
 - Use `#sp_error{}` record for validation errors with location information
@@ -146,6 +147,20 @@ Type = spectra_type_info:get_type(TypeInfo, type_name, Arity)  % Errors if not f
 % Pattern matching map fields with := vs =>
 #{required_field := Value} = Map      % Required field (must exist)
 #{optional_field => Value} = Map      % Optional field (may exist)
+```
+
+### Elixir Integration via Spectral
+
+When working in Elixir, use the `Spectral.TypeInfo` module instead of directly pattern-matching on the `#type_info{}` record tuple or calling `:spectra_type_info` functions. This provides an idiomatic Elixir API and insulates Elixir code from internal record changes.
+
+```elixir
+# Good - use Spectral.TypeInfo
+type_info = MyModule.__spectra_type_info__()
+{:ok, type} = Spectral.TypeInfo.find_type(type_info, :t, 0)
+{:ok, func_specs} = Spectral.TypeInfo.find_function(type_info, :my_func, 2)
+
+# Bad - destructuring the Erlang record tuple directly
+{:type_info, types, records, functions} = MyModule.__spectra_type_info__()
 ```
 
 ### Dependencies
