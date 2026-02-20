@@ -1,5 +1,7 @@
 -module(spectra_openapi).
 
+-include("../include/spectra_internal.hrl").
+
 -export([
     endpoint/2, endpoint/3,
     with_request_body/3, with_request_body/4,
@@ -598,15 +600,19 @@ generate_response(#{description := Description} = ResponseSpec) when
             {_, undefined} ->
                 %% Schema without module should not happen, but handle defensively
                 #{description => Description};
+            {#sp_literal{value = NilValue}, _Module} when
+                NilValue =:= nil orelse NilValue =:= undefined
+            ->
+                #{description => Description};
             {Schema, Module} ->
                 ModuleTypeInfo = spectra_module_types:get(Module),
                 SchemaContent =
                     case Schema of
                         {type, Name, Arity} ->
-                            SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                            SchemaName = schema_component_name(Module, {type, Name, Arity}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         {record, Name} ->
-                            SchemaName = type_ref_to_component_name({record, Name}),
+                            SchemaName = schema_component_name(Module, {record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
                             InlineSchema =
@@ -664,10 +670,10 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
     SchemaContent =
         case Schema of
             {type, Name, Arity} ->
-                SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                SchemaName = schema_component_name(Module, {type, Name, Arity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
-                SchemaName = type_ref_to_component_name({record, Name}),
+                SchemaName = schema_component_name(Module, {record, Name}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -796,7 +802,7 @@ generate_components(SchemaRefs) ->
                 spectra_module_types:get(Module),
                 TypeRef
             ),
-            SchemaName = type_ref_to_component_name(TypeRef),
+            SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
         end,
@@ -822,6 +828,17 @@ type_ref_to_component_name({record, RecordName}) ->
     Words = string:split(TypeStr, "_", all),
     PascalCase = lists:map(fun capitalize_word/1, Words),
     iolist_to_binary(PascalCase).
+
+%% Use the last module segment as the schema name when the type is the
+%% idiomatic t/0, to avoid all Elixir structs colliding on "T0".
+-spec schema_component_name(module(), spectra:sp_type_reference()) -> binary().
+schema_component_name(Module, {type, t, 0}) ->
+    ModuleStr = atom_to_list(Module),
+    Parts = string:split(ModuleStr, ".", all),
+    LastPart = lists:last(Parts),
+    iolist_to_binary(capitalize_word(LastPart));
+schema_component_name(_Module, TypeRef) ->
+    type_ref_to_component_name(TypeRef).
 
 capitalize_word([]) ->
     [];
