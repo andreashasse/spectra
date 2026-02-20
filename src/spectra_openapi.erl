@@ -603,7 +603,6 @@ generate_response(#{description := Description} = ResponseSpec) when
             {#sp_literal{value = NilValue}, _Module} when
                 NilValue =:= nil orelse NilValue =:= undefined
             ->
-                %% nil/undefined body type means no response body (e.g. 204 No Content)
                 #{description => Description};
             {Schema, Module} ->
                 ModuleTypeInfo = spectra_module_types:get(Module),
@@ -830,10 +829,8 @@ type_ref_to_component_name({record, RecordName}) ->
     PascalCase = lists:map(fun capitalize_word/1, Words),
     iolist_to_binary(PascalCase).
 
-%% Generate a schema component name that is unique per (Module, TypeRef) pair.
-%% When the type name alone is ambiguous (e.g. the idiomatic Elixir `:t`),
-%% we prefix it with the last segment of the module name so that
-%% Example.Types.User.t() becomes "User" and Example.Types.Error.t() becomes "Error".
+%% Use the last module segment as the schema name when the type is the
+%% idiomatic t/0, to avoid all Elixir structs colliding on "T0".
 -spec schema_component_name(module(), spectra:sp_type_reference()) -> binary().
 schema_component_name(Module, {type, t, 0}) ->
     ModuleStr = atom_to_list(Module),
