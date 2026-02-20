@@ -61,10 +61,10 @@ make all                  # Run format, build-test, doc
 
 
 ### Error Handling
-- **Crash on bad code, error on bad user input.** Never silently swallow unexpected inputs with defensive catch-all clauses that return defaults or empty results. If a programmer passes invalid data, let it crash with a clear match error. Only return `{error, ...}` tuples for expected failures from user input (e.g., validation errors).
+- **Crash on bad code, error on bad user input.** Never silently swallow unexpected inputs with defensive catch-all clauses that return defaults or empty results. If a programmer passes invalid data, let it crash with a clear match error. Only return `{error, Reason}` tuples for expected failures from user input (e.g., validation errors).
 - Use `erlang:error/1` for programmer errors (e.g., invalid arguments)
-- Return `{ok, Result} | error` tuples for expected failures
-- Use `#sp_error{}` record for validation errors with location information
+- Return `{ok, Result} | {error, Reason}` for functions that can have expected failures (user input, validation, etc.)
+- Use `#sp_error{}` record for validation errors with location information, and wrap it in an `{error, Reason}` tuple (e.g., `{error, #sp_error{...}}` or `{error, [#sp_error{}, ...]}`)
 - Helper functions in `sp_error.erl`: `type_mismatch/3`, `missing_data/2`, `not_matched_fields/2`
 
 ### Pattern Matching & Guards
