@@ -614,6 +614,18 @@ generate_response(#{description := Description} = ResponseSpec) when
                         {record, Name} ->
                             SchemaName = schema_component_name(Module, {record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
+                        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+                            ItemSchemaName = schema_component_name(
+                                ItemMod, {type, ItemName, length(ItemArgs)}
+                            ),
+                            #{
+                                type => <<"array">>,
+                                items =>
+                                    #{
+                                        '$ref' =>
+                                            <<"#/components/schemas/", ItemSchemaName/binary>>
+                                    }
+                            };
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -790,7 +802,12 @@ filter_typeref(Schema, Module) ->
         {true, TypeRef} ->
             {true, {Module, TypeRef}};
         false ->
-            false
+            case Schema of
+                #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+                    {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
+                _ ->
+                    false
+            end
     end.
 
 -spec generate_components([{module(), spectra:sp_type_reference()}]) ->
