@@ -1,5 +1,7 @@
 -module(spectra_openapi).
 
+-include("../include/spectra_internal.hrl").
+
 -export([
     endpoint/2, endpoint/3,
     with_request_body/3, with_request_body/4,
@@ -597,6 +599,11 @@ generate_response(#{description := Description} = ResponseSpec) when
                 #{description => Description};
             {_, undefined} ->
                 %% Schema without module should not happen, but handle defensively
+                #{description => Description};
+            {#sp_literal{value = NilValue}, _Module} when
+                NilValue =:= nil orelse NilValue =:= undefined
+            ->
+                %% nil/undefined body type means no response body (e.g. 204 No Content)
                 #{description => Description};
             {Schema, Module} ->
                 ModuleTypeInfo = spectra_module_types:get(Module),
