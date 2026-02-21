@@ -757,7 +757,8 @@ response_builder_multiple_responses_test() ->
     ).
 
 %% Test that a list-of-remote-type response emits {type: array, items: {$ref: ...}}
-list_of_remote_type_response_schema_test() ->
+%% and puts the item type in components/schemas
+list_of_remote_type_response_test() ->
     ListType = #sp_list{type = #sp_remote_type{mfargs = {?MODULE, item, []}}},
     Response = spectra_openapi:response(200, <<"List of items">>),
     ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, ListType),
@@ -770,52 +771,37 @@ list_of_remote_type_response_schema_test() ->
             [Endpoint]
         ),
 
-    #{
-        <<"paths">> := #{
-            <<"/items">> := #{
-                <<"get">> := #{
-                    <<"responses">> := #{
-                        <<"200">> := #{
-                            <<"content">> := #{
-                                <<"application/json">> := #{<<"schema">> := ResponseSchema}
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/items">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{
+                            <<"200">> := #{
+                                <<"content">> := #{
+                                    <<"application/json">> := #{
+                                        <<"schema">> := #{
+                                            type := <<"array">>,
+                                            items := #{'$ref' := <<"#/components/schemas/Item0">>}
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
-    } = OpenAPISpec,
-
-    ?assertMatch(
-        #{type := <<"array">>, items := #{'$ref' := <<"#/components/schemas/Item0">>}},
-        ResponseSchema
-    ).
-
-%% Test that a list-of-remote-type response puts the item type in components/schemas
-list_of_remote_type_item_in_components_test() ->
-    ListType = #sp_list{type = #sp_remote_type{mfargs = {?MODULE, item, []}}},
-    Response = spectra_openapi:response(200, <<"List of items">>),
-    ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, ListType),
-    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
-    Endpoint = spectra_openapi:add_response(Endpoint1, ResponseWithBody),
-
-    {ok, OpenAPISpec} =
-        spectra_openapi:endpoints_to_openapi(
-            #{title => <<"Test API">>, version => <<"1.0.0">>},
-            [Endpoint]
-        ),
-
-    #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
-
-    ?assert(maps:is_key(<<"Item0">>, Schemas)),
-    ItemSchema = maps:get(<<"Item0">>, Schemas),
-    ?assertMatch(
-        #{
-            type := <<"object">>,
-            properties := #{
-                <<"id">> := #{type := <<"integer">>},
-                <<"label">> := #{type := <<"string">>}
+            },
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"Item0">> := #{
+                        type := <<"object">>,
+                        properties := #{
+                            <<"id">> := #{type := <<"integer">>},
+                            <<"label">> := #{type := <<"string">>}
+                        }
+                    }
+                }
             }
         },
-        ItemSchema
+        OpenAPISpec
     ).
