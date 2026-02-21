@@ -11,6 +11,7 @@
 -record(create_user_request, {name :: string(), email :: string()}).
 -record(user_list, {users :: [#user{}], total :: integer()}).
 -record(error_response, {message :: string(), code :: integer()}).
+-record(item, {id :: integer(), label :: string()}).
 
 %% Type aliases to avoid unused warnings
 -type user() :: #user{}.
@@ -18,6 +19,7 @@
 -type user_list() :: #user_list{}.
 -type error_response() :: #error_response{}.
 -type user_id() :: integer().
+-type item() :: #item{}.
 
 %% Test basic endpoint creation
 basic_endpoint_test() ->
@@ -752,4 +754,54 @@ response_builder_multiple_responses_test() ->
                 }
         },
         Endpoint
+    ).
+
+%% Test that a list-of-remote-type response emits {type: array, items: {$ref: ...}}
+%% and puts the item type in components/schemas
+list_of_remote_type_response_test() ->
+    ListType = #sp_list{type = #sp_remote_type{mfargs = {?MODULE, item, []}}},
+    Response = spectra_openapi:response(200, <<"List of items">>),
+    ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, ListType),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, ResponseWithBody),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test API">>, version => <<"1.0.0">>},
+            [Endpoint]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/items">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{
+                            <<"200">> := #{
+                                <<"content">> := #{
+                                    <<"application/json">> := #{
+                                        <<"schema">> := #{
+                                            type := <<"array">>,
+                                            items := #{'$ref' := <<"#/components/schemas/Item0">>}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"Item0">> := #{
+                        type := <<"object">>,
+                        properties := #{
+                            <<"id">> := #{type := <<"integer">>},
+                            <<"label">> := #{type := <<"string">>}
+                        }
+                    }
+                }
+            }
+        },
+        OpenAPISpec
     ).
