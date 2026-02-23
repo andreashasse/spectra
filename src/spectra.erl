@@ -11,6 +11,17 @@
 -type var_type() :: {VarName :: atom(), sp_type()}.
 -type user_type_name() :: atom().
 -type record_field_arg() :: {FieldName :: atom(), sp_type()}.
+-type type_doc() :: #{
+    title => binary(),
+    description => binary(),
+    examples => [dynamic()],
+    examples_function => {module(), atom(), [term()]}
+}.
+
+-type sp_type_meta() :: #{
+    doc => type_doc()
+}.
+
 %% FIXME: Add doc here.
 %% iolist and iodata are aliases, but are so complex, so it is easier to handle them as separate types
 -type sp_type() ::
@@ -73,6 +84,8 @@
     sp_type_or_ref/0,
     var_type/0,
     type_info/0,
+    type_doc/0,
+    sp_type_meta/0,
     record_field_arg/0,
     error/0,
     map_field/0,
@@ -219,8 +232,8 @@ schema(Format, Module, TypeOrRef) when is_atom(Module) ->
 schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
     Type = get_type_from_atom(TypeInfo, TypeAtom),
     schema(Format, TypeInfo, Type);
-schema(json_schema, Module, TypeOrRef) ->
-    SchemaMap = spectra_json_schema:to_schema(Module, TypeOrRef),
+schema(json_schema, TypeInfo, TypeOrRef) ->
+    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
     json:encode(SchemaMap).
 
 get_type_from_atom(TypeInfo, RefAtom) ->

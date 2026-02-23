@@ -37,7 +37,8 @@ schema_string_key_map_assoc_test() ->
     ),
     %% No specific properties since it's a typed field with variable keys
     ?assertEqual(
-        false, maps:is_key(properties, Schema) andalso maps:get(properties, Schema) =/= #{}
+        false,
+        maps:is_key(properties, Schema) andalso maps:get(properties, Schema) =/= #{}
     ),
     %% No required fields for assoc (=>)
     ?assertEqual(false, maps:is_key(required, Schema)).
@@ -53,7 +54,8 @@ schema_string_key_map_exact_test() ->
     ),
     %% No specific properties since it's a typed field with variable keys
     ?assertEqual(
-        false, maps:is_key(properties, Schema) andalso maps:get(properties, Schema) =/= #{}
+        false,
+        maps:is_key(properties, Schema) andalso maps:get(properties, Schema) =/= #{}
     ),
     %% No required fields even for exact (:=) with typed fields
     ?assertEqual(false, maps:is_key(required, Schema)).

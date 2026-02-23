@@ -4,28 +4,74 @@
 
 -ignore_xref([to_schema/2]).
 
--include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
+
+-type json_schema_object() :: #{
+    type => binary(),
+    format => binary(),
+    minLength => pos_integer(),
+    minimum => integer(),
+    maximum => integer(),
+    enum => [null | binary() | integer() | boolean() | []],
+    items => json_schema_object(),
+    minItems => pos_integer(),
+    oneOf => [json_schema_object()],
+    properties => #{binary() => json_schema_object()},
+    required => [binary()],
+    additionalProperties => boolean(),
+    title => binary(),
+    description => binary(),
+    examples => [json:encode_value()]
+}.
+
+-type json_schema() :: #{
+    '$schema' => binary(),
+    title => binary(),
+    description => binary(),
+    examples => [json:encode_value()],
+    type => binary(),
+    format => binary(),
+    minLength => pos_integer(),
+    minimum => integer(),
+    maximum => integer(),
+    enum => [null | binary() | integer() | boolean() | []],
+    items => json_schema_object(),
+    minItems => pos_integer(),
+    oneOf => [json_schema_object()],
+    properties => #{binary() => json_schema_object()},
+    required => [binary()],
+    additionalProperties => boolean()
+}.
+
+-export_type([json_schema/0, json_schema_object/0]).
 
 %% API
 
--spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> map().
+-spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> json_schema().
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
-%% Type references
 to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    add_schema_version(do_to_schema(TypeInfo, TypeWithoutVars));
+    to_schema_for_sp_type(TypeInfo, TypeWithoutVars);
+to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    to_schema_for_sp_type(TypeInfo, Record);
 to_schema(TypeInfo, Type) ->
-    add_schema_version(do_to_schema(TypeInfo, Type)).
+    to_schema_for_sp_type(TypeInfo, Type).
+
+-spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema().
+to_schema_for_sp_type(TypeInfo, Type) ->
+    Schema = do_to_schema(TypeInfo, Type),
+    SchemaWithDoc = merge_type_doc_into_schema(TypeInfo, Type, Schema),
+    add_schema_version(SchemaWithDoc).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref()
+    Type :: spectra:sp_type()
 ) ->
-    map().
+    json_schema_object().
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
     #{type => <<"integer">>};
@@ -84,8 +130,14 @@ do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) 
     is_atom(Value)
 ->
     #{enum => [BinaryValue]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) ->
+do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+    is_integer(Value)
+->
     #{enum => [Value]};
+do_to_schema(_TypeInfo, #sp_literal{value = []}) ->
+    #{enum => [[]]};
+do_to_schema(_TypeInfo, #sp_literal{} = Type) ->
+    erlang:error({type_not_supported, Type});
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
@@ -131,13 +183,13 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
 do_to_schema(TypeInfo, #sp_map{fields = Fields}) ->
     map_fields_to_schema(TypeInfo, Fields);
 %% Record types
-do_to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
-    record_to_schema_internal(TypeInfo, RecordName);
 do_to_schema(TypeInfo, #sp_rec{} = RecordInfo) ->
     record_to_schema_internal(TypeInfo, RecordInfo);
 %% Record references
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
-    record_to_schema_internal(TypeInfo, RecordName);
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    Schema = record_to_schema_internal(TypeInfo, Record),
+    merge_type_doc_into_schema(TypeInfo, Record, Schema);
 %% User type references
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
@@ -195,9 +247,9 @@ can_be_json_key(_TypeInfo, _Type) ->
     false.
 
 %% Add JSON Schema version to the schema
--spec add_schema_version(map()) -> map().
+-spec add_schema_version(json_schema_object()) -> json_schema().
 add_schema_version(Schema) ->
-    Schema#{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}.
+    Schema#{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}.
 
 arg_names(#sp_type_with_variables{vars = Args}) ->
     Args;
@@ -212,7 +264,8 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
         ),
     spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
--spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) -> map().
+-spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
+    json_schema_object().
 map_fields_to_schema(TypeInfo, Fields) ->
     {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false),
     lists:foldl(
@@ -259,24 +312,19 @@ process_map_fields(
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required)
+            %% Validate that key and value types can generate JSON schemas (will crash if not)
+            _ = do_to_schema(TypeInfo, KeyType),
+            _ = do_to_schema(TypeInfo, ValType),
+            process_map_fields(TypeInfo, Rest, Properties, Required, true)
     end.
 
-validate_typed_map_field_schema(TypeInfo, KeyType, ValType, Rest, Properties, Required) ->
-    %% Validate that key and value types can generate JSON schemas (will crash if not)
-    _ = do_to_schema(TypeInfo, KeyType),
-    _ = do_to_schema(TypeInfo, ValType),
-    process_map_fields(TypeInfo, Rest, Properties, Required, true).
+-spec record_to_schema_internal(spectra:type_info(), #sp_rec{}) ->
+    json_schema_object().
+record_to_schema_internal(TypeInfo, #sp_rec{} = Record) ->
+    record_fields_to_schema(TypeInfo, Record).
 
--spec record_to_schema_internal(spectra:type_info(), atom() | #sp_rec{}) -> map().
-record_to_schema_internal(TypeInfo, RecordName) when is_atom(RecordName) ->
-    case spectra_type_info:find_record(TypeInfo, RecordName) of
-        {ok, RecordInfo} ->
-            record_to_schema_internal(TypeInfo, RecordInfo);
-        error ->
-            erlang:error({record_not_found, RecordName})
-    end;
-record_to_schema_internal(TypeInfo, #sp_rec{fields = Fields}) ->
+-spec record_fields_to_schema(spectra:type_info(), #sp_rec{}) -> json_schema_object().
+record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}) ->
     {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
     #{
         type => <<"object">>,
@@ -445,3 +493,54 @@ map_add_if_not_value(Map, _Key, Value, SkipValue) when Value =:= SkipValue ->
     Map;
 map_add_if_not_value(Map, Key, Value, _SkipValue) ->
     Map#{Key => Value}.
+
+%% Extract inline doc from type metadata if present
+-spec get_inline_doc(spectra:sp_type()) -> {ok, spectra:type_doc()} | error.
+get_inline_doc(Type) ->
+    case spectra_type:get_meta(Type) of
+        #{doc := Doc} -> {ok, Doc};
+        #{} -> error
+    end.
+
+-spec merge_type_doc_into_schema(spectra:type_info(), spectra:sp_type(), json_schema_object()) ->
+    json_schema_object().
+merge_type_doc_into_schema(TypeInfo, Type, Schema) ->
+    case get_inline_doc(Type) of
+        {ok, Doc} ->
+            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
+        error ->
+            Schema
+    end.
+
+-spec normalize_doc_for_json_schema(
+    spectra:type_info(), spectra:sp_type(), spectra:type_doc()
+) -> json_schema_object().
+normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
+    maps:fold(
+        fun
+            (title, Value, Acc) when is_binary(Value) ->
+                Acc#{title => Value};
+            (description, Value, Acc) when is_binary(Value) ->
+                Acc#{description => Value};
+            (examples, ExampleTerms, Acc) when is_list(ExampleTerms) ->
+                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms)};
+            (examples_function, {Module, Function, Args}, Acc) ->
+                ExampleTerms = erlang:apply(Module, Function, Args),
+                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms)}
+        end,
+        #{},
+        Doc
+    ).
+
+convert_examples(TypeInfo, Type, ExampleTerms) ->
+    lists:map(
+        fun(Term) ->
+            case spectra_json:to_json(TypeInfo, Type, Term) of
+                {ok, JsonValue} ->
+                    JsonValue;
+                {error, Errs} ->
+                    erlang:error({invalid_example, Type, Term, Errs})
+            end
+        end,
+        ExampleTerms
+    ).

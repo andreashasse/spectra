@@ -59,7 +59,7 @@ user_type_ref_enum_test() ->
     %% Should resolve local_status() to its literals and handle the union with undefined
     ?assertEqual(
         #{
-            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"string">>,
             enum => [<<"active">>, <<"inactive">>]
         },

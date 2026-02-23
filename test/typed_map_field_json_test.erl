@@ -18,6 +18,9 @@
 %% Mixed types
 -type mixed_literal_and_typed() :: #{name := binary(), string() => integer()}.
 
+%% Type that reproduces property test failure
+-type binary_key_with_atom_literal() :: #{binary() := integer(), atom2 := #{}}.
+
 %%====================================================================
 %% decode Tests - JSON binary to Erlang term
 %%====================================================================
@@ -136,3 +139,15 @@ roundtrip_mixed_literal_and_typed_test() ->
     {ok, Data} = spectra:decode(json, ?MODULE, mixed_literal_and_typed, InputJson),
     {ok, ReturnedJson} = spectra:encode(json, ?MODULE, mixed_literal_and_typed, Data),
     ?assertEqual(json:decode(InputJson), json:decode(iolist_to_binary(ReturnedJson))).
+
+decode_binary_key_with_atom_literal_test() ->
+    JsonBinary = <<"{\"\":0,\"atom2\":{}}">>,
+    {ok, Data} = spectra:decode(json, ?MODULE, binary_key_with_atom_literal, JsonBinary),
+    ?assertEqual(#{<<>> => 0, atom2 => #{}}, Data).
+
+roundtrip_binary_key_with_atom_literal_test() ->
+    Data = #{<<>> => 0, atom2 => #{}},
+    {ok, Json} = spectra:encode(json, ?MODULE, binary_key_with_atom_literal, Data),
+    JsonBinary = iolist_to_binary(Json),
+    {ok, Decoded} = spectra:decode(json, ?MODULE, binary_key_with_atom_literal, JsonBinary),
+    ?assertEqual(Data, Decoded).

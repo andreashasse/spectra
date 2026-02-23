@@ -24,7 +24,7 @@ binary_format_issue_test() ->
     BinarySchema = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
     ?assertEqual(
         #{
-            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"string">>
         },
         BinarySchema
@@ -42,7 +42,7 @@ binary_format_with_minlength_issue_test() ->
     NonEmptyBinarySchema =
         spectra_json_schema:to_schema(?MODULE, {type, my_nonempty_binary, 0}),
     Expected = #{
-        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+        '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
         type => <<"string">>,
         minLength => 1
     },
@@ -59,7 +59,7 @@ binary_format_with_minlength_issue_test() ->
 empty_schema_for_term_test() ->
     TermSchema = spectra_json_schema:to_schema(?MODULE, {type, my_term, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema
+        #{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema
     ),
     validate_with_python(TermSchema),
 
@@ -74,7 +74,10 @@ literal_values_translation_issue_test() ->
     AtomLiteralSchema =
         spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
     ?assertEqual(
-        #{<<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]},
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            enum => [<<"ok">>]
+        },
         AtomLiteralSchema
     ),
     validate_with_python(AtomLiteralSchema),
@@ -89,14 +92,16 @@ literal_values_translation_issue_test() ->
 correct_schemas_test() ->
     %% What binary schema should look like (simple string for JSON compatibility):
     CorrectBinarySchema = #{
-        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, type => <<"string">>
+        '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+        type => <<"string">>
     },
 
     %% What atom literal schema should look like:
 
     %% String, not atom
     CorrectAtomLiteralSchema = #{
-        <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>, enum => [<<"ok">>]
+        '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+        enum => [<<"ok">>]
     },
 
     %% Current implementation now matches these correct schemas
@@ -119,7 +124,7 @@ json_schema_validator_issues_test() ->
     validate_with_python(AtomSchema),
 
     %% Remove $schema field since jesse doesn't support 2020-12
-    AtomSchemaWithoutVersion = maps:remove(<<"$schema">>, AtomSchema),
+    AtomSchemaWithoutVersion = maps:remove('$schema', AtomSchema),
 
     %% Convert schema to Jesse format
     JesseSchema = json:decode(iolist_to_binary(json:encode(AtomSchemaWithoutVersion))),

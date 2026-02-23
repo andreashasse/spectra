@@ -1,7 +1,9 @@
 -module(spectra_openapi).
 
+-include("../include/spectra_internal.hrl").
+
 -export([
-    endpoint/2,
+    endpoint/2, endpoint/3,
     with_request_body/3, with_request_body/4,
     with_parameter/3,
     endpoints_to_openapi/2,
@@ -13,6 +15,7 @@
 
 -ignore_xref([
     {spectra_openapi, endpoint, 2},
+    {spectra_openapi, endpoint, 3},
     {spectra_openapi, with_request_body, 3},
     {spectra_openapi, with_request_body, 4},
     {spectra_openapi, with_parameter, 3},
@@ -32,6 +35,15 @@
 -type http_status_code() :: 100..599.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
+-type endpoint_doc() ::
+    #{
+        summary => binary(),
+        description => binary(),
+        operationId => binary(),
+        tags => [binary()],
+        deprecated => boolean(),
+        externalDocs => #{description => binary(), url := binary()}
+    }.
 -type request_body_spec() ::
     #{
         schema := spectra:sp_type_or_ref(),
@@ -75,11 +87,18 @@
         path := binary(),
         responses := #{http_status_code() => response_spec()},
         parameters := [parameter_spec()],
-        request_body => request_body_spec()
+        request_body => request_body_spec(),
+        doc => endpoint_doc()
     }.
 -type path_operations() :: #{http_method() => openapi_operation()}.
 -type openapi_operation() ::
     #{
+        summary => binary(),
+        description => binary(),
+        operationId => binary(),
+        tags => [binary()],
+        deprecated => boolean(),
+        externalDocs => #{description => binary(), url := binary()},
         responses => #{binary() => openapi_response()},
         requestBody => openapi_request_body(),
         parameters => [openapi_parameter()]
@@ -116,13 +135,13 @@
 -doc """
 Creates a basic endpoint specification.
 
-This function creates the foundation for an endpoint with the specified HTTP method and path.
-Additional details like responses, request body, and parameters can be added using the with_* functions.
+Equivalent to calling endpoint/3 with an empty documentation map.
 
 ### Returns
 Endpoint map with method and path set
 """.
 -doc #{
+    equiv => endpoint(Method, Path, #{}),
     params =>
         #{
             "Method" => "HTTP method (get, post, put, delete, patch, head, options)",
@@ -132,11 +151,44 @@ Endpoint map with method and path set
 
 -spec endpoint(Method :: http_method(), Path :: binary()) -> endpoint_spec().
 endpoint(Method, Path) when is_atom(Method) andalso is_binary(Path) ->
+    endpoint(Method, Path, #{}).
+
+-doc """
+Creates an endpoint specification with documentation.
+
+This function creates the foundation for an endpoint with the specified HTTP method, path, and documentation.
+Additional details like responses, request body, and parameters can be added using the with_* functions.
+
+### Documentation Fields
+The Doc map can contain:
+- summary: Short summary of the endpoint (binary)
+- description: Detailed description (binary)
+- operationId: Unique identifier for the operation (binary)
+- tags: List of tags for grouping (list of binaries)
+- deprecated: Whether the endpoint is deprecated (boolean)
+- externalDocs: External documentation link (map with url and optional description)
+
+### Returns
+Endpoint map with method, path, and documentation set
+""".
+-doc #{
+    params =>
+        #{
+            ~"Doc" => ~"Documentation map with summary, description, operationId, tags, etc.",
+            ~"Method" => ~"HTTP method (get, post, put, delete, patch, head, options)",
+            ~"Path" => ~"URL path for the endpoint (e.g., \"/users/{id}\")"
+        }
+}.
+
+-spec endpoint(Method :: http_method(), Path :: binary(), Doc :: endpoint_doc()) ->
+    endpoint_spec().
+endpoint(Method, Path, Doc) when is_atom(Method) andalso is_binary(Path) andalso is_map(Doc) ->
     #{
         method => Method,
         path => Path,
         responses => #{},
-        parameters => []
+        parameters => [],
+        doc => Doc
     }.
 
 -doc """
@@ -488,7 +540,8 @@ generate_path_operations(Endpoints) ->
 
 -spec generate_operation(endpoint_spec()) -> openapi_operation().
 generate_operation(Endpoint) ->
-    Operation = #{},
+    %% Start with documentation if present
+    Operation = maps:get(doc, Endpoint, #{}),
 
     %% Add responses
     Responses = maps:get(responses, Endpoint, #{}),
@@ -547,20 +600,36 @@ generate_response(#{description := Description} = ResponseSpec) when
             {_, undefined} ->
                 %% Schema without module should not happen, but handle defensively
                 #{description => Description};
+            {#sp_literal{value = NilValue}, _Module} when
+                NilValue =:= nil orelse NilValue =:= undefined
+            ->
+                #{description => Description};
             {Schema, Module} ->
-                ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+                ModuleTypeInfo = spectra_module_types:get(Module),
                 SchemaContent =
                     case Schema of
                         {type, Name, Arity} ->
-                            SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                            SchemaName = schema_component_name(Module, {type, Name, Arity}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         {record, Name} ->
-                            SchemaName = type_ref_to_component_name({record, Name}),
+                            SchemaName = schema_component_name(Module, {record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
+                        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+                            ItemSchemaName = schema_component_name(
+                                ItemMod, {type, ItemName, length(ItemArgs)}
+                            ),
+                            #{
+                                type => <<"array">>,
+                                items =>
+                                    #{
+                                        '$ref' =>
+                                            <<"#/components/schemas/", ItemSchemaName/binary>>
+                                    }
+                            };
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                            maps:remove(<<"$schema">>, InlineSchema)
+                            maps:remove('$schema', InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
                 #{
@@ -584,9 +653,9 @@ generate_response(#{description := Description} = ResponseSpec) when
 
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
+    OpenApiSchema = maps:remove('$schema', InlineSchema),
 
     BaseHeader = #{schema => OpenApiSchema},
 
@@ -609,18 +678,19 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
 
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     SchemaContent =
         case Schema of
             {type, Name, Arity} ->
-                SchemaName = type_ref_to_component_name({type, Name, Arity}),
+                SchemaName = schema_component_name(Module, {type, Name, Arity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
-                SchemaName = type_ref_to_component_name({record, Name}),
+                SchemaName = schema_component_name(Module, {record, Name}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
-                maps:remove(<<"$schema">>, InlineSchema)
+                OpenApiSchema = maps:remove('$schema', InlineSchema),
+                OpenApiSchema
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
@@ -638,11 +708,11 @@ generate_parameter(
 ) when
     is_binary(Name)
 ->
-    ModuleTypeInfo = spectra_abstract_code:types_in_module(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module),
     Required = maps:get(required, ParameterSpec, false),
 
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
-    OpenApiSchema = maps:remove(<<"$schema">>, InlineSchema),
+    OpenApiSchema = maps:remove('$schema', InlineSchema),
 
     #{
         name => Name,
@@ -732,7 +802,12 @@ filter_typeref(Schema, Module) ->
         {true, TypeRef} ->
             {true, {Module, TypeRef}};
         false ->
-            false
+            case Schema of
+                #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+                    {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
+                _ ->
+                    false
+            end
     end.
 
 -spec generate_components([{module(), spectra:sp_type_reference()}]) ->
@@ -741,11 +816,11 @@ generate_components(SchemaRefs) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
             Schema = spectra_json_schema:to_schema(
-                spectra_abstract_code:types_in_module(Module),
+                spectra_module_types:get(Module),
                 TypeRef
             ),
-            SchemaName = type_ref_to_component_name(TypeRef),
-            OpenApiSchema = maps:remove(<<"$schema">>, Schema),
+            SchemaName = schema_component_name(Module, TypeRef),
+            OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
         end,
         #{},
@@ -770,6 +845,17 @@ type_ref_to_component_name({record, RecordName}) ->
     Words = string:split(TypeStr, "_", all),
     PascalCase = lists:map(fun capitalize_word/1, Words),
     iolist_to_binary(PascalCase).
+
+%% Use the last module segment as the schema name when the type is the
+%% idiomatic t/0, to avoid all Elixir structs colliding on "T0".
+-spec schema_component_name(module(), spectra:sp_type_reference()) -> binary().
+schema_component_name(Module, {type, t, 0}) ->
+    ModuleStr = atom_to_list(Module),
+    Parts = string:split(ModuleStr, ".", all),
+    LastPart = lists:last(Parts),
+    iolist_to_binary(capitalize_word(LastPart));
+schema_component_name(_Module, TypeRef) ->
+    type_ref_to_component_name(TypeRef).
 
 capitalize_word([]) ->
     [];

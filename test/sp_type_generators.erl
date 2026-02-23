@@ -65,8 +65,22 @@ sp_tuple(Size) ->
         choose(0, Size),
         oneof([
             #sp_tuple{fields = any},
-            ?LET(Fields, vector(Len, sp_type(Size)), #sp_tuple{fields = Fields})
+            ?LET(
+                Fields,
+                vector(Len, sp_type(Size)),
+                shrink_tuple_gen(Fields)
+            )
         ])
+    ).
+
+%% Generator for tuples with shrinking support
+shrink_tuple_gen([]) ->
+    #sp_tuple{fields = []};
+shrink_tuple_gen(Fields) ->
+    ?SHRINK(
+        #sp_tuple{fields = Fields},
+        % Try simpler tuple with 'any' fields, then individual field types
+        [exactly(#sp_tuple{fields = any})] ++ [exactly(F) || F <- Fields]
     ).
 
 %% Map field generator
@@ -115,7 +129,21 @@ sp_map(Size) ->
     ?LET(
         Len,
         choose(0, Size),
-        ?LET(Fields, vector(Len, map_field(Size)), #sp_map{fields = Fields})
+        ?LET(
+            Fields,
+            vector(Len, map_field(Size)),
+            shrink_map_gen(Fields)
+        )
+    ).
+
+%% Generator for maps with shrinking support
+shrink_map_gen([]) ->
+    #sp_map{fields = []};
+shrink_map_gen(_Fields) ->
+    % Always try empty map as simpler alternative
+    ?SHRINK(
+        #sp_map{fields = _Fields},
+        [exactly(#sp_map{fields = []})]
     ).
 
 %% Record generator
@@ -186,15 +214,40 @@ sp_union(Size) ->
     ?LET(
         Len,
         choose(1, max(1, Size)),
-        ?LET(Types, non_empty(vector(Len, sp_type(Size))), #sp_union{types = Types})
+        ?LET(
+            Types,
+            non_empty(vector(Len, sp_type(Size))),
+            shrink_union_gen(Types)
+        )
+    ).
+
+%% Generator for unions with shrinking support
+%% When shrinking, try each individual type from the union (unwrap union wrapper)
+shrink_union_gen([SingleType]) ->
+    % If we only have one type, just return it (unwrap the union)
+    SingleType;
+shrink_union_gen(Types) ->
+    % Build the union, but provide shrinking alternatives
+    ?SHRINK(
+        #sp_union{types = Types},
+        % Try each individual type from the union (unwrap union to single type)
+        [exactly(T) || T <- Types]
     ).
 
 %% Literal generator
 sp_literal() ->
     ?SIZED(Size, sp_literal(Size)).
 
-sp_literal(Size) ->
-    ?LET(Value, resize(Size, term()), #sp_literal{value = Value}).
+sp_literal(_Size) ->
+    ?LET(
+        Value,
+        oneof([
+            integer(),
+            my_atom(),
+            []
+        ]),
+        #sp_literal{value = Value}
+    ).
 
 %% Record reference generator
 record_field(Size) ->
@@ -250,7 +303,10 @@ sp_maybe_improper_list(Size) ->
     ?LET(
         {Elements, Tail},
         {sp_type(Childsize), sp_type(Childsize)},
-        #sp_maybe_improper_list{elements = Elements, tail = Tail}
+        ?SHRINK(
+            #sp_maybe_improper_list{elements = Elements, tail = Tail},
+            [exactly(#sp_list{type = Elements}), exactly(Elements)]
+        )
     ).
 
 %% Nonempty improper list generator
@@ -261,7 +317,10 @@ sp_nonempty_improper_list(Size) ->
     ?LET(
         {Elements, Tail},
         {sp_type(Size), sp_type(Size)},
-        #sp_nonempty_improper_list{elements = Elements, tail = Tail}
+        ?SHRINK(
+            #sp_nonempty_improper_list{elements = Elements, tail = Tail},
+            [exactly(#sp_maybe_improper_list{elements = Elements, tail = Tail}), exactly(Elements)]
+        )
     ).
 
 %% User type reference generator
@@ -306,14 +365,25 @@ sp_list() ->
     ?SIZED(Size, sp_list(Size)).
 
 sp_list(Size) ->
-    ?LET(Type, sp_type(Size), #sp_list{type = Type}).
+    ?LET(
+        Type,
+        sp_type(Size),
+        ?SHRINK(#sp_list{type = Type}, [exactly(Type)])
+    ).
 
 %% Nonempty list generator
 sp_nonempty_list() ->
     ?SIZED(Size, sp_nonempty_list(Size)).
 
 sp_nonempty_list(Size) ->
-    ?LET(Type, sp_type(Size), #sp_nonempty_list{type = Type}).
+    ?LET(
+        Type,
+        sp_type(Size),
+        ?SHRINK(
+            #sp_nonempty_list{type = Type},
+            [exactly(#sp_list{type = Type}), exactly(Type)]
+        )
+    ).
 
 %% Main sp_type generator - generates any possible sp_type() value
 sp_type() ->

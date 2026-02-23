@@ -148,6 +148,58 @@ Where:
 
 And the rest of the arguments are the same as for the data serialization API.
 
+### Adding Documentation and Examples to Schemas
+
+You can enhance your generated schemas with documentation and examples using the `-spectra()` attribute. This metadata is included in the JSON Schema output and OpenAPI specifications.
+
+```erlang
+-spectra(#{
+    title => <<"User Status">>,
+    description => <<"Current status of the user account">>,
+    examples => [active, inactive]
+}).
+-type status() :: active | inactive | pending.
+
+-spectra(#{
+    title => <<"User Record">>,
+    description => <<"A user in the system">>,
+    examples => [
+        {user, 1, <<"Alice">>, active},
+        {user, 42, <<"Bob">>, inactive}
+    ]
+}).
+-record(user, {
+    id :: non_neg_integer(),
+    name :: binary(),
+    status :: status()
+}).
+```
+
+**Note:** When using examples with records, you must use tuple syntax (e.g., `{user, 1, <<"Alice">>, active}`), which can be error-prone.
+For better maintainability, especially with records, use the `examples_function` field to generate examples dynamically:
+
+```erlang
+-record(person, {
+    name :: binary(),
+    age :: non_neg_integer()
+}).
+
+-spectra(#{
+    title => <<"Person">>,
+    description => <<"A person with name and age">>,
+    examples_function => {?MODULE, person_examples, []}
+}).
+-type person_type() :: #person{}.
+
+person_examples() ->
+    [
+        #person{name = <<"Alice">>, age = 30},
+        #person{name = <<"Bob">>, age = 25}
+    ].
+```
+
+The function specified in `examples_function` must be exported.
+
 ## OpenAPI Spec
 
 Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
@@ -263,6 +315,40 @@ The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
 **Note on record and struct fields**: Erlang record fields and Elixir struct fields behave the same as mandatory map fields (`:=`). When a field is missing from JSON, it will be filled with `undefined` or `nil` if the field type includes that literal. For example, a record field `email :: binary() | undefined` will decode `{}` to a record with `email = undefined`.
 
 **Note**: If a union type includes both `undefined` and `nil` (e.g., `integer() | undefined | nil`), the selection of which missing value to use depends on the order they appear in the type definition. The last one encountered will be used. For predictable behavior, include only one missing value literal in your type definitions. The `nil` atom is primarily for Elixir interoperability.
+
+### Maps with Typed and Literal Fields
+
+When a map type contains both typed fields (e.g., `binary() => integer()`) and literal fields (e.g., `status := active`), the following precedence rules apply during JSON deserialization:
+
+**Exact literal fields** (`:=`) are processed first and take precedence for their specific keys:
+
+```erlang
+-type config() :: #{binary() := integer(), timeout := 30}.
+
+%% JSON: {"timeout": 30, "retries": 5}
+%% Result: #{timeout => 30, <<"retries">> => 5}
+%% The key "timeout" matches the exact literal field, "retries" matches the typed field
+```
+
+This ensures that when you have an exact literal field like `timeout := 30`, it will correctly match the JSON key `"timeout"` even if there's a broader typed field like `binary() := integer()` that could also match that key.
+
+**Assoc literal fields** (`=>`) do not have special precedence - they are processed in the order they appear in the type definition alongside typed fields. This means typed fields can shadow assoc literal fields depending on the order:
+
+```erlang
+-type metadata() :: #{atom() => atom(), version => <<"1.0">>}.
+
+%% If atom() => atom() is encountered first during processing:
+%% JSON: {"version": "1.0"}
+%% Result: #{version => '1.0'}  (matched by typed field as an atom)
+
+-type metadata2() :: #{version => <<"1.0">>, atom() => atom()}.
+
+%% If version => <<"1.0">> is encountered first:
+%% JSON: {"version": "1.0"}  
+%% Result: #{version => <<"1.0">>}  (matched by literal field)
+```
+
+**Note:** The order in which fields appear in your type definition can affect behavior for assoc fields. For predictable behavior, use exact fields (`:=`) for literal values that should always match their specific keys.
 
 ### `term()` | `any()`
 

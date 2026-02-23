@@ -32,14 +32,14 @@ cache_clear_test() ->
 get_nonexistent_module_test() ->
     application:set_env(spectra, use_module_types_cache, false),
     ?assertError(
-        {module_types_not_found, nonexistent_module_xyz, non_existing},
+        {module_types_not_found, nonexistent_module_xyz, nofile},
         spectra_module_types:get(nonexistent_module_xyz)
     ).
 
 get_nonexistent_module_with_cache_test() ->
     application:set_env(spectra, use_module_types_cache, true),
     ?assertError(
-        {module_types_not_found, nonexistent_module_abc, non_existing},
+        {module_types_not_found, nonexistent_module_abc, nofile},
         spectra_module_types:get(nonexistent_module_abc)
     ),
     application:set_env(spectra, use_module_types_cache, false).

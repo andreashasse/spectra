@@ -86,12 +86,14 @@ map_to_json_schema_test() ->
     Schema = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
     ?assertEqual(
         #{
-            <<"$schema">> => <<"https://json-schema.org/draft/2020-12/schema">>,
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
             properties =>
                 #{
                     <<"result">> => #{type => <<"integer">>},
-                    <<"errors">> => #{type => <<"array">>, items => #{type => <<"string">>}}
+                    <<"errors">> => #{
+                        type => <<"array">>, items => #{type => <<"string">>}
+                    }
                 },
             additionalProperties => false
         },

@@ -2,7 +2,8 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([types_in_module/1]).
+-export([types_in_module/1, types_in_module_path/1]).
+-ignore_xref([types_in_module_path/1]).
 
 -define(is_primary_type(PrimaryType),
     PrimaryType =:= string orelse
@@ -35,16 +36,66 @@ types_in_module(Module) ->
             types_in_module_path(FilePath)
     end.
 
+-spec types_in_module_path(file:filename()) -> spectra:type_info().
 types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
         {ok, {_Module, [{abstract_code, {_, Forms}}]}} ->
-            NamedTypes = lists:filtermap(fun(F) -> type_in_form(F) end, Forms),
+            NamedTypes = process_forms_with_docs(Forms),
             build_type_info(NamedTypes);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
         {error, beam_lib, Reason} ->
             erlang:error({beam_lib_error, FilePath, Reason})
     end.
+
+-spec process_forms_with_docs(list()) -> [type_form_result()].
+process_forms_with_docs(Forms) ->
+    process_forms_with_docs(Forms, undefined, []).
+
+-spec process_forms_with_docs(list(), undefined | map(), [type_form_result()]) ->
+    [type_form_result()].
+process_forms_with_docs([], PendingDoc, NamedTypes) ->
+    case PendingDoc of
+        undefined ->
+            lists:reverse(NamedTypes);
+        _ ->
+            erlang:error({orphaned_spectra, PendingDoc})
+    end;
+process_forms_with_docs([{attribute, _, spectra, DocMap} | Rest], PendingDoc, NamedTypes) when
+    is_map(DocMap)
+->
+    case PendingDoc of
+        undefined ->
+            process_forms_with_docs(Rest, DocMap, NamedTypes);
+        _ ->
+            erlang:error({orphaned_spectra, PendingDoc})
+    end;
+process_forms_with_docs([Form | Rest], PendingDoc, NamedTypes) ->
+    case type_in_form(Form) of
+        {true, TypeWithKey} ->
+            process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes);
+        false ->
+            process_forms_with_docs(Rest, PendingDoc, NamedTypes)
+    end.
+
+-spec process_type_form(type_form_result(), undefined | map(), list(), [type_form_result()]) ->
+    [type_form_result()].
+process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
+    case {PendingDoc, TypeWithKey} of
+        {undefined, _} ->
+            process_forms_with_docs(Rest, undefined, [TypeWithKey | NamedTypes]);
+        {_, {{function, _, _}, _}} ->
+            erlang:error({orphaned_spectra, PendingDoc});
+        {_, _} ->
+            TypeInfoWithDoc = attach_doc_to_type(TypeWithKey, PendingDoc),
+            process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
+    end.
+
+-spec attach_doc_to_type(type_form_result(), map()) -> type_form_result().
+attach_doc_to_type({{type, _Name, _Arity} = Key, Type}, DocMap) ->
+    {Key, spectra_type:add_doc_to_type(Type, DocMap)};
+attach_doc_to_type({{record, _Name} = Key, Record}, DocMap) ->
+    {Key, spectra_type:add_doc_to_type(Record, DocMap)}.
 
 build_type_info(NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).

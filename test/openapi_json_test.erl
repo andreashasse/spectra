@@ -7,8 +7,25 @@
 -compile(nowarn_unused_type).
 
 %% Test records for OpenAPI JSON generation
+-spectra(#{
+    title => <<"User">>,
+    description => <<"A registered user in the system">>,
+    examples => [
+        {user, 123, "John Doe", "john@example.com"}
+    ]
+}).
 -record(user, {id :: integer(), name :: string(), email :: string()}).
+
+-spectra(#{
+    title => <<"Create User Request">>,
+    description => <<"Payload for user creation endpoint">>
+}).
 -record(create_user_request, {name :: string(), email :: string()}).
+
+-spectra(#{
+    title => <<"Error Response">>,
+    description => <<"Standard error response format">>
+}).
 -record(error_response, {message :: string(), code :: integer()}).
 
 %% Type aliases
@@ -212,6 +229,38 @@ openapi_json_serializable_test() ->
                 }
         },
         GetById404Response
+    ),
+
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"User">> := #{
+                        title := <<"User">>,
+                        description := <<"A registered user in the system">>,
+                        examples := [_ | _],
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
+                    },
+                    <<"CreateUserRequest">> := #{
+                        title := <<"Create User Request">>,
+                        description := <<"Payload for user creation endpoint">>,
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
+                    },
+                    <<"ErrorResponse">> := #{
+                        title := <<"Error Response">>,
+                        description := <<"Standard error response format">>,
+                        type := <<"object">>,
+                        properties := _,
+                        required := _
+                    }
+                }
+            }
+        },
+        OpenAPISpec
     ).
 
 %% Test individual schema structure is JSON-compatible

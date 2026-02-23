@@ -247,6 +247,17 @@ check_exception_consistency(JsonException, ToSchemaResult) ->
                 ),
                 false
             );
+        Schema when is_map(Schema) ->
+            % to_schema succeeded (returns bare map), to_json threw exception
+            ?WHENFAIL(
+                io:format(
+                    "~nInconsistency: to_json threw exception but to_schema succeeded~n"
+                    "  to_json exception type: ~p~n"
+                    "  Schema: ~p~n",
+                    [JsonException, Schema]
+                ),
+                false
+            );
         {ok, _Schema} ->
             ?WHENFAIL(
                 io:format(
