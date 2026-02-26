@@ -215,6 +215,10 @@ See [elli_openapi](https://github.com/andreashasse/elli_openapi) for an example 
 spectra_openapi:endpoint(Method, Path) ->
     endpoint_spec().
 
+%% Create an endpoint with OpenAPI operation documentation
+spectra_openapi:endpoint(Method, Path, Doc) ->
+    endpoint_spec().
+
 %% Add responses
 spectra_openapi:with_response(Endpoint, StatusCode, Description, Module, Schema) ->
     endpoint_spec().
@@ -230,6 +234,23 @@ spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
 %% Generate complete OpenAPI spec
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
+```
+
+The `Doc` map in `endpoint/3` can contain any of the following OpenAPI operation fields:
+- `summary` — short summary of the endpoint (binary)
+- `description` — detailed description (binary)
+- `operationId` — unique identifier for the operation (binary)
+- `tags` — list of tags for grouping (list of binaries)
+- `deprecated` — whether the endpoint is deprecated (boolean)
+- `externalDocs` — external documentation link (map with `url` and optional `description`)
+
+```erlang
+spectra_openapi:endpoint(get, <<"/users">>, #{
+    summary => <<"List users">>,
+    description => <<"Returns all users in the system">>,
+    operationId => <<"listUsers">>,
+    tags => [<<"users">>]
+}).
 ```
 
 
