@@ -246,12 +246,22 @@ spectra_openapi:endpoint(Method, Path) ->
 spectra_openapi:endpoint(Method, Path, Doc) ->
     endpoint_spec().
 
-%% Add responses
-spectra_openapi:with_response(Endpoint, StatusCode, Description, Module, Schema) ->
+%% Build a response, then add it to an endpoint
+spectra_openapi:response(StatusCode, Description) ->
+    response_spec().
+spectra_openapi:response_with_body(Response, Module, Schema) ->
+    response_spec().
+spectra_openapi:response_with_body(Response, Module, Schema, ContentType) ->
+    response_spec().
+spectra_openapi:response_with_header(Response, HeaderName, Module, HeaderSpec) ->
+    response_spec().
+spectra_openapi:add_response(Endpoint, Response) ->
     endpoint_spec().
 
 %% Add request body
 spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
+    endpoint_spec().
+spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType) ->
     endpoint_spec().
 
 %% Add parameters (path, query, header, cookie)
