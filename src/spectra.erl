@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, encode/4, schema/3]).
+-export([decode/4, decode/5, encode/4, encode/5, schema/3]).
 
--ignore_xref([decode/4, encode/4, schema/3]).
+-ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -52,6 +52,7 @@
 -type missing_value() :: undefined | nil.
 -type literal_value() :: integer() | atom() | [].
 -type record_field() :: #sp_rec_field{}.
+-type encode_option() :: json_term | {json_term, boolean()}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -94,7 +95,8 @@
     missing_value/0,
     simple_types/0,
     literal_value/0,
-    record_field/0
+    record_field/0,
+    encode_option/0
 ]).
 
 -doc """
@@ -131,22 +133,63 @@ an error if the data doesn't match the expected type.
     Binary :: binary() | list()
 ) ->
     {ok, dynamic()} | {error, [error()]}.
-decode(Format, Module, TypeOrRef, Binary) when is_atom(Module) ->
+decode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
+    decode(Format, ModuleOrTypeinfo, TypeOrRef, Data, []).
+
+-doc """
+Decodes data from the specified format into an Erlang term based on type information.
+
+Accepts an options list. Supported options:
+- `json_term`: The input is already a decoded JSON term.
+  Skips the `json:decode/1` step and passes the value directly to the decoder.
+
+### Example:
+
+```
+1> DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Bob">>}.
+2> spectra:decode(json, my_module, user, DecodedJson, [json_term]).
+{ok, #user{id = 42, name = <<"Bob">>}}
+```
+""".
+-spec decode(
+    Format :: atom(),
+    ModuleOrTypeinfo :: module() | type_info(),
+    TypeOrRef :: atom() | sp_type_or_ref(),
+    Data :: dynamic(),
+    Options :: [encode_option()]
+) ->
+    {ok, dynamic()} | {error, [error()]}.
+decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
-    decode(Format, TypeInfo, TypeOrRef, Binary);
-decode(Format, TypeInfo, RefAtom, Binary) when is_atom(RefAtom) ->
+    decode(Format, TypeInfo, TypeOrRef, Data, Options);
+decode(Format, TypeInfo, RefAtom, Data, Options) when is_atom(RefAtom) ->
     Type = get_type_from_atom(TypeInfo, RefAtom),
-    decode(Format, TypeInfo, Type, Binary);
-decode(json, Typeinfo, TypeOrRef, Binary) when is_binary(Binary) ->
-    case json_decode(Binary) of
-        {ok, DecodedJson} ->
-            spectra_json:from_json(Typeinfo, TypeOrRef, DecodedJson);
-        {error, _} = Err ->
-            Err
+    decode(Format, TypeInfo, Type, Data, Options);
+decode(json, Typeinfo, TypeOrRef, Data, Options) ->
+    case proplists:get_value(json_term, Options, false) of
+        false when is_binary(Data) ->
+            case json_decode(Data) of
+                {ok, DecodedJson} ->
+                    spectra_json:from_json(Typeinfo, TypeOrRef, DecodedJson);
+                {error, _} = Err ->
+                    Err
+            end;
+        false ->
+            {error, [
+                #sp_error{
+                    location = [],
+                    type = decode_error,
+                    ctx = #{
+                        value => Data, message => "expected binary when json_term option is not set"
+                    }
+                }
+            ]};
+        true ->
+            spectra_json:from_json(Typeinfo, TypeOrRef, Data)
     end;
-decode(binary_string, Typeinfo, TypeOrRef, Binary) when is_binary(Binary) ->
+decode(binary_string, Typeinfo, TypeOrRef, Binary, _Options) when is_binary(Binary) ->
     spectra_binary_string:from_binary_string(Typeinfo, TypeOrRef, Binary);
-decode(string, Typeinfo, TypeOrRef, String) when is_list(String) ->
+decode(string, Typeinfo, TypeOrRef, String, _Options) when is_list(String) ->
     spectra_string:from_string(Typeinfo, TypeOrRef, String).
 
 -doc """
@@ -181,22 +224,50 @@ and returns an error if the data doesn't match the expected type.
     Data :: dynamic()
 ) ->
     {ok, dynamic()} | {error, [error()]}.
-encode(Format, Module, TypeOrRef, Data) when is_atom(Module) ->
+encode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
+    encode(Format, ModuleOrTypeinfo, TypeOrRef, Data, []).
+
+-doc """
+Encodes an Erlang term to the specified format based on type information.
+
+Accepts an options list. Supported options:
+- `json_term`: Skip the final `json:encode/1` step and return the intermediate
+  JSON term instead of a binary.
+
+### Example:
+
+```
+1> spectra:encode(json, my_module, user, #user{id = 42, name = <<"Bob">>}, [json_term]).
+{ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>}}
+```
+""".
+-spec encode(
+    Format :: atom(),
+    ModuleOrTypeinfo :: module() | type_info(),
+    TypeOrRef :: atom() | sp_type_or_ref(),
+    Data :: dynamic(),
+    Options :: [encode_option()]
+) ->
+    {ok, dynamic()} | {error, [error()]}.
+encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
-    encode(Format, TypeInfo, TypeOrRef, Data);
-encode(Format, Module, TypeAtom, Data) when is_atom(TypeAtom) ->
+    encode(Format, TypeInfo, TypeOrRef, Data, Options);
+encode(Format, Module, TypeAtom, Data, Options) when is_atom(TypeAtom) ->
     Type = get_type_from_atom(Module, TypeAtom),
-    encode(Format, Module, Type, Data);
-encode(json, Typeinfo, TypeOrRef, Data) ->
+    encode(Format, Module, Type, Data, Options);
+encode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case spectra_json:to_json(Typeinfo, TypeOrRef, Data) of
         {ok, Json} ->
-            {ok, json:encode(Json)};
+            case proplists:get_value(json_term, Options, false) of
+                false -> {ok, json:encode(Json)};
+                true -> {ok, Json}
+            end;
         {error, _} = Err ->
             Err
     end;
-encode(binary_string, Typeinfo, TypeOrRef, Data) ->
+encode(binary_string, Typeinfo, TypeOrRef, Data, _Options) ->
     spectra_binary_string:to_binary_string(Typeinfo, TypeOrRef, Data);
-encode(string, Typeinfo, TypeOrRef, Data) ->
+encode(string, Typeinfo, TypeOrRef, Data, _Options) ->
     spectra_string:to_string(Typeinfo, TypeOrRef, Data).
 
 -doc """

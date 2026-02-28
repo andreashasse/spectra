@@ -6,7 +6,7 @@
     endpoint/2, endpoint/3,
     with_request_body/3, with_request_body/4,
     with_parameter/3,
-    endpoints_to_openapi/2,
+    endpoints_to_openapi/2, endpoints_to_openapi/3,
     response/2,
     response_with_body/3, response_with_body/4,
     response_with_header/4,
@@ -20,6 +20,7 @@
     {spectra_openapi, with_request_body, 4},
     {spectra_openapi, with_parameter, 3},
     {spectra_openapi, endpoints_to_openapi, 2},
+    {spectra_openapi, endpoints_to_openapi, 3},
     {spectra_openapi, response, 2},
     {spectra_openapi, response_with_body, 3},
     {spectra_openapi, response_with_body, 4},
@@ -487,8 +488,17 @@ with paths, operations, and component schemas.
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()]
 ) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
-endpoints_to_openapi(MetaData, Endpoints) when is_list(Endpoints) ->
+    {ok, dynamic()} | {error, [spectra:error()]}.
+endpoints_to_openapi(MetaData, Endpoints) ->
+    endpoints_to_openapi(MetaData, Endpoints, [json_term]).
+
+-spec endpoints_to_openapi(
+    MetaData :: openapi_metadata(),
+    Endpoints :: [endpoint_spec()],
+    Options :: [spectra:encode_option()]
+) ->
+    {ok, dynamic()} | {error, [spectra:error()]}.
+endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
     PathGroups = group_endpoints_by_path(Endpoints),
     Paths =
         maps:fold(
@@ -513,7 +523,7 @@ endpoints_to_openapi(MetaData, Endpoints) when is_list(Endpoints) ->
             paths => Paths,
             components => ComponentsResult
         },
-    spectra_json:to_json(?MODULE, {type, openapi_spec, 0}, OpenAPISpec).
+    spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
 group_endpoints_by_path(Endpoints) ->

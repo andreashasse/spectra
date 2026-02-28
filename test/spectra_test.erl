@@ -411,6 +411,55 @@ round_trip_json_record_test() ->
     ?assertEqual(User, Result).
 
 %%====================================================================
+%% json_term option tests
+%%====================================================================
+
+decode_json_term_option_true_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonTerm, [{json_term, true}])
+    ).
+
+decode_json_term_option_false_non_binary_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    {error, [Error]} = spectra:decode(json, ?MODULE, user, JsonTerm, [{json_term, false}]),
+    ?assertMatch(#sp_error{location = [], type = decode_error}, Error).
+
+decode_json_term_option_false_test() ->
+    JsonBinary = <<"{\"id\":42,\"name\":\"Bob\",\"age\":25}">>,
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonBinary, [{json_term, false}])
+    ).
+
+decode_json_term_option_atom_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonTerm, [json_term])
+    ).
+
+encode_json_term_option_true_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    ?assertEqual(
+        {ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25}},
+        spectra:encode(json, ?MODULE, user, User, [{json_term, true}])
+    ).
+
+encode_json_term_option_false_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    {ok, Result} = spectra:encode(json, ?MODULE, user, User, [{json_term, false}]),
+    ?assert(is_binary(iolist_to_binary(Result))).
+
+encode_json_term_option_atom_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    ?assertEqual(
+        {ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25}},
+        spectra:encode(json, ?MODULE, user, User, [json_term])
+    ).
+
+%%====================================================================
 %% Error handling tests
 %%====================================================================
 
