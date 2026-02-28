@@ -44,7 +44,7 @@ For each changed public function or behaviour, verify there is:
 - At least one **positive test** (valid input produces correct output)
 - At least one **negative test** (invalid input produces the expected error or rejection)
 
-Check the test files in `test/` for coverage. Unit tests should call through `spectra.erl`, not internal modules like `spectra_json.erl`.
+Check the test files in `test/` for coverage. Prefer calling through `spectra.erl` for public API tests; use internal modules like `spectra_json.erl` only when you are explicitly testing internal behaviour.
 
 If a function is missing a positive or negative test, write one. Place new tests in the appropriate existing test file, or create a new `test/<feature>_test.erl` file if none exists.
 
