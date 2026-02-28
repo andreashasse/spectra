@@ -523,7 +523,7 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
             paths => Paths,
             components => ComponentsResult
         },
-    spectra:encode(json, ?MODULE, openapi_spec, OpenAPISpec, Options).
+    spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
 group_endpoints_by_path(Endpoints) ->

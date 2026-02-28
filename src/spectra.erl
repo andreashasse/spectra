@@ -140,7 +140,7 @@ decode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
 Decodes data from the specified format into an Erlang term based on type information.
 
 Accepts an options list. Supported options:
-- `json_term`: The input is already a decoded JSON term (map/list/scalar).
+- `json_term`: The input is already a decoded JSON term.
   Skips the `json:decode/1` step and passes the value directly to the decoder.
 
 ### Example:
@@ -232,7 +232,7 @@ Encodes an Erlang term to the specified format based on type information.
 
 Accepts an options list. Supported options:
 - `json_term`: Skip the final `json:encode/1` step and return the intermediate
-  JSON term (map/list/scalar) instead of a binary.
+  JSON term instead of a binary.
 
 ### Example:
 
