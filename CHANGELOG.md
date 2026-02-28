@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-26
+
+### Added
+- **JSON schema documentation**: Types can now carry `title` and `description` metadata via the `spectra` attribute, which is propagated into generated JSON Schema and OpenAPI output
+- **`__spectra_type_info__/0` protocol**: Modules can now expose its `type_info` by exporting the `__spectra_type_info__/0` function. This is an implementation detail in the library. It will be used to pair documentation with types in Elixir, and can later be used for performance and to handle hot code reloading better.
+
 ## [0.4.0] - 2026-01-27
 
 ### Changed
-- **Breaking**: `spectra:schema/3` now returns schema values directly instead of `{ok, Schema}` or `{error, Reason}` tuples. 
+- **Breaking**: `spectra:schema/3` now returns schema values directly instead of `{ok, Schema}` or `{error, Reason}` tuples.
 
 ## [0.3.2] - 2026-01-25
 
