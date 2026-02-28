@@ -52,6 +52,7 @@
 -type missing_value() :: undefined | nil.
 -type literal_value() :: integer() | atom() | [].
 -type record_field() :: #sp_rec_field{}.
+-type encode_option() :: json_term | {json_term, boolean()}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -94,7 +95,8 @@
     missing_value/0,
     simple_types/0,
     literal_value/0,
-    record_field/0
+    record_field/0,
+    encode_option/0
 ]).
 
 -doc """
@@ -154,7 +156,7 @@ Accepts an options list. Supported options:
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
     Data :: dynamic(),
-    Options :: [json_term]
+    Options :: [encode_option()]
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
@@ -172,6 +174,16 @@ decode(json, Typeinfo, TypeOrRef, Data, Options) ->
                 {error, _} = Err ->
                     Err
             end;
+        false ->
+            {error, [
+                #sp_error{
+                    location = [],
+                    type = decode_error,
+                    ctx = #{
+                        value => Data, message => "expected binary when json_term option is not set"
+                    }
+                }
+            ]};
         true ->
             spectra_json:from_json(Typeinfo, TypeOrRef, Data)
     end;
@@ -234,7 +246,7 @@ Accepts an options list. Supported options:
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
     Data :: dynamic(),
-    Options :: [json_term]
+    Options :: [encode_option()]
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->

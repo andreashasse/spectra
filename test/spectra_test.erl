@@ -421,6 +421,11 @@ decode_json_term_option_true_test() ->
         spectra:decode(json, ?MODULE, user, JsonTerm, [{json_term, true}])
     ).
 
+decode_json_term_option_false_non_binary_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    {error, [Error]} = spectra:decode(json, ?MODULE, user, JsonTerm, [{json_term, false}]),
+    ?assertMatch(#sp_error{location = [], type = decode_error}, Error).
+
 decode_json_term_option_false_test() ->
     JsonBinary = <<"{\"id\":42,\"name\":\"Bob\",\"age\":25}">>,
     ?assertEqual(
