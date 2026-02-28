@@ -136,6 +136,33 @@ Where:
   - `{record, RecordName}` for records (e.g., `{record, user}`)
   - An actual `sp_type()` structure (for advanced usage)
 
+Both functions accept an optional `Options` list as a fifth argument:
+
+```erlang
+spectra:encode(Format, Module, Type, Value, Options) ->
+    {ok, iolist() | json:encode_value()} | {error, [spectra:error()]}.
+spectra:decode(Format, Module, Type, Data, Options) ->
+    {ok, Value} | {error, [spectra:error()]}.
+```
+
+The `json_term` option controls whether the JSON layer is applied:
+
+| Option | `encode` effect | `decode` effect |
+|--------|----------------|-----------------|
+| `[{json_term, true}]` or `[json_term]` | Returns the intermediate JSON term (map/list/scalar) instead of encoding to binary | Expects `Data` to already be a decoded JSON term — skips `json:decode/1` |
+| `[{json_term, false}]` or `[]` (default) | Encodes to `iodata()` (normal behaviour) | Expects `Data` to be a binary (normal behaviour) |
+
+This is useful when you have already decoded JSON (e.g., from a web framework) or when you want to manipulate the JSON term before encoding it to a binary:
+
+```erlang
+%% Decode from a pre-decoded JSON term (e.g., from cowboy or plug)
+DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
+{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [json_term]),
+
+%% Encode to a JSON term instead of a binary
+{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [json_term]),
+```
+
 
 ### Schema API
 
@@ -231,9 +258,29 @@ spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
     endpoint_spec().
 
-%% Generate complete OpenAPI spec
+%% Generate complete OpenAPI spec (returns a JSON term / decoded map)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
+
+%% Generate complete OpenAPI spec with options
+spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
+```
+
+The `Options` list is passed to `spectra:encode/5` and controls the output format via the `json_term` option:
+
+| Options | Return value on success |
+|---------|------------------------|
+| `[json_term]` or `[{json_term, true}]` | `{ok, json:encode_value()}` — a decoded map, same as `endpoints_to_openapi/2` |
+| `[]` or `[{json_term, false}]` | `{ok, iodata()}` — an encoded JSON binary |
+
+```erlang
+%% Get a decoded map (default, same as /2)
+{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [json_term]),
+
+%% Get an encoded JSON binary, e.g. to write to a file or HTTP response
+{ok, Json} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, []),
+file:write_file("openapi.json", Json).
 ```
 
 The `Doc` map in `endpoint/3` can contain any of the following OpenAPI operation fields:
