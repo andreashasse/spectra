@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **JSON schema documentation**: Types can now carry `title` and `description` metadata via the `spectra` attribute, which is propagated into generated JSON Schema and OpenAPI output
-- **`__spectra_type_info__/0` protocol**: Modules can now expose its `type_info` by exporting the `__spectra_type_info__/0` function. This is an implemenation detail in the library. It will be used to pair documenation with types in elixir, and can later be used for performance and to handle hot code reloading better.
+- **`__spectra_type_info__/0` protocol**: Modules can now expose its `type_info` by exporting the `__spectra_type_info__/0` function. This is an implementation detail in the library. It will be used to pair documentation with types in Elixir, and can later be used for performance and to handle hot code reloading better.
 
 ## [0.4.0] - 2026-01-27
 
