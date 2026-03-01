@@ -497,7 +497,7 @@ endpoints_to_openapi(MetaData, Endpoints) ->
     Endpoints :: [endpoint_spec()],
     Options :: [spectra:encode_option()]
 ) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
     PathGroups = group_endpoints_by_path(Endpoints),
     Paths =
