@@ -121,7 +121,7 @@ These are the main functions for JSON serialization and deserialization:
 
 ```erlang
 spectra:encode(Format, Module, Type, Value) ->
-    {ok, iolist()} | {error, [spectra:error()]}.
+    {ok, iodata()} | {error, [spectra:error()]}.
 spectra:decode(Format, Module, Type, JsonBinary) ->
     {ok, Value} | {error, [spectra:error()]}.
 
@@ -140,7 +140,7 @@ Both functions accept an optional `Options` list as a fifth argument:
 
 ```erlang
 spectra:encode(Format, Module, Type, Value, Options) ->
-    {ok, iolist() | json:encode_value()} | {error, [spectra:error()]}.
+    {ok, iodata() | json:encode_value()} | {error, [spectra:error()]}.
 spectra:decode(Format, Module, Type, Data, Options) ->
     {ok, Value} | {error, [spectra:error()]}.
 ```
