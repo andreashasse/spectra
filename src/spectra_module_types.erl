@@ -21,15 +21,7 @@ get(Module) ->
     HasTypeInfoFun = erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0),
     case application:get_env(?APPLICATION, use_module_types_cache, false) of
         true ->
-            {ok, Vsn} = module_vsn(Module),
-            case pers_type(Module) of
-                {Vsn, TypeInfo} ->
-                    TypeInfo;
-                undefined ->
-                    TypeInfo = fetch_type_info(Module, HasTypeInfoFun),
-                    pers_types_set(Module, Vsn, TypeInfo),
-                    TypeInfo
-            end;
+            cached_type_info(Module, HasTypeInfoFun);
         false ->
             fetch_type_info(Module, HasTypeInfoFun)
     end.
@@ -40,6 +32,28 @@ clear(Module) ->
     ok.
 
 %% INTERNAL
+
+-spec cached_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
+    spectra:type_info().
+cached_type_info(Module, true) ->
+    case pers_type(Module) of
+        {type_info_fun, TypeInfo} ->
+            TypeInfo;
+        _ ->
+            TypeInfo = apply(Module, ?TYPE_INFO_FUNCTION, []),
+            pers_types_set(Module, type_info_fun, TypeInfo),
+            TypeInfo
+    end;
+cached_type_info(Module, false) ->
+    {ok, Vsn} = module_vsn(Module),
+    case pers_type(Module) of
+        {Vsn, TypeInfo} ->
+            TypeInfo;
+        _ ->
+            TypeInfo = spectra_abstract_code:types_in_module(Module),
+            pers_types_set(Module, Vsn, TypeInfo),
+            TypeInfo
+    end.
 
 -spec fetch_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
