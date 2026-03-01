@@ -450,7 +450,7 @@ encode_pre_encoded_option_true_test() ->
 encode_pre_encoded_option_false_test() ->
     User = #user{id = 42, name = <<"Bob">>, age = 25},
     {ok, Result} = spectra:encode(json, ?MODULE, user, User, [{pre_encoded, false}]),
-    ?assert(is_binary(iolist_to_binary(Result))).
+    ?assertEqual({ok, User}, spectra:decode(json, ?MODULE, user, iolist_to_binary(Result))).
 
 encode_pre_encoded_option_atom_test() ->
     User = #user{id = 42, name = <<"Bob">>, age = 25},
