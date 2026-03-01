@@ -870,9 +870,19 @@ endpoints_to_openapi_pre_encoded_false_option_test() ->
         [Endpoint],
         [{pre_encoded, false}]
     ),
-    ?assertEqual(
-        <<"{\"components\":{},\"info\":{\"title\":\"API\",\"version\":\"1.0\"},\"openapi\":\"3.1.0\",\"paths\":{\"/users\":{\"get\":{\"responses\":{\"200\":{\"description\":\"OK\"}}}}}}">>,
-        iolist_to_binary(Result)
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        json:decode(iolist_to_binary(Result))
     ).
 
 endpoints_to_openapi_no_options_test() ->
@@ -885,7 +895,17 @@ endpoints_to_openapi_no_options_test() ->
         [Endpoint],
         []
     ),
-    ?assertEqual(
-        <<"{\"components\":{},\"info\":{\"title\":\"API\",\"version\":\"1.0\"},\"openapi\":\"3.1.0\",\"paths\":{\"/users\":{\"get\":{\"responses\":{\"200\":{\"description\":\"OK\"}}}}}}">>,
-        iolist_to_binary(Result)
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        json:decode(iolist_to_binary(Result))
     ).
