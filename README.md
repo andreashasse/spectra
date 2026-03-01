@@ -145,22 +145,24 @@ spectra:decode(Format, Module, Type, Data, Options) ->
     {ok, Value} | {error, [spectra:error()]}.
 ```
 
-The `json_term` option controls whether the JSON layer is applied:
+Two options control whether the serialization layer is applied:
 
-| Option | `encode` effect | `decode` effect |
-|--------|----------------|-----------------|
-| `[{json_term, true}]` or `[json_term]` | Returns the intermediate JSON term (map/list/scalar) instead of encoding to binary | Expects `Data` to already be a decoded JSON term — skips `json:decode/1` |
-| `[{json_term, false}]` or `[]` (default) | Encodes to `iodata()` (normal behaviour) | Expects `Data` to be a binary (normal behaviour) |
+| Option | Effect |
+|--------|--------|
+| `pre_decoded` (for `decode`) | `Data` is already a decoded term — skips deserialization (e.g. `json:decode/1`) |
+| `pre_encoded` (for `encode`) | Returns the intermediate term instead of bytes — skips serialization (e.g. `json:encode/1`) |
 
-This is useful when you have already decoded JSON (e.g., from a web framework) or when you want to manipulate the JSON term before encoding it to a binary:
+Each option can be given as a bare atom (`[pre_decoded]`) or as a tuple (`[{pre_decoded, true}]`). The default for both is `false`.
+
+This is useful when you have already decoded the wire format (e.g., from a web framework) or when you want to inspect or manipulate the term before serializing it:
 
 ```erlang
 %% Decode from a pre-decoded JSON term (e.g., from cowboy or plug)
 DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
-{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [json_term]),
+{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
 
 %% Encode to a JSON term instead of a binary
-{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [json_term]),
+{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
 ```
 
 
@@ -277,16 +279,16 @@ spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 ```
 
-The `Options` list is passed to `spectra:encode/5` and controls the output format via the `json_term` option:
+The `Options` list is passed to `spectra:encode/5` and controls the output format via the `pre_encoded` option:
 
 | Options | Return value on success |
 |---------|------------------------|
-| `[json_term]` or `[{json_term, true}]` | `{ok, json:encode_value()}` — a decoded map, same as `endpoints_to_openapi/2` |
-| `[]` or `[{json_term, false}]` | `{ok, iodata()}` — an encoded JSON binary |
+| `[pre_encoded]` or `[{pre_encoded, true}]` | `{ok, json:encode_value()}` — a decoded map, same as `endpoints_to_openapi/2` |
+| `[]` or `[{pre_encoded, false}]` | `{ok, iodata()}` — an encoded JSON binary |
 
 ```erlang
 %% Get a decoded map (default, same as /2)
-{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [json_term]),
+{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [pre_encoded]),
 
 %% Get an encoded JSON binary, e.g. to write to a file or HTTP response
 {ok, Json} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, []),

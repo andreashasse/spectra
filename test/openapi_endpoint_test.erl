@@ -810,7 +810,7 @@ list_of_remote_type_response_test() ->
 %% endpoints_to_openapi/3 option tests
 %%====================================================================
 
-endpoints_to_openapi_json_term_atom_option_test() ->
+endpoints_to_openapi_pre_encoded_atom_option_test() ->
     Endpoint = spectra_openapi:add_response(
         spectra_openapi:endpoint(get, <<"/users">>),
         spectra_openapi:response(200, <<"OK">>)
@@ -818,7 +818,7 @@ endpoints_to_openapi_json_term_atom_option_test() ->
     {ok, Result} = spectra_openapi:endpoints_to_openapi(
         #{title => <<"API">>, version => <<"1.0">>},
         [Endpoint],
-        [json_term]
+        [pre_encoded]
     ),
     ?assertMatch(
         #{
@@ -835,7 +835,7 @@ endpoints_to_openapi_json_term_atom_option_test() ->
         Result
     ).
 
-endpoints_to_openapi_json_term_true_option_test() ->
+endpoints_to_openapi_pre_encoded_true_option_test() ->
     Endpoint = spectra_openapi:add_response(
         spectra_openapi:endpoint(get, <<"/users">>),
         spectra_openapi:response(200, <<"OK">>)
@@ -843,7 +843,7 @@ endpoints_to_openapi_json_term_true_option_test() ->
     {ok, Result} = spectra_openapi:endpoints_to_openapi(
         #{title => <<"API">>, version => <<"1.0">>},
         [Endpoint],
-        [{json_term, true}]
+        [{pre_encoded, true}]
     ),
     ?assertMatch(
         #{
@@ -860,7 +860,7 @@ endpoints_to_openapi_json_term_true_option_test() ->
         Result
     ).
 
-endpoints_to_openapi_json_term_false_option_test() ->
+endpoints_to_openapi_pre_encoded_false_option_test() ->
     Endpoint = spectra_openapi:add_response(
         spectra_openapi:endpoint(get, <<"/users">>),
         spectra_openapi:response(200, <<"OK">>)
@@ -868,7 +868,7 @@ endpoints_to_openapi_json_term_false_option_test() ->
     {ok, Result} = spectra_openapi:endpoints_to_openapi(
         #{title => <<"API">>, version => <<"1.0">>},
         [Endpoint],
-        [{json_term, false}]
+        [{pre_encoded, false}]
     ),
     ?assertEqual(
         <<"{\"components\":{},\"info\":{\"title\":\"API\",\"version\":\"1.0\"},\"openapi\":\"3.1.0\",\"paths\":{\"/users\":{\"get\":{\"responses\":{\"200\":{\"description\":\"OK\"}}}}}}">>,

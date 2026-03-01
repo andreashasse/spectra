@@ -52,7 +52,8 @@
 -type missing_value() :: undefined | nil.
 -type literal_value() :: integer() | atom() | [].
 -type record_field() :: #sp_rec_field{}.
--type encode_option() :: json_term | {json_term, boolean()}.
+-type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
+-type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -96,6 +97,7 @@
     simple_types/0,
     literal_value/0,
     record_field/0,
+    decode_option/0,
     encode_option/0
 ]).
 
@@ -140,14 +142,14 @@ decode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
 Decodes data from the specified format into an Erlang term based on type information.
 
 Accepts an options list. Supported options:
-- `json_term`: The input is already a decoded JSON term.
-  Skips the `json:decode/1` step and passes the value directly to the decoder.
+- `pre_decoded`: The input is already a decoded term (e.g. a JSON map from a web framework).
+  Skips the deserialization step and passes the value directly to the type decoder.
 
 ### Example:
 
 ```
 1> DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Bob">>}.
-2> spectra:decode(json, my_module, user, DecodedJson, [json_term]).
+2> spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]).
 {ok, #user{id = 42, name = <<"Bob">>}}
 ```
 """.
@@ -156,7 +158,7 @@ Accepts an options list. Supported options:
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
     Data :: dynamic(),
-    Options :: [encode_option()]
+    Options :: [decode_option()]
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
@@ -166,7 +168,7 @@ decode(Format, TypeInfo, RefAtom, Data, Options) when is_atom(RefAtom) ->
     Type = get_type_from_atom(TypeInfo, RefAtom),
     decode(Format, TypeInfo, Type, Data, Options);
 decode(json, Typeinfo, TypeOrRef, Data, Options) ->
-    case proplists:get_value(json_term, Options, false) of
+    case proplists:get_value(pre_decoded, Options, false) of
         false when is_binary(Data) ->
             case json_decode(Data) of
                 {ok, DecodedJson} ->
@@ -180,7 +182,8 @@ decode(json, Typeinfo, TypeOrRef, Data, Options) ->
                     location = [],
                     type = decode_error,
                     ctx = #{
-                        value => Data, message => "expected binary when json_term option is not set"
+                        value => Data,
+                        message => "expected binary when pre_decoded option is not set"
                     }
                 }
             ]};
@@ -231,13 +234,13 @@ encode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
 Encodes an Erlang term to the specified format based on type information.
 
 Accepts an options list. Supported options:
-- `json_term`: Skip the final `json:encode/1` step and return the intermediate
-  JSON term instead of a binary.
+- `pre_encoded`: Skip the final serialization step and return the intermediate
+  term instead of bytes. For JSON, this returns a map/list/scalar instead of a binary.
 
 ### Example:
 
 ```
-1> spectra:encode(json, my_module, user, #user{id = 42, name = <<"Bob">>}, [json_term]).
+1> spectra:encode(json, my_module, user, #user{id = 42, name = <<"Bob">>}, [pre_encoded]).
 {ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>}}
 ```
 """.
@@ -258,7 +261,7 @@ encode(Format, Module, TypeAtom, Data, Options) when is_atom(TypeAtom) ->
 encode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case spectra_json:to_json(Typeinfo, TypeOrRef, Data) of
         {ok, Json} ->
-            case proplists:get_value(json_term, Options, false) of
+            case proplists:get_value(pre_encoded, Options, false) of
                 false -> {ok, json:encode(Json)};
                 true -> {ok, Json}
             end;
