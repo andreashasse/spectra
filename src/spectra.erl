@@ -132,7 +132,7 @@ an error if the data doesn't match the expected type.
     Format :: atom(),
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref(),
-    Binary :: binary() | list()
+    Data :: dynamic()
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 decode(Format, ModuleOrTypeinfo, TypeOrRef, Data) ->
