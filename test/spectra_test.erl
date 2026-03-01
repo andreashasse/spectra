@@ -411,6 +411,55 @@ round_trip_json_record_test() ->
     ?assertEqual(User, Result).
 
 %%====================================================================
+%% pre_decoded / pre_encoded option tests
+%%====================================================================
+
+decode_pre_decoded_option_true_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonTerm, [{pre_decoded, true}])
+    ).
+
+decode_pre_decoded_option_false_non_binary_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    {error, [Error]} = spectra:decode(json, ?MODULE, user, JsonTerm, [{pre_decoded, false}]),
+    ?assertMatch(#sp_error{location = [], type = decode_error}, Error).
+
+decode_pre_decoded_option_false_test() ->
+    JsonBinary = <<"{\"id\":42,\"name\":\"Bob\",\"age\":25}">>,
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonBinary, [{pre_decoded, false}])
+    ).
+
+decode_pre_decoded_option_atom_test() ->
+    JsonTerm = #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25},
+    ?assertEqual(
+        {ok, #user{id = 42, name = <<"Bob">>, age = 25}},
+        spectra:decode(json, ?MODULE, user, JsonTerm, [pre_decoded])
+    ).
+
+encode_pre_encoded_option_true_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    ?assertEqual(
+        {ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25}},
+        spectra:encode(json, ?MODULE, user, User, [{pre_encoded, true}])
+    ).
+
+encode_pre_encoded_option_false_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    {ok, Result} = spectra:encode(json, ?MODULE, user, User, [{pre_encoded, false}]),
+    ?assertEqual({ok, User}, spectra:decode(json, ?MODULE, user, iolist_to_binary(Result))).
+
+encode_pre_encoded_option_atom_test() ->
+    User = #user{id = 42, name = <<"Bob">>, age = 25},
+    ?assertEqual(
+        {ok, #{<<"id">> => 42, <<"name">> => <<"Bob">>, <<"age">> => 25}},
+        spectra:encode(json, ?MODULE, user, User, [pre_encoded])
+    ).
+
+%%====================================================================
 %% Error handling tests
 %%====================================================================
 

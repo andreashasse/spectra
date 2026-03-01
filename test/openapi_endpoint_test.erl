@@ -805,3 +805,107 @@ list_of_remote_type_response_test() ->
         },
         OpenAPISpec
     ).
+
+%%====================================================================
+%% endpoints_to_openapi/3 option tests
+%%====================================================================
+
+endpoints_to_openapi_pre_encoded_atom_option_test() ->
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/users">>),
+        spectra_openapi:response(200, <<"OK">>)
+    ),
+    {ok, Result} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"API">>, version => <<"1.0">>},
+        [Endpoint],
+        [pre_encoded]
+    ),
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        Result
+    ).
+
+endpoints_to_openapi_pre_encoded_true_option_test() ->
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/users">>),
+        spectra_openapi:response(200, <<"OK">>)
+    ),
+    {ok, Result} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"API">>, version => <<"1.0">>},
+        [Endpoint],
+        [{pre_encoded, true}]
+    ),
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        Result
+    ).
+
+endpoints_to_openapi_pre_encoded_false_option_test() ->
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/users">>),
+        spectra_openapi:response(200, <<"OK">>)
+    ),
+    {ok, Result} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"API">>, version => <<"1.0">>},
+        [Endpoint],
+        [{pre_encoded, false}]
+    ),
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        json:decode(iolist_to_binary(Result))
+    ).
+
+endpoints_to_openapi_no_options_test() ->
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/users">>),
+        spectra_openapi:response(200, <<"OK">>)
+    ),
+    {ok, Result} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"API">>, version => <<"1.0">>},
+        [Endpoint],
+        []
+    ),
+    ?assertMatch(
+        #{
+            <<"openapi">> := <<"3.1.0">>,
+            <<"info">> := #{<<"title">> := <<"API">>, <<"version">> := <<"1.0">>},
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{<<"200">> := #{<<"description">> := <<"OK">>}}
+                    }
+                }
+            }
+        },
+        json:decode(iolist_to_binary(Result))
+    ).

@@ -121,7 +121,7 @@ These are the main functions for JSON serialization and deserialization:
 
 ```erlang
 spectra:encode(Format, Module, Type, Value) ->
-    {ok, iolist()} | {error, [spectra:error()]}.
+    {ok, iodata()} | {error, [spectra:error()]}.
 spectra:decode(Format, Module, Type, JsonBinary) ->
     {ok, Value} | {error, [spectra:error()]}.
 
@@ -135,6 +135,35 @@ Where:
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
   - `{record, RecordName}` for records (e.g., `{record, user}`)
   - An actual `sp_type()` structure (for advanced usage)
+
+Both functions accept an optional `Options` list as a fifth argument:
+
+```erlang
+spectra:encode(Format, Module, Type, Value, Options) ->
+    {ok, iodata() | json:encode_value()} | {error, [spectra:error()]}.
+spectra:decode(Format, Module, Type, Data, Options) ->
+    {ok, Value} | {error, [spectra:error()]}.
+```
+
+Two options control whether the serialization layer is applied:
+
+| Option | Effect |
+|--------|--------|
+| `pre_decoded` (for `decode`) | `Data` is already a decoded term — skips deserialization (e.g. `json:decode/1`) |
+| `pre_encoded` (for `encode`) | Returns the intermediate term instead of bytes — skips serialization (e.g. `json:encode/1`) |
+
+Each option can be given as a bare atom (`[pre_decoded]`) or as a tuple (`[{pre_decoded, true}]`). The default for both is `false`.
+
+This is useful when you have already decoded the wire format (e.g., from a web framework) or when you want to inspect or manipulate the term before serializing it:
+
+```erlang
+%% Decode from a pre-decoded JSON term (e.g., from cowboy or plug)
+DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
+{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
+
+%% Encode to a JSON term instead of a binary
+{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
+```
 
 
 ### Schema API
@@ -219,21 +248,51 @@ spectra_openapi:endpoint(Method, Path) ->
 spectra_openapi:endpoint(Method, Path, Doc) ->
     endpoint_spec().
 
-%% Add responses
-spectra_openapi:with_response(Endpoint, StatusCode, Description, Module, Schema) ->
+%% Build a response, then add it to an endpoint
+spectra_openapi:response(StatusCode, Description) ->
+    response_spec().
+spectra_openapi:response_with_body(Response, Module, Schema) ->
+    response_spec().
+spectra_openapi:response_with_body(Response, Module, Schema, ContentType) ->
+    response_spec().
+spectra_openapi:response_with_header(Response, HeaderName, Module, HeaderSpec) ->
+    response_spec().
+spectra_openapi:add_response(Endpoint, Response) ->
     endpoint_spec().
 
 %% Add request body
 spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
+    endpoint_spec().
+spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType) ->
     endpoint_spec().
 
 %% Add parameters (path, query, header, cookie)
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
     endpoint_spec().
 
-%% Generate complete OpenAPI spec
+%% Generate complete OpenAPI spec (returns a JSON term / decoded map)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
+
+%% Generate complete OpenAPI spec with options
+spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
+```
+
+The `Options` list is passed to `spectra:encode/5` and controls the output format via the `pre_encoded` option:
+
+| Options | Return value on success |
+|---------|------------------------|
+| `[pre_encoded]` or `[{pre_encoded, true}]` | `{ok, json:encode_value()}` — a decoded map, same as `endpoints_to_openapi/2` |
+| `[]` or `[{pre_encoded, false}]` | `{ok, iodata()}` — an encoded JSON binary |
+
+```erlang
+%% Get a decoded map (default, same as /2)
+{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [pre_encoded]),
+
+%% Get an encoded JSON binary, e.g. to write to a file or HTTP response
+{ok, Json} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, []),
+file:write_file("openapi.json", Json).
 ```
 
 The `Doc` map in `endpoint/3` can contain any of the following OpenAPI operation fields:
