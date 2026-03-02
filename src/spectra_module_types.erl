@@ -36,7 +36,7 @@ clear(Module) ->
 -spec cached_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
 cached_type_info(Module, true) ->
-    Vsn = type_info_fun,
+    Vsn = module_vsn(Module),
     TypeInfoFun = fun() -> apply(Module, ?TYPE_INFO_FUNCTION, []) end,
     do_cached_type_info(Module, Vsn, TypeInfoFun);
 cached_type_info(Module, false) ->
@@ -50,7 +50,7 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
             TypeInfo;
         _ ->
             TypeInfo = TypeInfoFun(),
-            pers_types_set(Module, type_info_fun, TypeInfo),
+            pers_types_set(Module, Vsn, TypeInfo),
             TypeInfo
     end.
 

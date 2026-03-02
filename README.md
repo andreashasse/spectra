@@ -459,7 +459,7 @@ You can configure spectra behavior using application environment variables:
 - **Type**: `boolean()`
 - **Default**: `false`
 - **Description**: When set to `true`, enables caching of extracted type information for modules using persistent terms. This can improve performance when repeatedly processing the same modules.
-- **Note**: For modules without a compiled `__spectra_type_info__` function, the module vsn is used for cache invalidation — so type-only changes (without a vsn bump) will not be reflected. For modules with a compiled `__spectra_type_info__` function, the cache is not versioned and will not auto-invalidate on hot code reload; call `spectra_module_types:clear/1` explicitly after reloading such a module.
+- **Note**: The module vsn is used for cache invalidation. When only changing types and not code, the module vsn is not updated, so the types will not be reflected until `spectra_module_types:clear/1` is called or the module is recompiled.
 - **Recommendation**: Enable this in production systems where no hot code reloading is done.
 
 #### `check_unicode`
