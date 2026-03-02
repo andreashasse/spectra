@@ -36,22 +36,21 @@ clear(Module) ->
 -spec cached_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
 cached_type_info(Module, true) ->
-    case pers_type(Module) of
-        {type_info_fun, TypeInfo} ->
-            TypeInfo;
-        _ ->
-            TypeInfo = apply(Module, ?TYPE_INFO_FUNCTION, []),
-            pers_types_set(Module, type_info_fun, TypeInfo),
-            TypeInfo
-    end;
+    Vsn = type_info_fun,
+    TypeInfoFun = fun() -> apply(Module, ?TYPE_INFO_FUNCTION, []) end,
+    do_cached_type_info(Module, Vsn, TypeInfoFun);
 cached_type_info(Module, false) ->
-    {ok, Vsn} = module_vsn(Module),
+    Vsn = module_vsn(Module),
+    TypeInfoFun = fun() -> spectra_abstract_code:types_in_module(Module) end,
+    do_cached_type_info(Module, Vsn, TypeInfoFun).
+
+do_cached_type_info(Module, Vsn, TypeInfoFun) ->
     case pers_type(Module) of
         {Vsn, TypeInfo} ->
             TypeInfo;
         _ ->
-            TypeInfo = spectra_abstract_code:types_in_module(Module),
-            pers_types_set(Module, Vsn, TypeInfo),
+            TypeInfo = TypeInfoFun(),
+            pers_types_set(Module, type_info_fun, TypeInfo),
             TypeInfo
     end.
 
@@ -80,14 +79,14 @@ ensure_module(Module) ->
     erlang:module_loaded(Module) orelse code:which(Module) =/= non_existing.
 
 -spec module_vsn(Module :: module()) ->
-    {ok, Version :: module_version()} | {error, [spectra:error()]}.
+    Version :: module_version().
 module_vsn(Module) ->
     case ensure_module(Module) of
         true ->
             case erlang:get_module_info(Module, attributes) of
                 Attrs when is_list(Attrs) ->
                     {vsn, Vsn} = lists:keyfind(vsn, 1, Attrs),
-                    {ok, Vsn}
+                    Vsn
             end;
         false ->
             erlang:error({module_types_not_found, Module, non_existing})
