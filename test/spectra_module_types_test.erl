@@ -55,3 +55,19 @@ cache_consistency_test() ->
     _AccountType = spectra_type_info:get_type(TypeInfo3, account, 0),
     application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).
+
+get_module_with_type_info_fun_without_cache_test() ->
+    application:set_env(spectra, use_module_types_cache, false),
+    TypeInfo = spectra_module_types:get(spectra_test_module_with_spectra),
+    ?assert(is_record(TypeInfo, type_info)),
+    ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, my_type, 0)).
+
+get_module_with_type_info_fun_with_cache_test() ->
+    application:set_env(spectra, use_module_types_cache, true),
+    spectra_module_types:clear(spectra_test_module_with_spectra),
+    TypeInfo1 = spectra_module_types:get(spectra_test_module_with_spectra),
+    ?assert(is_record(TypeInfo1, type_info)),
+    TypeInfo2 = spectra_module_types:get(spectra_test_module_with_spectra),
+    ?assertEqual(TypeInfo1, TypeInfo2),
+    application:set_env(spectra, use_module_types_cache, false),
+    spectra_module_types:clear(spectra_test_module_with_spectra).
