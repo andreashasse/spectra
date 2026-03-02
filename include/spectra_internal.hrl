@@ -83,7 +83,11 @@
     type :: spectra:sp_type(),
     meta = #{} :: spectra:sp_type_meta()
 }).
--record(sp_function_spec, {args :: [spectra:sp_type()], return :: spectra:sp_type()}).
+-record(sp_function_spec, {
+    args :: [spectra:sp_type()],
+    return :: spectra:sp_type(),
+    meta = #{} :: spectra:sp_function_spec_meta()
+}).
 -record(literal_map_field, {
     kind :: assoc | exact,
     name :: atom() | integer(),
