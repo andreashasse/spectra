@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-03-02
+
+### Added
+- **`pre_decoded` / `pre_encoded` options** for `decode/5` and `encode/5`: pass `[pre_decoded]` to skip JSON parsing when your input is already a decoded term, or `[pre_encoded]` to get back a `json:encode_value()` term instead of `iodata()` from `encode/5`.
+- **`spectra_openapi:endpoints_to_openapi/3`**: new overload that accepts encode options (e.g. `[pre_encoded]`) for the generated OpenAPI document.
+
+### Changed
+- `__spectra_type_info__/0` calls are now cached in `persistent_term` alongside abstract-code lookups, reducing repeated reflection overhead.
+
 ## [0.5.0] - 2026-02-26
 
 ### Added
