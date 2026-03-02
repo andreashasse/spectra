@@ -96,7 +96,10 @@ attach_doc({{record, _Name} = Key, Record}, DocMap) ->
     {Key, spectra_type:add_doc_to_type(Record, DocMap)};
 attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     Doc = spectra_type:normalize_function_doc(DocMap),
-    Tagged = [FS#sp_function_spec{meta = #{doc => Doc}} || FS <- FuncSpecs],
+    Tagged = [
+        FS#sp_function_spec{meta = (FS#sp_function_spec.meta)#{doc => Doc}}
+     || FS <- FuncSpecs
+    ],
     {Key, Tagged}.
 
 build_type_info(NamedTypes) ->
