@@ -85,16 +85,16 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
         {undefined, _} ->
             process_forms_with_docs(Rest, undefined, [TypeWithKey | NamedTypes]);
         {_, _} ->
-            TypeInfoWithDoc = attach_doc_to_type(TypeWithKey, PendingDoc),
+            TypeInfoWithDoc = attach_doc(TypeWithKey, PendingDoc),
             process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
     end.
 
--spec attach_doc_to_type(type_form_result(), map()) -> type_form_result().
-attach_doc_to_type({{type, _Name, _Arity} = Key, Type}, DocMap) ->
+-spec attach_doc(type_form_result(), map()) -> type_form_result().
+attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     {Key, spectra_type:add_doc_to_type(Type, DocMap)};
-attach_doc_to_type({{record, _Name} = Key, Record}, DocMap) ->
+attach_doc({{record, _Name} = Key, Record}, DocMap) ->
     {Key, spectra_type:add_doc_to_type(Record, DocMap)};
-attach_doc_to_type({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
+attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     Doc = spectra_type:normalize_function_doc(DocMap),
     Tagged = [FS#sp_function_spec{meta = #{doc => Doc}} || FS <- FuncSpecs],
     {Key, Tagged}.

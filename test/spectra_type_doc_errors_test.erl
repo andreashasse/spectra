@@ -206,6 +206,16 @@ spectra_before_function_spec_test() ->
 
     file:delete(TempFile).
 
+invalid_field_in_function_doc_test() ->
+    ?assertError(
+        {invalid_spectra_field, title, <<"Bad">>},
+        spectra_type:normalize_function_doc(#{title => <<"Bad">>})
+    ),
+    ?assertError(
+        {invalid_spectra_field, examples, []},
+        spectra_type:normalize_function_doc(#{examples => []})
+    ).
+
 parse_module(Code) ->
     Lines = string:split(Code, "\n", all),
     {Forms, _} = lists:foldl(
