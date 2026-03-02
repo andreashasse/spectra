@@ -84,8 +84,6 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
     case {PendingDoc, TypeWithKey} of
         {undefined, _} ->
             process_forms_with_docs(Rest, undefined, [TypeWithKey | NamedTypes]);
-        {_, {{function, _, _}, _}} ->
-            erlang:error({orphaned_spectra, PendingDoc});
         {_, _} ->
             TypeInfoWithDoc = attach_doc_to_type(TypeWithKey, PendingDoc),
             process_forms_with_docs(Rest, undefined, [TypeInfoWithDoc | NamedTypes])
@@ -95,7 +93,11 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
 attach_doc_to_type({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     {Key, spectra_type:add_doc_to_type(Type, DocMap)};
 attach_doc_to_type({{record, _Name} = Key, Record}, DocMap) ->
-    {Key, spectra_type:add_doc_to_type(Record, DocMap)}.
+    {Key, spectra_type:add_doc_to_type(Record, DocMap)};
+attach_doc_to_type({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
+    Doc = spectra_type:normalize_function_doc(DocMap),
+    Tagged = [FS#sp_function_spec{meta = #{doc => Doc}} || FS <- FuncSpecs],
+    {Key, Tagged}.
 
 build_type_info(NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).

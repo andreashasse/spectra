@@ -180,6 +180,32 @@ mixed_types_and_records_with_docs_test() ->
 
     file:delete(TempFile).
 
+spectra_before_function_spec_test() ->
+    Code =
+        "-module(test_spectra_function).\n"
+        "-spectra(#{summary => <<\"My Function\">>, description => <<\"Does something\">>, deprecated => true}).\n"
+        "-spec my_fun(integer()) -> binary().\n"
+        "my_fun(X) -> integer_to_binary(X).\n",
+
+    {ok, test_spectra_function, BeamBinary} = compile:forms(
+        parse_module(Code),
+        [binary, return_errors, debug_info]
+    ),
+
+    TempFile = temp_beam_path("test_spectra_function"),
+    ok = file:write_file(TempFile, BeamBinary),
+
+    TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
+
+    {ok, [FuncSpec | _]} = spectra_type_info:find_function(TypeInfo, my_fun, 1),
+    #{doc := Doc} = FuncSpec#sp_function_spec.meta,
+    ?assertEqual(
+        #{summary => <<"My Function">>, description => <<"Does something">>, deprecated => true},
+        Doc
+    ),
+
+    file:delete(TempFile).
+
 parse_module(Code) ->
     Lines = string:split(Code, "\n", all),
     {Forms, _} = lists:foldl(

@@ -7,11 +7,13 @@
     type_reference/1,
     get_meta/1,
     set_meta/2,
-    add_doc_to_type/2
+    add_doc_to_type/2,
+    normalize_doc/1,
+    normalize_function_doc/1
 ]).
 
 %% Functions meant to be used by external libraries like Spectral
--ignore_xref([get_meta/1, set_meta/2, add_doc_to_type/2]).
+-ignore_xref([get_meta/1, set_meta/2, add_doc_to_type/2, normalize_doc/1, normalize_function_doc/1]).
 
 -spec can_be_missing(
     TypeInfo :: spectra:type_info(), Type :: spectra:sp_type()
@@ -108,4 +110,18 @@ add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when
 ->
     Acc#{examples_function => MFA};
 add_doc_field(Key, Value, _Acc) ->
+    erlang:error({invalid_spectra_field, Key, Value}).
+
+-spec normalize_function_doc(map()) -> spectra:function_doc().
+normalize_function_doc(DocMap) ->
+    maps:fold(fun add_function_doc_field/3, #{}, DocMap).
+
+-spec add_function_doc_field(atom(), term(), spectra:function_doc()) -> spectra:function_doc().
+add_function_doc_field(summary, Value, Acc) when is_binary(Value) ->
+    Acc#{summary => Value};
+add_function_doc_field(description, Value, Acc) when is_binary(Value) ->
+    Acc#{description => Value};
+add_function_doc_field(deprecated, Value, Acc) when is_boolean(Value) ->
+    Acc#{deprecated => Value};
+add_function_doc_field(Key, Value, _Acc) ->
     erlang:error({invalid_spectra_field, Key, Value}).
