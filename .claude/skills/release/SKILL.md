@@ -78,17 +78,44 @@ After the user selects a version bump, update these files:
 
   ```
 
-## Step 6: Inform User
+## Step 6: Create Release Branch and PR
 
-After updating the files, inform the user that the files have been updated and they should:
-1. Review and edit the CHANGELOG.md entries if needed
-2. Run `make release` when ready to publish
+After updating the files:
+
+1. Create and switch to a release branch:
+   ```bash
+   git checkout -b release/X.Y.Z
+   ```
+
+2. Stage and commit the updated files:
+   ```bash
+   git add CHANGELOG.md README.md
+   git commit -m "Prepare release X.Y.Z"
+   ```
+
+3. Push the branch:
+   ```bash
+   git push -u origin release/X.Y.Z
+   ```
+
+4. Create a PR using the GitHub CLI:
+   ```bash
+   gh pr create --title "Release X.Y.Z" --body "$(cat <<'EOF'
+   ## Release X.Y.Z
+
+   <paste the changelog entries for this version here>
+
+   EOF
+   )"
+   ```
+
+Return the PR URL to the user.
 
 ## Important Notes
 
 - Do NOT modify `src/spectra.app.src` - it uses `{vsn, "git"}` which gets version from git tags
 - Do NOT modify `rebar.config` - it doesn't contain version information
-- Do NOT run `make release` - the user will do that
+- Do NOT run `make release` - the user will do that after the PR is merged
 - Try to write clear, user-focused changelog entries
 - Group related changes together
 - Omit internal refactorings unless they significantly impact users
