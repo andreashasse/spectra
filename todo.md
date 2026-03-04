@@ -25,8 +25,8 @@ Gap analysis of OpenAPI 3.1 fields not yet supported in `spectra_openapi.erl`.
 - [ ] Tag Objects — tags are currently bare `binary()` values; OpenAPI Tag Objects carry `description` and `externalDocs` per tag; needs top-level `tags` list in the spec
 
 ### Medium priority (useful for API evolution)
-- [ ] `deprecated` on parameters — add `deprecated => boolean()` to `parameter_spec()` / `openapi_parameter()`
-- [ ] `deprecated` on response headers — add `deprecated => boolean()` to `response_header_spec()` / `openapi_header()`
+- [x] `deprecated` on parameters — add `deprecated => boolean()` to `parameter_spec()` / `openapi_parameter()`
+- [x] `deprecated` on response headers — add `deprecated => boolean()` to `response_header_spec()` / `openapi_header()`
 - [ ] Top-level `servers` — base URL configuration; needed for useful interactive docs
 - [ ] `info` extended fields — `summary`, `contact`, `license`, `termsOfService`
 

@@ -254,6 +254,61 @@ generate_parameter_without_description_test() ->
     ),
     ?assertNot(maps:is_key(<<"description">>, Parameter)).
 
+%% Test that deprecated parameter is passed through to openapi output
+generate_parameter_deprecated_test() ->
+    Param =
+        #{
+            name => <<"old_field">>,
+            in => query,
+            required => false,
+            schema => #sp_simple_type{type = integer},
+            deprecated => true
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertMatch(#{<<"deprecated">> := true}, Parameter).
+
+%% Test that non-deprecated parameter does not include the field
+generate_parameter_not_deprecated_test() ->
+    Param =
+        #{
+            name => <<"id">>,
+            in => query,
+            required => false,
+            schema => #sp_simple_type{type = integer}
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"deprecated">>, Parameter)).
+
 %% Test generating OpenAPI spec from single endpoint
 single_endpoint_to_openapi_test() ->
     Response = spectra_openapi:response(200, <<"List of users">>),
@@ -644,6 +699,82 @@ endpoint_with_response_header_test() ->
         },
         Endpoint
     ).
+
+%% Test that deprecated response header is passed through to openapi output
+response_header_deprecated_test() ->
+    Response1 = spectra_openapi:response(200, <<"OK">>),
+    Response =
+        spectra_openapi:response_with_header(
+            Response1,
+            <<"X-Old-Header">>,
+            ?MODULE,
+            #{schema => #sp_simple_type{type = integer}, deprecated => true}
+        ),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Header = maps:get(
+        <<"X-Old-Header">>,
+        maps:get(
+            <<"headers">>,
+            maps:get(
+                <<"200">>,
+                maps:get(
+                    <<"responses">>,
+                    maps:get(
+                        <<"get">>,
+                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
+                    )
+                )
+            )
+        )
+    ),
+    ?assertMatch(#{<<"deprecated">> := true}, Header).
+
+%% Test that non-deprecated response header does not include the field
+response_header_not_deprecated_test() ->
+    Response1 = spectra_openapi:response(200, <<"OK">>),
+    Response =
+        spectra_openapi:response_with_header(
+            Response1,
+            <<"X-Rate-Limit">>,
+            ?MODULE,
+            #{schema => #sp_simple_type{type = integer}}
+        ),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Header = maps:get(
+        <<"X-Rate-Limit">>,
+        maps:get(
+            <<"headers">>,
+            maps:get(
+                <<"200">>,
+                maps:get(
+                    <<"responses">>,
+                    maps:get(
+                        <<"get">>,
+                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
+                    )
+                )
+            )
+        )
+    ),
+    ?assertNot(maps:is_key(<<"deprecated">>, Header)).
 
 %% Test adding multiple response headers
 endpoint_with_multiple_response_headers_test() ->

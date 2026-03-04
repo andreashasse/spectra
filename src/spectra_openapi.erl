@@ -56,12 +56,14 @@
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := spectra:sp_type_or_ref()
     }.
 -type response_header_spec() ::
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := spectra:sp_type_or_ref(),
         module := module()
     }.
@@ -81,7 +83,8 @@
         required := boolean(),
         schema := spectra:sp_type_or_ref(),
         module := module(),
-        description => binary()
+        description => binary(),
+        deprecated => boolean()
     }.
 -type openapi_metadata() :: #{title := binary(), version := binary(), description => binary()}.
 -type endpoint_spec() ::
@@ -116,6 +119,7 @@
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := openapi_schema()
     }.
 -type openapi_request_body() ::
@@ -130,7 +134,8 @@
         in := parameter_location(),
         required := boolean(),
         schema := openapi_schema(),
-        description => binary()
+        description => binary(),
+        deprecated => boolean()
     }.
 -type openapi_spec() ::
     #{
@@ -685,7 +690,6 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
 
     BaseHeader = #{schema => OpenApiSchema},
 
-    %% Add optional description
     HeaderWithDesc =
         case maps:get(description, HeaderSpec, undefined) of
             undefined ->
@@ -694,12 +698,14 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
                 BaseHeader#{description => Description}
         end,
 
-    %% Add optional required flag
-    case maps:get(required, HeaderSpec, undefined) of
-        undefined ->
-            HeaderWithDesc;
-        Required ->
-            HeaderWithDesc#{required => Required}
+    HeaderWithRequired =
+        case maps:get(required, HeaderSpec, undefined) of
+            undefined -> HeaderWithDesc;
+            Required -> HeaderWithDesc#{required => Required}
+        end,
+    case maps:get(deprecated, HeaderSpec, undefined) of
+        undefined -> HeaderWithRequired;
+        Deprecated -> HeaderWithRequired#{deprecated => Deprecated}
     end.
 
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
@@ -750,9 +756,14 @@ generate_parameter(
         required => Required,
         schema => OpenApiSchema
     },
-    case maps:get(description, ParameterSpec, undefined) of
-        undefined -> BaseParameter;
-        Description -> BaseParameter#{description => Description}
+    WithDesc =
+        case maps:get(description, ParameterSpec, undefined) of
+            undefined -> BaseParameter;
+            Description -> BaseParameter#{description => Description}
+        end,
+    case maps:get(deprecated, ParameterSpec, undefined) of
+        undefined -> WithDesc;
+        Deprecated -> WithDesc#{deprecated => Deprecated}
     end.
 
 -spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_reference()}].
