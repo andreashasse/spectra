@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-03-04
+
+### Added
+- **`description` and `deprecated` fields for OpenAPI parameters**: `parameter_spec()` now accepts `description => binary()` and `deprecated => boolean()` fields, propagated into the generated OpenAPI output.
+- **`description` for request body specs**: `request_body_spec()` now accepts a `description` field.
+- **`deprecated` for response header specs**: `header_spec()` now accepts a `deprecated => boolean()` field.
+- **Extended `openapi_metadata()`**: Supports additional `info` fields and a top-level `servers` list for multi-server OpenAPI documents.
+
+### Changed
+- **Breaking**: `with_request_body/3,4` now takes the schema as the third positional argument. Optional metadata (`content_type`, `description`) is passed as a fourth `Opts` map. Update calls from `with_request_body(E, Method, #{schema => S})` to `with_request_body(E, Method, S)`.
+
 ## [0.6.0] - 2026-03-04
 
 ### Added
