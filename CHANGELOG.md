@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-04
+
+### Added
+- **`-spectra` attribute for function specs**: You can now annotate `-spec` declarations with a `-spectra()` attribute to attach metadata to functions. The `function_doc()` type supports `summary`, `description`, and `deprecated` fields (distinct from the `type_doc()` fields used for types and records).
+
+### Fixed
+- `#sp_union{}` `types` field was declared with a default value instead of a type annotation, which could cause subtle runtime issues.
+
 ## [0.5.1] - 2026-03-02
 
 ### Added
