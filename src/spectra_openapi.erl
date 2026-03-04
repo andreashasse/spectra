@@ -398,11 +398,11 @@ Adds a request body specification to an endpoint.
 This function sets the request body schema for the endpoint.
 Typically used with POST, PUT, and PATCH endpoints.
 
-To include an optional `description`, add it to the `request_body` map directly after calling this function:
-```erlang
-Endpoint2 = with_request_body(Endpoint1, Module, Schema),
-Endpoint3 = Endpoint2#{request_body => maps:put(description, <<"...">>, maps:get(request_body, Endpoint2))}.
-```
+### Request Body Specification
+The request body spec should be a map with these keys:
+- schema: Schema reference or direct type (spectra:sp_type_or_ref(), required)
+- content_type: Content type override (binary, defaults to application/json)
+- description: Optional description of the request body (binary)
 
 ### Returns
 Updated endpoint map with request body set
@@ -412,7 +412,7 @@ Updated endpoint map with request body set
         #{
             "Endpoint" => "Endpoint map to add the request body to",
             "Module" => "Module containing the type definition",
-            "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
+            "RequestBodySpec" => "Request body specification map"
         }
 }.
 
@@ -427,44 +427,17 @@ with_request_body(Endpoint, Module, Schema) when
 ->
     Endpoint#{request_body => #{schema => Schema, module => Module}}.
 
--doc """
-Adds a request body specification with custom content type to an endpoint.
-
-This function sets the request body schema and content type for the endpoint.
-Typically used with POST, PUT, and PATCH endpoints.
-
-### Returns
-Updated endpoint map with request body set
-""".
--doc #{
-    params =>
-        #{
-            "ContentType" =>
-                "Content type for the request body (e.g., \"application/json\", \"application/xml\")",
-            "Endpoint" => "Endpoint map to add the request body to",
-            "Module" => "Module containing the type definition",
-            "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
-        }
-}.
-
 -spec with_request_body(
     Endpoint :: endpoint_spec(),
     Module :: module(),
     Schema :: spectra:sp_type_or_ref(),
-    ContentType :: binary()
+    Opts :: #{content_type => binary(), description => binary()}
 ) ->
     endpoint_spec().
-with_request_body(Endpoint, Module, Schema, ContentType) when
-    is_map(Endpoint) andalso is_atom(Module) andalso is_binary(ContentType)
+with_request_body(Endpoint, Module, Schema, Opts) when
+    is_map(Endpoint) andalso is_atom(Module) andalso is_map(Opts)
 ->
-    Endpoint#{
-        request_body =>
-            #{
-                schema => Schema,
-                module => Module,
-                content_type => ContentType
-            }
-    }.
+    Endpoint#{request_body => Opts#{schema => Schema, module => Module}}.
 
 -doc """
 Adds a parameter specification to an endpoint.

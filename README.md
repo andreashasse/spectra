@@ -263,8 +263,9 @@ spectra_openapi:add_response(Endpoint, Response) ->
 %% Add request body
 spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
     endpoint_spec().
-spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType) ->
+spectra_openapi:with_request_body(Endpoint, Module, Schema, Opts) ->
     endpoint_spec().
+%% Opts = #{content_type => binary(), description => binary()}
 
 %% Add parameters (path, query, header, cookie)
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->

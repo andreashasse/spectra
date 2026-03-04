@@ -609,7 +609,7 @@ endpoint_with_custom_request_body_content_type_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
 
     ?assertMatch(
@@ -635,7 +635,7 @@ endpoint_with_both_custom_content_types_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
     Endpoint = spectra_openapi:add_response(Endpoint2, ResponseWithBody),
 
@@ -1122,14 +1122,10 @@ endpoints_to_openapi_pre_encoded_false_option_test() ->
 request_body_description_test() ->
     Response = spectra_openapi:response(201, <<"Created">>),
     Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
-    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, {record, item}),
-    %% Inject description directly into the request_body spec
-    Endpoint3 = Endpoint2#{
-        request_body => maps:put(
-            description, <<"The item to create">>, maps:get(request_body, Endpoint2)
-        )
-    },
-    Endpoint = spectra_openapi:add_response(Endpoint3, Response),
+    Endpoint2 = spectra_openapi:with_request_body(
+        Endpoint1, ?MODULE, {record, item}, #{description => <<"The item to create">>}
+    ),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
 
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
