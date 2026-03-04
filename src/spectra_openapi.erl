@@ -393,16 +393,12 @@ response_with_header(Response, HeaderName, Module, HeaderSpec) when
     Response#{headers => Headers#{HeaderName => HeaderSpecWithModule}}.
 
 -doc """
-Adds a request body specification to an endpoint.
+Adds a request body to an endpoint.
 
 This function sets the request body schema for the endpoint.
 Typically used with POST, PUT, and PATCH endpoints.
 
-### Request Body Specification
-The request body spec should be a map with these keys:
-- schema: Schema reference or direct type (spectra:sp_type_or_ref(), required)
-- content_type: Content type override (binary, defaults to application/json)
-- description: Optional description of the request body (binary)
+Use with_request_body/4 to also set a custom content type or description.
 
 ### Returns
 Updated endpoint map with request body set
@@ -412,7 +408,7 @@ Updated endpoint map with request body set
         #{
             "Endpoint" => "Endpoint map to add the request body to",
             "Module" => "Module containing the type definition",
-            "RequestBodySpec" => "Request body specification map"
+            "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
         }
 }.
 
@@ -426,6 +422,26 @@ with_request_body(Endpoint, Module, Schema) when
     is_map(Endpoint) andalso is_atom(Module)
 ->
     Endpoint#{request_body => #{schema => Schema, module => Module}}.
+
+-doc """
+Adds a request body to an endpoint with additional options.
+
+Like with_request_body/3 but accepts an Opts map for optional fields:
+- content_type: Content type override (binary, defaults to application/json)
+- description: Optional description of the request body (binary)
+
+### Returns
+Updated endpoint map with request body set
+""".
+-doc #{
+    params =>
+        #{
+            "Endpoint" => "Endpoint map to add the request body to",
+            "Module" => "Module containing the type definition",
+            "Opts" => "Options map with optional content_type and description fields",
+            "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
+        }
+}.
 
 -spec with_request_body(
     Endpoint :: endpoint_spec(),
