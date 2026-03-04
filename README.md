@@ -319,6 +319,7 @@ The `ParameterSpec` map in `with_parameter/3` supports the following fields:
 - `required` — whether the parameter is required (boolean, required)
 - `schema` — type reference or direct type (`spectra:sp_type_or_ref()`, required)
 - `description` — optional description of the parameter (binary)
+- `deprecated` — mark the parameter as deprecated (boolean); omit when not deprecated, as OpenAPI treats absent and `false` as equivalent
 
 The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
 - `title` — API title (binary, required)

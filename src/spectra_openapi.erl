@@ -463,11 +463,13 @@ Multiple parameters can be added by calling this function multiple times.
 
 ### Parameter Specification
 The parameter spec should be a map with these keys:
-- name: Parameter name (binary)
-- in: Parameter location (path | query | header | cookie)
-- required: Whether the parameter is required (boolean)
-- schema: Schema reference or direct type (spectra:sp_type_or_ref())
+- name: Parameter name (binary, required)
+- in: Parameter location (path | query | header | cookie, required)
+- required: Whether the parameter is required (boolean, required)
+- schema: Schema reference or direct type (spectra:sp_type_or_ref(), required)
 - description: Optional description of the parameter (binary)
+- deprecated: Mark the parameter as deprecated (boolean). Omit or set to true only;
+  setting deprecated => false is redundant since OpenAPI treats absent and false as equivalent.
 
 ### Returns
 Updated endpoint map with the new parameter added
