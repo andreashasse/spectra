@@ -152,6 +152,163 @@ endpoint_with_query_parameter_test() ->
         Endpoint
     ).
 
+%% Test endpoint with parameter description
+endpoint_with_parameter_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => {type, user_id, 0},
+            description => <<"The user identifier">>
+        },
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    Endpoint = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+
+    ?assertMatch(
+        #{
+            parameters :=
+                [
+                    #{
+                        name := <<"id">>,
+                        in := path,
+                        required := true,
+                        schema := {type, user_id, 0},
+                        description := <<"The user identifier">>
+                    }
+                ]
+        },
+        Endpoint
+    ).
+
+%% Test that generate_parameter passes through description to openapi output
+generate_parameter_with_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => #sp_simple_type{type = integer},
+            description => <<"The resource identifier">>
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"paths">> :=
+                #{
+                    <<"/items/{id}">> :=
+                        #{
+                            <<"get">> :=
+                                #{
+                                    <<"parameters">> :=
+                                        [
+                                            #{
+                                                <<"name">> := <<"id">>,
+                                                <<"in">> := <<"path">>,
+                                                <<"required">> := true,
+                                                <<"description">> := <<"The resource identifier">>
+                                            }
+                                        ]
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that generate_parameter omits description when not set
+generate_parameter_without_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => #sp_simple_type{type = integer}
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items/{id}">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"description">>, Parameter)).
+
+%% Test that deprecated parameter is passed through to openapi output
+generate_parameter_deprecated_test() ->
+    Param =
+        #{
+            name => <<"old_field">>,
+            in => query,
+            required => false,
+            schema => #sp_simple_type{type = integer},
+            deprecated => true
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertMatch(#{<<"deprecated">> := true}, Parameter).
+
+%% Test that non-deprecated parameter does not include the field
+generate_parameter_not_deprecated_test() ->
+    Param =
+        #{
+            name => <<"id">>,
+            in => query,
+            required => false,
+            schema => #sp_simple_type{type = integer}
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"deprecated">>, Parameter)).
+
 %% Test generating OpenAPI spec from single endpoint
 single_endpoint_to_openapi_test() ->
     Response = spectra_openapi:response(200, <<"List of users">>),
@@ -452,7 +609,7 @@ endpoint_with_custom_request_body_content_type_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
 
     ?assertMatch(
@@ -478,7 +635,7 @@ endpoint_with_both_custom_content_types_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
     Endpoint = spectra_openapi:add_response(Endpoint2, ResponseWithBody),
 
@@ -542,6 +699,82 @@ endpoint_with_response_header_test() ->
         },
         Endpoint
     ).
+
+%% Test that deprecated response header is passed through to openapi output
+response_header_deprecated_test() ->
+    Response1 = spectra_openapi:response(200, <<"OK">>),
+    Response =
+        spectra_openapi:response_with_header(
+            Response1,
+            <<"X-Old-Header">>,
+            ?MODULE,
+            #{schema => #sp_simple_type{type = integer}, deprecated => true}
+        ),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Header = maps:get(
+        <<"X-Old-Header">>,
+        maps:get(
+            <<"headers">>,
+            maps:get(
+                <<"200">>,
+                maps:get(
+                    <<"responses">>,
+                    maps:get(
+                        <<"get">>,
+                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
+                    )
+                )
+            )
+        )
+    ),
+    ?assertMatch(#{<<"deprecated">> := true}, Header).
+
+%% Test that non-deprecated response header does not include the field
+response_header_not_deprecated_test() ->
+    Response1 = spectra_openapi:response(200, <<"OK">>),
+    Response =
+        spectra_openapi:response_with_header(
+            Response1,
+            <<"X-Rate-Limit">>,
+            ?MODULE,
+            #{schema => #sp_simple_type{type = integer}}
+        ),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Header = maps:get(
+        <<"X-Rate-Limit">>,
+        maps:get(
+            <<"headers">>,
+            maps:get(
+                <<"200">>,
+                maps:get(
+                    <<"responses">>,
+                    maps:get(
+                        <<"get">>,
+                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
+                    )
+                )
+            )
+        )
+    ),
+    ?assertNot(maps:is_key(<<"deprecated">>, Header)).
 
 %% Test adding multiple response headers
 endpoint_with_multiple_response_headers_test() ->
@@ -884,6 +1117,186 @@ endpoints_to_openapi_pre_encoded_false_option_test() ->
         },
         json:decode(iolist_to_binary(Result))
     ).
+
+%% Test that request_body description is passed through to the generated OpenAPI output
+request_body_description_test() ->
+    Response = spectra_openapi:response(201, <<"Created">>),
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_request_body(
+        Endpoint1, ?MODULE, {record, item}, #{description => <<"The item to create">>}
+    ),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"paths">> :=
+                #{
+                    <<"/items">> :=
+                        #{
+                            <<"post">> :=
+                                #{
+                                    <<"requestBody">> :=
+                                        #{<<"description">> := <<"The item to create">>}
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that request_body without description does not include the field
+request_body_without_description_test() ->
+    Response = spectra_openapi:response(201, <<"Created">>),
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, {record, item}),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    RequestBody = maps:get(
+        <<"requestBody">>,
+        maps:get(<<"post">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"description">>, RequestBody)).
+
+%% Test that info description is included in the generated OpenAPI output
+info_description_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                description => <<"A great API">>
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{<<"info">> := #{<<"description">> := <<"A great API">>}},
+        OpenAPISpec
+    ).
+
+%% Test that info without description does not include the field
+info_without_description_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertNot(maps:is_key(<<"description">>, maps:get(<<"info">>, OpenAPISpec))).
+
+%% Test info extended fields: summary, termsOfService, contact, license
+info_extended_fields_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                summary => <<"Short summary">>,
+                terms_of_service => <<"https://example.com/tos">>,
+                contact => #{name => <<"Support">>, email => <<"support@example.com">>},
+                license => #{name => <<"MIT">>, url => <<"https://opensource.org/licenses/MIT">>}
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Info = maps:get(<<"info">>, OpenAPISpec),
+    ?assertMatch(#{<<"summary">> := <<"Short summary">>}, Info),
+    ?assertMatch(#{<<"termsOfService">> := <<"https://example.com/tos">>}, Info),
+    ?assertMatch(#{<<"contact">> := #{<<"name">> := <<"Support">>}}, Info),
+    ?assertMatch(#{<<"license">> := #{<<"name">> := <<"MIT">>}}, Info).
+
+%% Test that absent info fields are not included in output
+info_extended_fields_absent_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Info = maps:get(<<"info">>, OpenAPISpec),
+    ?assertNot(maps:is_key(<<"summary">>, Info)),
+    ?assertNot(maps:is_key(<<"termsOfService">>, Info)),
+    ?assertNot(maps:is_key(<<"contact">>, Info)),
+    ?assertNot(maps:is_key(<<"license">>, Info)).
+
+%% Test top-level servers field
+servers_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                servers => [
+                    #{url => <<"https://api.example.com/v1">>, description => <<"Production">>},
+                    #{url => <<"https://staging.example.com/v1">>}
+                ]
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"servers">> :=
+                [
+                    #{
+                        <<"url">> := <<"https://api.example.com/v1">>,
+                        <<"description">> := <<"Production">>
+                    },
+                    #{<<"url">> := <<"https://staging.example.com/v1">>}
+                ]
+        },
+        OpenAPISpec
+    ).
+
+%% Test that absent servers field is not included in output
+servers_absent_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertNot(maps:is_key(<<"servers">>, OpenAPISpec)).
 
 endpoints_to_openapi_no_options_test() ->
     Endpoint = spectra_openapi:add_response(

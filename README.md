@@ -263,8 +263,9 @@ spectra_openapi:add_response(Endpoint, Response) ->
 %% Add request body
 spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
     endpoint_spec().
-spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType) ->
+spectra_openapi:with_request_body(Endpoint, Module, Schema, Opts) ->
     endpoint_spec().
+%% Opts = #{content_type => binary(), description => binary()}
 
 %% Add parameters (path, query, header, cookie)
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
@@ -311,6 +312,24 @@ spectra_openapi:endpoint(get, <<"/users">>, #{
     tags => [<<"users">>]
 }).
 ```
+
+The `ParameterSpec` map in `with_parameter/3` supports the following fields:
+- `name` — parameter name (binary, required)
+- `in` — parameter location: `path | query | header | cookie` (required)
+- `required` — whether the parameter is required (boolean, required)
+- `schema` — type reference or direct type (`spectra:sp_type_or_ref()`, required)
+- `description` — optional description of the parameter (binary)
+- `deprecated` — mark the parameter as deprecated (boolean); omit when not deprecated, as OpenAPI treats absent and `false` as equivalent
+
+The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
+- `title` — API title (binary, required)
+- `version` — API version (binary, required)
+- `summary` — short summary of the API (binary)
+- `description` — longer description of the API (binary)
+- `terms_of_service` — URL to the terms of service (binary)
+- `contact` — contact information map with optional `name`, `url`, `email` fields (binary values)
+- `license` — license map with required `name` and optional `url` or `identifier` (binary values)
+- `servers` — list of server objects, each with required `url` and optional `description` (binary values)
 
 
 ## Error Handling

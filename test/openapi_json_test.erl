@@ -636,7 +636,7 @@ custom_request_body_content_type_json_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
     Endpoint = spectra_openapi:add_response(Endpoint2, ResponseWithBody),
 
@@ -728,7 +728,7 @@ mixed_content_types_json_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            <<"application/xml">>
+            #{content_type => <<"application/xml">>}
         ),
     Endpoint3 = spectra_openapi:add_response(Endpoint2, Response201),
     Endpoint = spectra_openapi:add_response(Endpoint3, Response400),

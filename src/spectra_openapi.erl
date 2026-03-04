@@ -49,18 +49,21 @@
     #{
         schema := spectra:sp_type_or_ref(),
         module := module(),
-        content_type => binary()
+        content_type => binary(),
+        description => binary()
     }.
 -type response_header_input_spec() ::
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := spectra:sp_type_or_ref()
     }.
 -type response_header_spec() ::
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := spectra:sp_type_or_ref(),
         module := module()
     }.
@@ -79,9 +82,24 @@
         in := parameter_location(),
         required := boolean(),
         schema := spectra:sp_type_or_ref(),
-        module := module()
+        module := module(),
+        description => binary(),
+        deprecated => boolean()
     }.
--type openapi_metadata() :: #{title := binary(), version := binary()}.
+-type openapi_server() :: #{url := binary(), description => binary()}.
+-type openapi_contact() :: #{name => binary(), url => binary(), email => binary()}.
+-type openapi_license() :: #{name := binary(), url => binary(), identifier => binary()}.
+-type openapi_metadata() ::
+    #{
+        title := binary(),
+        version := binary(),
+        summary => binary(),
+        description => binary(),
+        terms_of_service => binary(),
+        contact => openapi_contact(),
+        license => openapi_license(),
+        servers => [openapi_server()]
+    }.
 -type endpoint_spec() ::
     #{
         method := http_method(),
@@ -114,22 +132,39 @@
     #{
         description => binary(),
         required => boolean(),
+        deprecated => boolean(),
         schema := openapi_schema()
     }.
 -type openapi_request_body() ::
-    #{required := boolean(), content := #{binary() => #{schema := openapi_schema()}}}.
+    #{
+        required := boolean(),
+        content := #{binary() => #{schema := openapi_schema()}},
+        description => binary()
+    }.
 -type openapi_parameter() ::
     #{
         name := binary(),
         in := parameter_location(),
         required := boolean(),
-        schema := openapi_schema()
+        schema := openapi_schema(),
+        description => binary(),
+        deprecated => boolean()
     }.
 -type openapi_spec() ::
     #{
         openapi := binary(),
-        info := #{title := binary(), version := binary()},
+        info :=
+            #{
+                title := binary(),
+                version := binary(),
+                summary => binary(),
+                description => binary(),
+                termsOfService => binary(),
+                contact => openapi_contact(),
+                license => openapi_license()
+            },
         paths := #{binary() => path_operations()},
+        servers => [openapi_server()],
         components => #{schemas => #{binary() => openapi_schema()}}
     }.
 
@@ -358,10 +393,12 @@ response_with_header(Response, HeaderName, Module, HeaderSpec) when
     Response#{headers => Headers#{HeaderName => HeaderSpecWithModule}}.
 
 -doc """
-Adds a request body specification to an endpoint.
+Adds a request body to an endpoint.
 
 This function sets the request body schema for the endpoint.
 Typically used with POST, PUT, and PATCH endpoints.
+
+Use with_request_body/4 to also set a custom content type or description.
 
 ### Returns
 Updated endpoint map with request body set
@@ -387,10 +424,11 @@ with_request_body(Endpoint, Module, Schema) when
     Endpoint#{request_body => #{schema => Schema, module => Module}}.
 
 -doc """
-Adds a request body specification with custom content type to an endpoint.
+Adds a request body to an endpoint with additional options.
 
-This function sets the request body schema and content type for the endpoint.
-Typically used with POST, PUT, and PATCH endpoints.
+Like with_request_body/3 but accepts an Opts map for optional fields:
+- content_type: Content type override (binary, defaults to application/json)
+- description: Optional description of the request body (binary)
 
 ### Returns
 Updated endpoint map with request body set
@@ -398,10 +436,9 @@ Updated endpoint map with request body set
 -doc #{
     params =>
         #{
-            "ContentType" =>
-                "Content type for the request body (e.g., \"application/json\", \"application/xml\")",
             "Endpoint" => "Endpoint map to add the request body to",
             "Module" => "Module containing the type definition",
+            "Opts" => "Options map with optional content_type and description fields",
             "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
         }
 }.
@@ -410,20 +447,13 @@ Updated endpoint map with request body set
     Endpoint :: endpoint_spec(),
     Module :: module(),
     Schema :: spectra:sp_type_or_ref(),
-    ContentType :: binary()
+    Opts :: #{content_type => binary(), description => binary()}
 ) ->
     endpoint_spec().
-with_request_body(Endpoint, Module, Schema, ContentType) when
-    is_map(Endpoint) andalso is_atom(Module) andalso is_binary(ContentType)
+with_request_body(Endpoint, Module, Schema, Opts) when
+    is_map(Endpoint) andalso is_atom(Module) andalso is_map(Opts)
 ->
-    Endpoint#{
-        request_body =>
-            #{
-                schema => Schema,
-                module => Module,
-                content_type => ContentType
-            }
-    }.
+    Endpoint#{request_body => Opts#{schema => Schema, module => Module}}.
 
 -doc """
 Adds a parameter specification to an endpoint.
@@ -433,10 +463,13 @@ Multiple parameters can be added by calling this function multiple times.
 
 ### Parameter Specification
 The parameter spec should be a map with these keys:
-- name: Parameter name (binary)
-- in: Parameter location (path | query | header | cookie)
-- required: Whether the parameter is required (boolean)
-- schema: Schema reference or direct type (spectra:sp_type_or_ref())
+- name: Parameter name (binary, required)
+- in: Parameter location (path | query | header | cookie, required)
+- required: Whether the parameter is required (boolean, required)
+- schema: Schema reference or direct type (spectra:sp_type_or_ref(), required)
+- description: Optional description of the parameter (binary)
+- deprecated: Mark the parameter as deprecated (boolean). Omit or set to true only;
+  setting deprecated => false is redundant since OpenAPI treats absent and false as equivalent.
 
 ### Returns
 Updated endpoint map with the new parameter added
@@ -512,17 +545,27 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
 
     SchemaRefs = collect_schema_refs(Endpoints),
     ComponentsResult = generate_components(SchemaRefs),
-    OpenAPISpec =
-        #{
-            openapi => <<"3.1.0">>,
-            info =>
-                #{
-                    title => maps:get(title, MetaData),
-                    version => maps:get(version, MetaData)
-                },
-            paths => Paths,
-            components => ComponentsResult
-        },
+    BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
+    Info = lists:foldl(
+        fun({MetaKey, InfoKey}, Acc) ->
+            case maps:get(MetaKey, MetaData, undefined) of
+                undefined -> Acc;
+                Value -> Acc#{InfoKey => Value}
+            end
+        end,
+        BaseInfo,
+        [
+            {summary, summary},
+            {description, description},
+            {terms_of_service, termsOfService},
+            {contact, contact},
+            {license, license}
+        ]
+    ),
+    BaseSpec = #{
+        openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
+    },
+    OpenAPISpec = copy_if_present(servers, MetaData, BaseSpec),
     spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
@@ -661,30 +704,23 @@ generate_response(#{description := Description} = ResponseSpec) when
             BaseResponse#{headers => GeneratedHeaders}
     end.
 
+-spec copy_if_present(atom(), map(), map()) -> map().
+copy_if_present(Key, Source, Target) ->
+    case maps:get(Key, Source, undefined) of
+        undefined -> Target;
+        Value -> Target#{Key => Value}
+    end.
+
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
-
-    BaseHeader = #{schema => OpenApiSchema},
-
-    %% Add optional description
-    HeaderWithDesc =
-        case maps:get(description, HeaderSpec, undefined) of
-            undefined ->
-                BaseHeader;
-            Description ->
-                BaseHeader#{description => Description}
-        end,
-
-    %% Add optional required flag
-    case maps:get(required, HeaderSpec, undefined) of
-        undefined ->
-            HeaderWithDesc;
-        Required ->
-            HeaderWithDesc#{required => Required}
-    end.
+    lists:foldl(
+        fun(Key, Acc) -> copy_if_present(Key, HeaderSpec, Acc) end,
+        #{schema => OpenApiSchema},
+        [description, required, deprecated]
+    ).
 
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
@@ -704,7 +740,11 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
-    #{required => true, content => #{ContentType => #{schema => SchemaContent}}}.
+    copy_if_present(
+        description,
+        RequestBodySpec,
+        #{required => true, content => #{ContentType => #{schema => SchemaContent}}}
+    ).
 
 -spec generate_parameter(parameter_spec()) -> openapi_parameter().
 generate_parameter(
@@ -724,12 +764,11 @@ generate_parameter(
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
 
-    #{
-        name => Name,
-        in => In,
-        required => Required,
-        schema => OpenApiSchema
-    }.
+    lists:foldl(
+        fun(Key, Acc) -> copy_if_present(Key, ParameterSpec, Acc) end,
+        #{name => Name, in => In, required => Required, schema => OpenApiSchema},
+        [description, deprecated]
+    ).
 
 -spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_reference()}].
 collect_schema_refs(Endpoints) ->
