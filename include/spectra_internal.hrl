@@ -33,7 +33,7 @@
     meta = #{} :: spectra:sp_type_meta()
 }).
 -record(sp_union, {
-    types = [spectra:sp_type()],
+    types :: [spectra:sp_type()],
     meta = #{} :: spectra:sp_type_meta()
 }).
 -record(sp_literal, {
