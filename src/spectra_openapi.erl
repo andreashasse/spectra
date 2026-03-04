@@ -565,11 +565,7 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
     BaseSpec = #{
         openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
     },
-    OpenAPISpec =
-        case maps:get(servers, MetaData, undefined) of
-            undefined -> BaseSpec;
-            Servers -> BaseSpec#{servers => Servers}
-        end,
+    OpenAPISpec = copy_if_present(servers, MetaData, BaseSpec),
     spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
