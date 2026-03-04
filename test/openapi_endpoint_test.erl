@@ -152,6 +152,108 @@ endpoint_with_query_parameter_test() ->
         Endpoint
     ).
 
+%% Test endpoint with parameter description
+endpoint_with_parameter_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => {type, user_id, 0},
+            description => <<"The user identifier">>
+        },
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    Endpoint = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+
+    ?assertMatch(
+        #{
+            parameters :=
+                [
+                    #{
+                        name := <<"id">>,
+                        in := path,
+                        required := true,
+                        schema := {type, user_id, 0},
+                        description := <<"The user identifier">>
+                    }
+                ]
+        },
+        Endpoint
+    ).
+
+%% Test that generate_parameter passes through description to openapi output
+generate_parameter_with_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => #sp_simple_type{type = integer},
+            description => <<"The resource identifier">>
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"paths">> :=
+                #{
+                    <<"/items/{id}">> :=
+                        #{
+                            <<"get">> :=
+                                #{
+                                    <<"parameters">> :=
+                                        [
+                                            #{
+                                                <<"name">> := <<"id">>,
+                                                <<"in">> := <<"path">>,
+                                                <<"required">> := true,
+                                                <<"description">> := <<"The resource identifier">>
+                                            }
+                                        ]
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that generate_parameter omits description when not set
+generate_parameter_without_description_test() ->
+    PathParam =
+        #{
+            name => <<"id">>,
+            in => path,
+            required => true,
+            schema => #sp_simple_type{type = integer}
+        },
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/items/{id}">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"description">>, Parameter)).
+
 %% Test generating OpenAPI spec from single endpoint
 single_endpoint_to_openapi_test() ->
     Response = spectra_openapi:response(200, <<"List of users">>),
