@@ -319,6 +319,11 @@ The `ParameterSpec` map in `with_parameter/3` supports the following fields:
 - `schema` — type reference or direct type (`spectra:sp_type_or_ref()`, required)
 - `description` — optional description of the parameter (binary)
 
+The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
+- `title` — API title (binary, required)
+- `version` — API version (binary, required)
+- `description` — optional description of the API (binary)
+
 
 ## Error Handling
 

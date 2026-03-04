@@ -987,6 +987,100 @@ endpoints_to_openapi_pre_encoded_false_option_test() ->
         json:decode(iolist_to_binary(Result))
     ).
 
+%% Test that request_body description is passed through to the generated OpenAPI output
+request_body_description_test() ->
+    Response = spectra_openapi:response(201, <<"Created">>),
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, {record, item}),
+    %% Inject description directly into the request_body spec
+    Endpoint3 = Endpoint2#{
+        request_body => maps:put(
+            description, <<"The item to create">>, maps:get(request_body, Endpoint2)
+        )
+    },
+    Endpoint = spectra_openapi:add_response(Endpoint3, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"paths">> :=
+                #{
+                    <<"/items">> :=
+                        #{
+                            <<"post">> :=
+                                #{
+                                    <<"requestBody">> :=
+                                        #{<<"description">> := <<"The item to create">>}
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that request_body without description does not include the field
+request_body_without_description_test() ->
+    Response = spectra_openapi:response(201, <<"Created">>),
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
+    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, {record, item}),
+    Endpoint = spectra_openapi:add_response(Endpoint2, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    RequestBody = maps:get(
+        <<"requestBody">>,
+        maps:get(<<"post">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
+    ),
+    ?assertNot(maps:is_key(<<"description">>, RequestBody)).
+
+%% Test that info description is included in the generated OpenAPI output
+info_description_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                description => <<"A great API">>
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{<<"info">> := #{<<"description">> := <<"A great API">>}},
+        OpenAPISpec
+    ).
+
+%% Test that info without description does not include the field
+info_without_description_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
+    Endpoint = spectra_openapi:add_response(Endpoint1, Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertNot(maps:is_key(<<"description">>, maps:get(<<"info">>, OpenAPISpec))).
+
 endpoints_to_openapi_no_options_test() ->
     Endpoint = spectra_openapi:add_response(
         spectra_openapi:endpoint(get, <<"/users">>),

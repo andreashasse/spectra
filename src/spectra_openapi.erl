@@ -49,7 +49,8 @@
     #{
         schema := spectra:sp_type_or_ref(),
         module := module(),
-        content_type => binary()
+        content_type => binary(),
+        description => binary()
     }.
 -type response_header_input_spec() ::
     #{
@@ -82,7 +83,7 @@
         module := module(),
         description => binary()
     }.
--type openapi_metadata() :: #{title := binary(), version := binary()}.
+-type openapi_metadata() :: #{title := binary(), version := binary(), description => binary()}.
 -type endpoint_spec() ::
     #{
         method := http_method(),
@@ -118,7 +119,11 @@
         schema := openapi_schema()
     }.
 -type openapi_request_body() ::
-    #{required := boolean(), content := #{binary() => #{schema := openapi_schema()}}}.
+    #{
+        required := boolean(),
+        content := #{binary() => #{schema := openapi_schema()}},
+        description => binary()
+    }.
 -type openapi_parameter() ::
     #{
         name := binary(),
@@ -130,7 +135,7 @@
 -type openapi_spec() ::
     #{
         openapi := binary(),
-        info := #{title := binary(), version := binary()},
+        info := #{title := binary(), version := binary(), description => binary()},
         paths := #{binary() => path_operations()},
         components => #{schemas => #{binary() => openapi_schema()}}
     }.
@@ -365,6 +370,12 @@ Adds a request body specification to an endpoint.
 This function sets the request body schema for the endpoint.
 Typically used with POST, PUT, and PATCH endpoints.
 
+To include an optional `description`, add it to the `request_body` map directly after calling this function:
+```erlang
+Endpoint2 = with_request_body(Endpoint1, Module, Schema),
+Endpoint3 = Endpoint2#{request_body => maps:put(description, <<"...">>, maps:get(request_body, Endpoint2))}.
+```
+
 ### Returns
 Updated endpoint map with request body set
 """.
@@ -515,14 +526,16 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
 
     SchemaRefs = collect_schema_refs(Endpoints),
     ComponentsResult = generate_components(SchemaRefs),
+    BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
+    Info =
+        case maps:get(description, MetaData, undefined) of
+            undefined -> BaseInfo;
+            InfoDesc -> BaseInfo#{description => InfoDesc}
+        end,
     OpenAPISpec =
         #{
             openapi => <<"3.1.0">>,
-            info =>
-                #{
-                    title => maps:get(title, MetaData),
-                    version => maps:get(version, MetaData)
-                },
+            info => Info,
             paths => Paths,
             components => ComponentsResult
         },
@@ -707,7 +720,11 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
-    #{required => true, content => #{ContentType => #{schema => SchemaContent}}}.
+    Base = #{required => true, content => #{ContentType => #{schema => SchemaContent}}},
+    case maps:get(description, RequestBodySpec, undefined) of
+        undefined -> Base;
+        Description -> Base#{description => Description}
+    end.
 
 -spec generate_parameter(parameter_spec()) -> openapi_parameter().
 generate_parameter(
