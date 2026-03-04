@@ -322,7 +322,12 @@ The `ParameterSpec` map in `with_parameter/3` supports the following fields:
 The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
 - `title` — API title (binary, required)
 - `version` — API version (binary, required)
-- `description` — optional description of the API (binary)
+- `summary` — short summary of the API (binary)
+- `description` — longer description of the API (binary)
+- `terms_of_service` — URL to the terms of service (binary)
+- `contact` — contact information map with optional `name`, `url`, `email` fields (binary values)
+- `license` — license map with required `name` and optional `url` or `identifier` (binary values)
+- `servers` — list of server objects, each with required `url` and optional `description` (binary values)
 
 
 ## Error Handling

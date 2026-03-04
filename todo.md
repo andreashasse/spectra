@@ -27,8 +27,8 @@ Gap analysis of OpenAPI 3.1 fields not yet supported in `spectra_openapi.erl`.
 ### Medium priority (useful for API evolution)
 - [x] `deprecated` on parameters — add `deprecated => boolean()` to `parameter_spec()` / `openapi_parameter()`
 - [x] `deprecated` on response headers — add `deprecated => boolean()` to `response_header_spec()` / `openapi_header()`
-- [ ] Top-level `servers` — base URL configuration; needed for useful interactive docs
-- [ ] `info` extended fields — `summary`, `contact`, `license`, `termsOfService`
+- [x] Top-level `servers` — base URL configuration; needed for useful interactive docs
+- [x] `info` extended fields — `summary`, `contact`, `license`, `termsOfService`
 
 ### Lower priority (advanced / niche)
 - [ ] `example` / `examples` on Parameter and Header objects — note: examples on *type schemas* already work via the `-spectra` attribute and flow into `components/schemas`; this item is about inline examples on the parameter/header objects themselves

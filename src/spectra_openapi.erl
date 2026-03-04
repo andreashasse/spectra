@@ -86,7 +86,20 @@
         description => binary(),
         deprecated => boolean()
     }.
--type openapi_metadata() :: #{title := binary(), version := binary(), description => binary()}.
+-type openapi_server() :: #{url := binary(), description => binary()}.
+-type openapi_contact() :: #{name => binary(), url => binary(), email => binary()}.
+-type openapi_license() :: #{name := binary(), url => binary(), identifier => binary()}.
+-type openapi_metadata() ::
+    #{
+        title := binary(),
+        version := binary(),
+        summary => binary(),
+        description => binary(),
+        terms_of_service => binary(),
+        contact => openapi_contact(),
+        license => openapi_license(),
+        servers => [openapi_server()]
+    }.
 -type endpoint_spec() ::
     #{
         method := http_method(),
@@ -140,8 +153,18 @@
 -type openapi_spec() ::
     #{
         openapi := binary(),
-        info := #{title := binary(), version := binary(), description => binary()},
+        info :=
+            #{
+                title := binary(),
+                version := binary(),
+                summary => binary(),
+                description => binary(),
+                termsOfService => binary(),
+                contact => openapi_contact(),
+                license => openapi_license()
+            },
         paths := #{binary() => path_operations()},
+        servers => [openapi_server()],
         components => #{schemas => #{binary() => openapi_schema()}}
     }.
 
@@ -532,18 +555,30 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
     SchemaRefs = collect_schema_refs(Endpoints),
     ComponentsResult = generate_components(SchemaRefs),
     BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
-    Info =
-        case maps:get(description, MetaData, undefined) of
-            undefined -> BaseInfo;
-            InfoDesc -> BaseInfo#{description => InfoDesc}
+    Info = lists:foldl(
+        fun({MetaKey, InfoKey}, Acc) ->
+            case maps:get(MetaKey, MetaData, undefined) of
+                undefined -> Acc;
+                Value -> Acc#{InfoKey => Value}
+            end
         end,
+        BaseInfo,
+        [
+            {summary, summary},
+            {description, description},
+            {terms_of_service, termsOfService},
+            {contact, contact},
+            {license, license}
+        ]
+    ),
+    BaseSpec = #{
+        openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
+    },
     OpenAPISpec =
-        #{
-            openapi => <<"3.1.0">>,
-            info => Info,
-            paths => Paths,
-            components => ComponentsResult
-        },
+        case maps:get(servers, MetaData, undefined) of
+            undefined -> BaseSpec;
+            Servers -> BaseSpec#{servers => Servers}
+        end,
     spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.

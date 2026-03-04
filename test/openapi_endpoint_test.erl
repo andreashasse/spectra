@@ -1212,6 +1212,96 @@ info_without_description_test() ->
 
     ?assertNot(maps:is_key(<<"description">>, maps:get(<<"info">>, OpenAPISpec))).
 
+%% Test info extended fields: summary, termsOfService, contact, license
+info_extended_fields_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                summary => <<"Short summary">>,
+                terms_of_service => <<"https://example.com/tos">>,
+                contact => #{name => <<"Support">>, email => <<"support@example.com">>},
+                license => #{name => <<"MIT">>, url => <<"https://opensource.org/licenses/MIT">>}
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Info = maps:get(<<"info">>, OpenAPISpec),
+    ?assertMatch(#{<<"summary">> := <<"Short summary">>}, Info),
+    ?assertMatch(#{<<"termsOfService">> := <<"https://example.com/tos">>}, Info),
+    ?assertMatch(#{<<"contact">> := #{<<"name">> := <<"Support">>}}, Info),
+    ?assertMatch(#{<<"license">> := #{<<"name">> := <<"MIT">>}}, Info).
+
+%% Test that absent info fields are not included in output
+info_extended_fields_absent_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    Info = maps:get(<<"info">>, OpenAPISpec),
+    ?assertNot(maps:is_key(<<"summary">>, Info)),
+    ?assertNot(maps:is_key(<<"termsOfService">>, Info)),
+    ?assertNot(maps:is_key(<<"contact">>, Info)),
+    ?assertNot(maps:is_key(<<"license">>, Info)).
+
+%% Test top-level servers field
+servers_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"My API">>,
+                version => <<"1.0.0">>,
+                servers => [
+                    #{url => <<"https://api.example.com/v1">>, description => <<"Production">>},
+                    #{url => <<"https://staging.example.com/v1">>}
+                ]
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertMatch(
+        #{
+            <<"servers">> :=
+                [
+                    #{
+                        <<"url">> := <<"https://api.example.com/v1">>,
+                        <<"description">> := <<"Production">>
+                    },
+                    #{<<"url">> := <<"https://staging.example.com/v1">>}
+                ]
+        },
+        OpenAPISpec
+    ).
+
+%% Test that absent servers field is not included in output
+servers_absent_test() ->
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Endpoint = spectra_openapi:add_response(spectra_openapi:endpoint(get, <<"/items">>), Response),
+
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"My API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+
+    ?assertNot(maps:is_key(<<"servers">>, OpenAPISpec)).
+
 endpoints_to_openapi_no_options_test() ->
     Endpoint = spectra_openapi:add_response(
         spectra_openapi:endpoint(get, <<"/users">>),
