@@ -717,31 +717,23 @@ generate_response(#{description := Description} = ResponseSpec) when
             BaseResponse#{headers => GeneratedHeaders}
     end.
 
+-spec copy_if_present(atom(), map(), map()) -> map().
+copy_if_present(Key, Source, Target) ->
+    case maps:get(Key, Source, undefined) of
+        undefined -> Target;
+        Value -> Target#{Key => Value}
+    end.
+
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
-
-    BaseHeader = #{schema => OpenApiSchema},
-
-    HeaderWithDesc =
-        case maps:get(description, HeaderSpec, undefined) of
-            undefined ->
-                BaseHeader;
-            Description ->
-                BaseHeader#{description => Description}
-        end,
-
-    HeaderWithRequired =
-        case maps:get(required, HeaderSpec, undefined) of
-            undefined -> HeaderWithDesc;
-            Required -> HeaderWithDesc#{required => Required}
-        end,
-    case maps:get(deprecated, HeaderSpec, undefined) of
-        undefined -> HeaderWithRequired;
-        Deprecated -> HeaderWithRequired#{deprecated => Deprecated}
-    end.
+    lists:foldl(
+        fun(Key, Acc) -> copy_if_present(Key, HeaderSpec, Acc) end,
+        #{schema => OpenApiSchema},
+        [description, required, deprecated]
+    ).
 
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
@@ -761,11 +753,11 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
-    Base = #{required => true, content => #{ContentType => #{schema => SchemaContent}}},
-    case maps:get(description, RequestBodySpec, undefined) of
-        undefined -> Base;
-        Description -> Base#{description => Description}
-    end.
+    copy_if_present(
+        description,
+        RequestBodySpec,
+        #{required => true, content => #{ContentType => #{schema => SchemaContent}}}
+    ).
 
 -spec generate_parameter(parameter_spec()) -> openapi_parameter().
 generate_parameter(
@@ -785,21 +777,11 @@ generate_parameter(
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
 
-    BaseParameter = #{
-        name => Name,
-        in => In,
-        required => Required,
-        schema => OpenApiSchema
-    },
-    WithDesc =
-        case maps:get(description, ParameterSpec, undefined) of
-            undefined -> BaseParameter;
-            Description -> BaseParameter#{description => Description}
-        end,
-    case maps:get(deprecated, ParameterSpec, undefined) of
-        undefined -> WithDesc;
-        Deprecated -> WithDesc#{deprecated => Deprecated}
-    end.
+    lists:foldl(
+        fun(Key, Acc) -> copy_if_present(Key, ParameterSpec, Acc) end,
+        #{name => Name, in => In, required => Required, schema => OpenApiSchema},
+        [description, deprecated]
+    ).
 
 -spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_reference()}].
 collect_schema_refs(Endpoints) ->
