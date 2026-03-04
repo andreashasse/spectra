@@ -56,6 +56,17 @@ doc:
 	rebar3 ex_doc
 
 release:
+	@branch=$$(git rev-parse --abbrev-ref HEAD); \
+	if [ "$$branch" != "main" ]; then \
+		echo "Error: You must be on the main branch to release (currently on '$$branch')."; \
+		exit 1; \
+	fi
+	@git fetch origin main --quiet
+	@if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
+		echo "Error: Local main is not in sync with origin/main. Please pull or push first."; \
+		git status -sb; \
+		exit 1; \
+	fi
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: There are uncommitted changes. Please commit or stash them before releasing."; \
 		git status --short; \
