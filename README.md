@@ -312,6 +312,13 @@ spectra_openapi:endpoint(get, <<"/users">>, #{
 }).
 ```
 
+The `ParameterSpec` map in `with_parameter/3` supports the following fields:
+- `name` — parameter name (binary, required)
+- `in` — parameter location: `path | query | header | cookie` (required)
+- `required` — whether the parameter is required (boolean, required)
+- `schema` — type reference or direct type (`spectra:sp_type_or_ref()`, required)
+- `description` — optional description of the parameter (binary)
+
 
 ## Error Handling
 
