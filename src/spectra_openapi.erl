@@ -718,9 +718,11 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Base = Doc#{schema => OpenApiSchema},
     lists:foldl(
         fun(Key, Acc) -> copy_if_present(Key, HeaderSpec, Acc) end,
-        #{schema => OpenApiSchema},
+        Base,
         [description, required, deprecated]
     ).
 
@@ -743,11 +745,9 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
-    copy_if_present(
-        description,
-        RequestBodySpec,
-        #{required => true, content => #{ContentType => #{schema => SchemaContent}}}
-    ).
+    Doc = maps:with([description], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Base = Doc#{required => true, content => #{ContentType => #{schema => SchemaContent}}},
+    copy_if_present(description, RequestBodySpec, Base).
 
 -spec generate_parameter(parameter_spec()) -> openapi_parameter().
 generate_parameter(
@@ -767,10 +767,11 @@ generate_parameter(
 
     InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
-
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Base = Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema},
     lists:foldl(
         fun(Key, Acc) -> copy_if_present(Key, ParameterSpec, Acc) end,
-        #{name => Name, in => In, required => Required, schema => OpenApiSchema},
+        Base,
         [description, deprecated]
     ).
 
@@ -911,6 +912,17 @@ schema_component_name(Module, {type, t, 0}) ->
     iolist_to_binary(capitalize_word(LastPart));
 schema_component_name(_Module, TypeRef) ->
     type_ref_to_component_name(TypeRef).
+
+-spec type_doc(spectra:type_info(), spectra:sp_type_or_ref()) -> spectra:type_doc().
+type_doc(TypeInfo, {type, Name, Arity}) ->
+    type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity));
+type_doc(TypeInfo, {record, Name}) ->
+    type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name));
+type_doc(_TypeInfo, Type) ->
+    case spectra_type:get_meta(Type) of
+        #{doc := Doc} -> maps:remove(examples_function, Doc);
+        _ -> #{}
+    end.
 
 capitalize_word([]) ->
     [];

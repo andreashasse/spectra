@@ -18,11 +18,96 @@
 }).
 -type user_type() :: #user{}.
 
+-spectra(#{description => <<"A user's unique identifier">>}).
+-type user_id() :: pos_integer().
+
+-record(create_user_request, {name :: binary()}).
+-spectra(#{description => <<"Request body for creating a user">>}).
+-type create_user_request() :: #create_user_request{}.
+
 user_examples() ->
     [
         #user{id = 1, name = <<"Alice">>},
         #user{id = 2, name = <<"Bob">>}
     ].
+
+openapi_parameter_description_from_type_test() ->
+    Param = #{name => <<"id">>, in => path, required => true, schema => {type, user_id, 0}},
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/users/{id}">> := #{
+                    <<"get">> := #{
+                        <<"parameters">> := [
+                            #{
+                                <<"name">> := <<"id">>,
+                                <<"description">> := <<"A user's unique identifier">>
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        Spec
+    ).
+
+openapi_request_body_description_from_type_test() ->
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
+    Endpoint2 = spectra_openapi:with_request_body(
+        Endpoint1, ?MODULE, {type, create_user_request, 0}
+    ),
+    Endpoint = spectra_openapi:add_response(
+        Endpoint2, spectra_openapi:response(201, <<"Created">>)
+    ),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"post">> := #{
+                        <<"requestBody">> := #{
+                            <<"description">> := <<"Request body for creating a user">>
+                        }
+                    }
+                }
+            }
+        },
+        Spec
+    ).
+
+openapi_explicit_description_overrides_type_test() ->
+    Param = #{
+        name => <<"id">>,
+        in => path,
+        required => true,
+        schema => {type, user_id, 0},
+        description => <<"Override description">>
+    },
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
+    Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/users/{id}">> := #{
+                    <<"get">> := #{
+                        <<"parameters">> := [
+                            #{<<"description">> := <<"Override description">>}
+                        ]
+                    }
+                }
+            }
+        },
+        Spec
+    ).
 
 openapi_includes_documentation_test() ->
     %% Create a simple endpoint with a user response
