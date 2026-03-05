@@ -25,6 +25,8 @@
 -spectra(#{description => <<"Request body for creating a user">>}).
 -type create_user_request() :: #create_user_request{}.
 
+-type undocumented_id() :: pos_integer().
+
 user_examples() ->
     [
         #user{id = 1, name = <<"Alice">>},
@@ -81,33 +83,19 @@ openapi_request_body_description_from_type_test() ->
         Spec
     ).
 
-openapi_explicit_description_overrides_type_test() ->
-    Param = #{
-        name => <<"id">>,
-        in => path,
-        required => true,
-        schema => {type, user_id, 0},
-        description => <<"Override description">>
-    },
+openapi_no_description_when_type_has_none_test() ->
+    %% undocumented_id type has no spectra doc, so no description should appear
+    Param = #{name => <<"id">>, in => path, required => true, schema => {type, undocumented_id, 0}},
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
     Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
     Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
     {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
-    ?assertMatch(
-        #{
-            <<"paths">> := #{
-                <<"/users/{id}">> := #{
-                    <<"get">> := #{
-                        <<"parameters">> := [
-                            #{<<"description">> := <<"Override description">>}
-                        ]
-                    }
-                }
-            }
-        },
-        Spec
-    ).
+    [Parameter] = maps:get(
+        <<"parameters">>,
+        maps:get(<<"get">>, maps:get(<<"/users/{id}">>, maps:get(<<"paths">>, Spec)))
+    ),
+    ?assertNot(maps:is_key(<<"description">>, Parameter)).
 
 openapi_includes_documentation_test() ->
     %% Create a simple endpoint with a user response

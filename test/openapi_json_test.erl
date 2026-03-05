@@ -636,7 +636,7 @@ custom_request_body_content_type_json_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            #{content_type => <<"application/xml">>}
+            <<"application/xml">>
         ),
     Endpoint = spectra_openapi:add_response(Endpoint2, ResponseWithBody),
 
@@ -728,7 +728,7 @@ mixed_content_types_json_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            #{content_type => <<"application/xml">>}
+            <<"application/xml">>
         ),
     Endpoint3 = spectra_openapi:add_response(Endpoint2, Response201),
     Endpoint = spectra_openapi:add_response(Endpoint3, Response400),
@@ -787,7 +787,6 @@ response_headers_in_json_test() ->
             ?MODULE,
             #{
                 schema => #sp_simple_type{type = integer},
-                description => <<"Request limit">>,
                 required => false
             }
         ),
@@ -833,8 +832,6 @@ response_headers_in_json_test() ->
                                                                     <<"schema">> := #{
                                                                         type := <<"integer">>
                                                                     },
-                                                                    <<"description">> :=
-                                                                        <<"Request limit">>,
                                                                     <<"required">> := false
                                                                 },
                                                             <<"X-Request-ID">> :=
@@ -979,7 +976,6 @@ response_builder_json_generation_test() ->
             ?MODULE,
             #{
                 schema => #sp_simple_type{type = integer},
-                description => <<"Requests remaining">>,
                 required => false
             }
         ),
@@ -1019,8 +1015,6 @@ response_builder_json_generation_test() ->
                                                                     <<"schema">> := #{
                                                                         type := <<"integer">>
                                                                     },
-                                                                    <<"description">> :=
-                                                                        <<"Requests remaining">>,
                                                                     <<"required">> := false
                                                                 }
                                                         }

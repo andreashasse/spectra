@@ -19,6 +19,8 @@
 -type user_list() :: #user_list{}.
 -type error_response() :: #error_response{}.
 -type user_id() :: integer().
+-spectra(#{description => <<"An item">>, deprecated => true}).
+-type deprecated_item() :: #item{}.
 -type item() :: #item{}.
 
 %% Test basic endpoint creation
@@ -152,15 +154,14 @@ endpoint_with_query_parameter_test() ->
         Endpoint
     ).
 
-%% Test endpoint with parameter description
+%% Test endpoint with parameter — no explicit description, stored as-is
 endpoint_with_parameter_description_test() ->
     PathParam =
         #{
             name => <<"id">>,
             in => path,
             required => true,
-            schema => {type, user_id, 0},
-            description => <<"The user identifier">>
+            schema => {type, user_id, 0}
         },
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
     Endpoint = spectra_openapi:with_parameter(Endpoint1, ?MODULE, PathParam),
@@ -173,23 +174,21 @@ endpoint_with_parameter_description_test() ->
                         name := <<"id">>,
                         in := path,
                         required := true,
-                        schema := {type, user_id, 0},
-                        description := <<"The user identifier">>
+                        schema := {type, user_id, 0}
                     }
                 ]
         },
         Endpoint
     ).
 
-%% Test that generate_parameter passes through description to openapi output
+%% Test that generate_parameter includes description from type doc
 generate_parameter_with_description_test() ->
     PathParam =
         #{
             name => <<"id">>,
             in => path,
             required => true,
-            schema => #sp_simple_type{type = integer},
-            description => <<"The resource identifier">>
+            schema => {type, deprecated_item, 0}
         },
     Response = spectra_openapi:response(200, <<"OK">>),
     Endpoint1 = spectra_openapi:endpoint(get, <<"/items/{id}">>),
@@ -217,7 +216,7 @@ generate_parameter_with_description_test() ->
                                                 <<"name">> := <<"id">>,
                                                 <<"in">> := <<"path">>,
                                                 <<"required">> := true,
-                                                <<"description">> := <<"The resource identifier">>
+                                                <<"description">> := <<"An item">>
                                             }
                                         ]
                                 }
@@ -254,15 +253,14 @@ generate_parameter_without_description_test() ->
     ),
     ?assertNot(maps:is_key(<<"description">>, Parameter)).
 
-%% Test that deprecated parameter is passed through to openapi output
+%% Test that deprecated comes from type doc
 generate_parameter_deprecated_test() ->
     Param =
         #{
             name => <<"old_field">>,
             in => query,
             required => false,
-            schema => #sp_simple_type{type = integer},
-            deprecated => true
+            schema => {type, deprecated_item, 0}
         },
     Response = spectra_openapi:response(200, <<"OK">>),
     Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
@@ -609,7 +607,7 @@ endpoint_with_custom_request_body_content_type_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            #{content_type => <<"application/xml">>}
+            <<"application/xml">>
         ),
 
     ?assertMatch(
@@ -635,7 +633,7 @@ endpoint_with_both_custom_content_types_test() ->
             Endpoint1,
             ?MODULE,
             {record, create_user_request},
-            #{content_type => <<"application/xml">>}
+            <<"application/xml">>
         ),
     Endpoint = spectra_openapi:add_response(Endpoint2, ResponseWithBody),
 
@@ -700,7 +698,7 @@ endpoint_with_response_header_test() ->
         Endpoint
     ).
 
-%% Test that deprecated response header is passed through to openapi output
+%% Test that deprecated comes from type doc for response headers
 response_header_deprecated_test() ->
     Response1 = spectra_openapi:response(200, <<"OK">>),
     Response =
@@ -708,7 +706,7 @@ response_header_deprecated_test() ->
             Response1,
             <<"X-Old-Header">>,
             ?MODULE,
-            #{schema => #sp_simple_type{type = integer}, deprecated => true}
+            #{schema => {type, deprecated_item, 0}}
         ),
     Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
@@ -1118,13 +1116,11 @@ endpoints_to_openapi_pre_encoded_false_option_test() ->
         json:decode(iolist_to_binary(Result))
     ).
 
-%% Test that request_body description is passed through to the generated OpenAPI output
+%% Test that request_body description comes from the type doc
 request_body_description_test() ->
     Response = spectra_openapi:response(201, <<"Created">>),
     Endpoint1 = spectra_openapi:endpoint(post, <<"/items">>),
-    Endpoint2 = spectra_openapi:with_request_body(
-        Endpoint1, ?MODULE, {record, item}, #{description => <<"The item to create">>}
-    ),
+    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, {type, deprecated_item, 0}),
     Endpoint = spectra_openapi:add_response(Endpoint2, Response),
 
     {ok, OpenAPISpec} =
@@ -1143,7 +1139,7 @@ request_body_description_test() ->
                             <<"post">> :=
                                 #{
                                     <<"requestBody">> :=
-                                        #{<<"description">> := <<"The item to create">>}
+                                        #{<<"description">> := <<"An item">>}
                                 }
                         }
                 }

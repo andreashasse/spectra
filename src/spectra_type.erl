@@ -103,6 +103,8 @@ add_doc_field(title, Value, Acc) when is_binary(Value) ->
     Acc#{title => Value};
 add_doc_field(description, Value, Acc) when is_binary(Value) ->
     Acc#{description => Value};
+add_doc_field(deprecated, Value, Acc) when is_boolean(Value) ->
+    Acc#{deprecated => Value};
 add_doc_field(examples, Value, Acc) when is_list(Value) ->
     Acc#{examples => Value};
 add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when

@@ -14,6 +14,7 @@
 -type type_doc() :: #{
     title => binary(),
     description => binary(),
+    deprecated => boolean(),
     examples => [dynamic()],
     examples_function => {module(), atom(), [term()]}
 }.
