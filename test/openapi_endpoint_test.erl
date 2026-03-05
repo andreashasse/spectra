@@ -1322,3 +1322,64 @@ endpoints_to_openapi_no_options_test() ->
         },
         json:decode(iolist_to_binary(Result))
     ).
+
+%% Test that plain atoms work the same as {type, Name, 0} and {record, Name} refs
+atom_schema_response_test() ->
+    %% Plain atom 'user' should behave like {type, user, 0} (type is checked before record)
+    Response1 = spectra_openapi:response(200, <<"User">>),
+    ResponseAtom = spectra_openapi:response_with_body(Response1, ?MODULE, user),
+    ResponseRef = spectra_openapi:response_with_body(Response1, ?MODULE, {type, user, 0}),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    EndpointAtom = spectra_openapi:add_response(Endpoint1, ResponseAtom),
+    EndpointRef = spectra_openapi:add_response(Endpoint1, ResponseRef),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, ResultAtom} = spectra_openapi:endpoints_to_openapi(Metadata, [EndpointAtom]),
+    {ok, ResultRef} = spectra_openapi:endpoints_to_openapi(Metadata, [EndpointRef]),
+    ?assertEqual(ResultAtom, ResultRef).
+
+atom_schema_type_response_test() ->
+    %% Plain atom 'user_id' should behave like {type, user_id, 0}
+    Response1 = spectra_openapi:response(200, <<"UserId">>),
+    ResponseAtom = spectra_openapi:response_with_body(Response1, ?MODULE, user_id),
+    ResponseRef = spectra_openapi:response_with_body(Response1, ?MODULE, {type, user_id, 0}),
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    EndpointAtom = spectra_openapi:add_response(Endpoint1, ResponseAtom),
+    EndpointRef = spectra_openapi:add_response(Endpoint1, ResponseRef),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, ResultAtom} = spectra_openapi:endpoints_to_openapi(Metadata, [EndpointAtom]),
+    {ok, ResultRef} = spectra_openapi:endpoints_to_openapi(Metadata, [EndpointRef]),
+    ?assertEqual(ResultAtom, ResultRef).
+
+atom_schema_request_body_test() ->
+    %% Plain atom 'create_user_request' should behave like {type, create_user_request, 0} (type checked before record)
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
+    EndpointAtom = spectra_openapi:with_request_body(Endpoint1, ?MODULE, create_user_request),
+    EndpointRef = spectra_openapi:with_request_body(
+        Endpoint1, ?MODULE, {type, create_user_request, 0}
+    ),
+    Response = spectra_openapi:response(201, <<"Created">>),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, ResultAtom} = spectra_openapi:endpoints_to_openapi(Metadata, [
+        spectra_openapi:add_response(EndpointAtom, Response)
+    ]),
+    {ok, ResultRef} = spectra_openapi:endpoints_to_openapi(Metadata, [
+        spectra_openapi:add_response(EndpointRef, Response)
+    ]),
+    ?assertEqual(ResultAtom, ResultRef).
+
+atom_schema_parameter_test() ->
+    %% Plain atom 'user_id' in parameter schema should behave like {type, user_id, 0}
+    ParamAtom = #{name => <<"id">>, in => path, required => true, schema => user_id},
+    ParamRef = #{name => <<"id">>, in => path, required => true, schema => {type, user_id, 0}},
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    EndpointAtom = spectra_openapi:with_parameter(Endpoint1, ?MODULE, ParamAtom),
+    EndpointRef = spectra_openapi:with_parameter(Endpoint1, ?MODULE, ParamRef),
+    Response = spectra_openapi:response(200, <<"OK">>),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, ResultAtom} = spectra_openapi:endpoints_to_openapi(Metadata, [
+        spectra_openapi:add_response(EndpointAtom, Response)
+    ]),
+    {ok, ResultRef} = spectra_openapi:endpoints_to_openapi(Metadata, [
+        spectra_openapi:add_response(EndpointRef, Response)
+    ]),
+    ?assertEqual(ResultAtom, ResultRef).

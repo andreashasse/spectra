@@ -177,8 +177,8 @@ decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     decode(Format, TypeInfo, TypeOrRef, Data, Options);
 decode(Format, TypeInfo, RefAtom, Data, Options) when is_atom(RefAtom) ->
-    Type = get_type_from_atom(TypeInfo, RefAtom),
-    decode(Format, TypeInfo, Type, Data, Options);
+    TypeRef = spectra_util:normalize_type_ref(TypeInfo, RefAtom),
+    decode(Format, TypeInfo, TypeRef, Data, Options);
 decode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case proplists:get_value(pre_decoded, Options, false) of
         false when is_binary(Data) ->
@@ -267,9 +267,9 @@ Accepts an options list. Supported options:
 encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     encode(Format, TypeInfo, TypeOrRef, Data, Options);
-encode(Format, Module, TypeAtom, Data, Options) when is_atom(TypeAtom) ->
-    Type = get_type_from_atom(Module, TypeAtom),
-    encode(Format, Module, Type, Data, Options);
+encode(Format, TypeInfo, TypeAtom, Data, Options) when is_atom(TypeAtom) ->
+    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    encode(Format, TypeInfo, TypeRef, Data, Options);
 encode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case spectra_json:to_json(Typeinfo, TypeOrRef, Data) of
         {ok, Json} ->
@@ -316,24 +316,11 @@ schema(Format, Module, TypeOrRef) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     schema(Format, TypeInfo, TypeOrRef);
 schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
-    Type = get_type_from_atom(TypeInfo, TypeAtom),
-    schema(Format, TypeInfo, Type);
+    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    schema(Format, TypeInfo, TypeRef);
 schema(json_schema, TypeInfo, TypeOrRef) ->
     SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
     json:encode(SchemaMap).
-
-get_type_from_atom(TypeInfo, RefAtom) ->
-    case spectra_type_info:find_type(TypeInfo, RefAtom, 0) of
-        {ok, Type} ->
-            Type;
-        error ->
-            case spectra_type_info:find_record(TypeInfo, RefAtom) of
-                {ok, Rec} ->
-                    Rec;
-                error ->
-                    erlang:error({type_or_record_not_found, RefAtom})
-            end
-    end.
 
 json_decode(Binary) ->
     try

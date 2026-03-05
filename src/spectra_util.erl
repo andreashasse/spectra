@@ -4,6 +4,7 @@
     test_abs_code/1,
     fold_until_error/3,
     map_until_error/2,
+    normalize_type_ref/2,
     type_replace_vars/3,
     record_replace_vars/2
 ]).
@@ -113,6 +114,23 @@ record_replace_vars(RecordInfo, TypeArgs) ->
         RecordInfo,
         TypeArgs
     ).
+
+-spec normalize_type_ref(spectra:type_info(), spectra:sp_type_or_ref() | atom()) ->
+    spectra:sp_type_or_ref().
+normalize_type_ref(_TypeInfo, TypeOrRef) when not is_atom(TypeOrRef) ->
+    TypeOrRef;
+normalize_type_ref(TypeInfo, Atom) ->
+    case spectra_type_info:find_type(TypeInfo, Atom, 0) of
+        {ok, _} ->
+            {type, Atom, 0};
+        error ->
+            case spectra_type_info:find_record(TypeInfo, Atom) of
+                {ok, _} ->
+                    {record, Atom};
+                error ->
+                    erlang:error({type_or_record_not_found, Atom})
+            end
+    end.
 
 -spec type_replace_vars(
     TypeInfo :: spectra:type_info(),

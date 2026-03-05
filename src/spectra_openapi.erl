@@ -659,8 +659,9 @@ generate_response(#{description := Description} = ResponseSpec) when
                 #{description => Description};
             {Schema, Module} ->
                 ModuleTypeInfo = spectra_module_types:get(Module),
+                NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
                 SchemaContent =
-                    case Schema of
+                    case NormalizedSchema of
                         {type, Name, Arity} ->
                             SchemaName = schema_component_name(Module, {type, Name, Arity}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
@@ -714,7 +715,8 @@ copy_if_present(Key, Source, Target) ->
 -spec generate_response_header(response_header_spec()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
+    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
     lists:foldl(
         fun(Key, Acc) -> copy_if_present(Key, HeaderSpec, Acc) end,
@@ -725,8 +727,9 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
 -spec generate_request_body(request_body_spec()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
+    NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     SchemaContent =
-        case Schema of
+        case NormalizedSchema of
             {type, Name, Arity} ->
                 SchemaName = schema_component_name(Module, {type, Name, Arity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
@@ -759,9 +762,10 @@ generate_parameter(
     is_binary(Name)
 ->
     ModuleTypeInfo = spectra_module_types:get(Module),
+    NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, Schema),
+    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
 
     lists:foldl(
@@ -847,11 +851,13 @@ collect_parameter_refs(Parameters) ->
 -spec filter_typeref(spectra:sp_type_or_ref(), module()) ->
     {true, {module(), spectra:sp_type_reference()}} | false.
 filter_typeref(Schema, Module) ->
-    case spectra_type:type_reference(Schema) of
+    TypeInfo = spectra_module_types:get(Module),
+    NormalizedSchema = spectra_util:normalize_type_ref(TypeInfo, Schema),
+    case spectra_type:type_reference(NormalizedSchema) of
         {true, TypeRef} ->
             {true, {Module, TypeRef}};
         false ->
-            case Schema of
+            case NormalizedSchema of
                 #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
                     {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
                 _ ->
