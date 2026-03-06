@@ -355,6 +355,9 @@ Adds a header to a response builder.
 This function adds a header specification to the response being built.
 Multiple headers can be added by calling this function multiple times.
 
+`description` and `deprecated` for the header are sourced automatically from the
+`-spectra()` annotation on the schema type.
+
 ### Returns
 Updated response builder with header added
 """.
@@ -391,7 +394,7 @@ Adds a request body to an endpoint.
 This function sets the request body schema for the endpoint.
 Typically used with POST, PUT, and PATCH endpoints.
 
-Use with_request_body/4 to also set a custom content type or description.
+Use with_request_body/4 to also set a custom content type.
 
 ### Returns
 Updated endpoint map with request body set
@@ -458,9 +461,9 @@ The parameter spec should be a map with these keys:
 - in: Parameter location (path | query | header | cookie, required)
 - required: Whether the parameter is required (boolean, required)
 - schema: Schema reference or direct type (spectra:sp_type_or_ref(), required)
-- description: Optional description of the parameter (binary)
-- deprecated: Mark the parameter as deprecated (boolean). Omit or set to true only;
-  setting deprecated => false is redundant since OpenAPI treats absent and false as equivalent.
+
+`description` and `deprecated` are sourced automatically from the `-spectra()` annotation
+on the schema type and should not be included in the parameter spec.
 
 ### Returns
 Updated endpoint map with the new parameter added
