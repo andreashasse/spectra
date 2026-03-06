@@ -21,6 +21,7 @@
     additionalProperties => boolean(),
     title => binary(),
     description => binary(),
+    deprecated => boolean(),
     examples => [json:encode_value()]
 }.
 
@@ -28,6 +29,7 @@
     '$schema' => binary(),
     title => binary(),
     description => binary(),
+    deprecated => boolean(),
     examples => [json:encode_value()],
     type => binary(),
     format => binary(),
@@ -522,6 +524,8 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
                 Acc#{title => Value};
             (description, Value, Acc) when is_binary(Value) ->
                 Acc#{description => Value};
+            (deprecated, Value, Acc) when is_boolean(Value) ->
+                Acc#{deprecated => Value};
             (examples, ExampleTerms, Acc) when is_list(ExampleTerms) ->
                 Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms)};
             (examples_function, {Module, Function, Args}, Acc) ->
