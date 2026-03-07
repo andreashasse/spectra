@@ -41,9 +41,23 @@ from_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, String) when is_ato
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             from_string(TypeInfo, Type, String)
     end;
-from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
+from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} -> M:decode(string, {type, N, length(Args)}, String, #{});
+        error -> {error, [sp_error:type_mismatch(TypeRef, String)]}
+    end;
+from_string(TypeInfo, Type, String) ->
+    from_string_inner(TypeInfo, Type, String).
+
+-spec from_string_inner(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type_or_ref(),
+    String :: list()
+) ->
+    {ok, dynamic()} | {error, [spectra:error()]}.
+from_string_inner(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
-from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
+from_string_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -52,9 +66,9 @@ from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-from_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, String) ->
+from_string_inner(_TypeInfo, #sp_simple_type{type = PrimaryType}, String) ->
     convert_string_to_type(PrimaryType, String);
-from_string(
+from_string_inner(
     _TypeInfo,
     #sp_range{
         type = integer,
@@ -72,12 +86,7 @@ from_string(
         {error, Reason} ->
             {error, Reason}
     end;
-from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:decode(string, {type, N, length(Args)}, String, #{});
-        error -> {error, [sp_error:type_mismatch(TypeRef, String)]}
-    end;
-from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
+from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
             M:decode(string, {type, TypeName, length(Args)}, String, #{});
@@ -88,11 +97,11 @@ from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Strin
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String)
     end;
-from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
+from_string_inner(_TypeInfo, #sp_literal{value = Literal}, String) ->
     try_convert_string_to_literal(Literal, String);
-from_string(TypeInfo, #sp_union{} = Type, String) ->
-    union(fun from_string/3, TypeInfo, Type, String);
-from_string(_TypeInfo, Type, String) ->
+from_string_inner(TypeInfo, #sp_union{} = Type, String) ->
+    union(fun from_string_inner/3, TypeInfo, Type, String);
+from_string_inner(_TypeInfo, Type, String) ->
     {error, [sp_error:type_mismatch(Type, String)]}.
 
 -doc """
@@ -127,9 +136,23 @@ to_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(Ty
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             to_string(TypeInfo, Type, Data)
     end;
-to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
+to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data, #{});
+        error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
+    end;
+to_string(TypeInfo, Type, Data) ->
+    to_string_inner(TypeInfo, Type, Data).
+
+-spec to_string_inner(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type_or_ref(),
+    Data :: dynamic()
+) ->
+    {ok, string()} | {error, [spectra:error()]}.
+to_string_inner(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
-to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
+to_string_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -138,9 +161,9 @@ to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-to_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data) ->
+to_string_inner(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data) ->
     convert_type_to_string(PrimaryType, Data);
-to_string(
+to_string_inner(
     _TypeInfo,
     #sp_range{
         type = integer,
@@ -158,12 +181,7 @@ to_string(
         {error, Reason} ->
             {error, Reason}
     end;
-to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data, #{});
-        error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
-    end;
-to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
+to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
             M:encode(string, {type, TypeName, length(Args)}, Data, #{});
@@ -174,11 +192,11 @@ to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) -
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data)
     end;
-to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
+to_string_inner(_TypeInfo, #sp_literal{value = Literal}, Data) ->
     try_convert_literal_to_string(Literal, Data);
-to_string(TypeInfo, #sp_union{} = Type, Data) ->
+to_string_inner(TypeInfo, #sp_union{} = Type, Data) ->
     union_to_string(TypeInfo, Type, Data);
-to_string(_TypeInfo, Type, Data) ->
+to_string_inner(_TypeInfo, Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 %% INTERNAL
@@ -456,7 +474,7 @@ union_to_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
 do_first_to_string(_TypeInfo, [], _Data, Errors) ->
     {error, Errors};
 do_first_to_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
-    case to_string(TypeInfo, Type, Data) of
+    case to_string_inner(TypeInfo, Type, Data) of
         {ok, Result} ->
             {ok, Result};
         {error, Errors} ->

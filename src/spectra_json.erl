@@ -108,7 +108,7 @@ do_to_json_inner(_TypeInfo, #sp_literal{value = Value}, Value) when
 ->
     {ok, Value};
 do_to_json_inner(TypeInfo, #sp_union{} = Type, Data) ->
-    union(fun do_to_json/3, TypeInfo, Type, Data);
+    union(fun do_to_json_inner/3, TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_to_json(TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
@@ -553,7 +553,7 @@ do_from_json_inner(_TypeInfo, #sp_literal{} = Type, Value) ->
 do_from_json_inner(TypeInfo, {type, TypeName, TypeArity}, Json) when is_atom(TypeName) ->
     type_from_json(TypeInfo, TypeName, TypeArity, [], Json);
 do_from_json_inner(TypeInfo, #sp_union{} = Type, Json) ->
-    union(fun do_from_json/3, TypeInfo, Type, Json);
+    union(fun do_from_json_inner/3, TypeInfo, Type, Json);
 do_from_json_inner(
     _TypeInfo,
     #sp_range{
