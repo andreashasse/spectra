@@ -53,10 +53,22 @@
 to_schema(Module, Type) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     to_schema(TypeInfo, Type);
-to_schema(TypeInfo, {type, TypeName, TypeArity}) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    to_schema_for_sp_type(TypeInfo, TypeWithoutVars);
+to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case erlang:function_exported(M, schema, 2) of
+                true ->
+                    add_schema_version(M:schema(json_schema, TypeRef));
+                false ->
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, []),
+                    to_schema_for_sp_type(TypeInfo, TypeWithoutVars)
+            end;
+        error ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            TypeWithoutVars = apply_args(TypeInfo, Type, []),
+            to_schema_for_sp_type(TypeInfo, TypeWithoutVars)
+    end;
 to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
     Record = spectra_type_info:get_record(TypeInfo, RecordName),
     to_schema_for_sp_type(TypeInfo, Record);
@@ -74,43 +86,71 @@ to_schema_for_sp_type(TypeInfo, Type) ->
     Type :: spectra:sp_type()
 ) ->
     json_schema_object().
+do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case erlang:function_exported(M, schema, 2) of
+                true -> M:schema(json_schema, {type, N, length(Args)});
+                false -> do_to_schema_inner(TypeInfo, TypeRef)
+            end;
+        error ->
+            do_to_schema_inner(TypeInfo, TypeRef)
+    end;
+do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
+    case spectra_type_info:find_remote_codec(Mod, N, length(Args)) of
+        {ok, M} ->
+            case erlang:function_exported(M, schema, 2) of
+                true -> M:schema(json_schema, {type, N, length(Args)});
+                false -> do_to_schema_inner(TypeInfo, TypeRef)
+            end;
+        error ->
+            do_to_schema_inner(TypeInfo, TypeRef)
+    end;
+do_to_schema(TypeInfo, Type) ->
+    do_to_schema_inner(TypeInfo, Type).
+
+-spec do_to_schema_inner(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type()
+) ->
+    json_schema_object().
 %% Simple types
-do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = integer}) ->
     #{type => <<"integer">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = string}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = string}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = iodata}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = iolist}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = boolean}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = boolean}) ->
     #{type => <<"boolean">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = number}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = number}) ->
     #{type => <<"number">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = float}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = float}) ->
     #{type => <<"number">>, format => <<"float">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = atom}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = atom}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = binary}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = binary}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
     #{type => <<"string">>, minLength => 1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
     #{type => <<"string">>, minLength => 1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
     #{type => <<"integer">>, minimum => 1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
     #{type => <<"integer">>, minimum => 0};
-do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
     #{type => <<"integer">>, maximum => -1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = term}) ->
     % any type
     #{};
-do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = map}) ->
     % generic map type - allows any keys and values
     #{type => <<"object">>};
 %% Range types
-do_to_schema(
+do_to_schema_inner(
     _TypeInfo,
     #sp_range{
         type = integer,
@@ -124,27 +164,27 @@ do_to_schema(
         maximum => Max
     };
 %% Literal types
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+do_to_schema_inner(_TypeInfo, #sp_literal{value = Value}) when
     Value =:= undefined orelse Value =:= nil
 ->
     #{enum => [null]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) when
+do_to_schema_inner(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) when
     is_atom(Value)
 ->
     #{enum => [BinaryValue]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+do_to_schema_inner(_TypeInfo, #sp_literal{value = Value}) when
     is_integer(Value)
 ->
     #{enum => [Value]};
-do_to_schema(_TypeInfo, #sp_literal{value = []}) ->
+do_to_schema_inner(_TypeInfo, #sp_literal{value = []}) ->
     #{enum => [[]]};
-do_to_schema(_TypeInfo, #sp_literal{} = Type) ->
+do_to_schema_inner(_TypeInfo, #sp_literal{} = Type) ->
     erlang:error({type_not_supported, Type});
 %% List types
-do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
+do_to_schema_inner(TypeInfo, #sp_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
     #{type => <<"array">>, items => ItemSchema};
-do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
+do_to_schema_inner(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
     ItemSchema = do_to_schema(TypeInfo, ItemType),
     #{
         type => <<"array">>,
@@ -152,7 +192,7 @@ do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
         minItems => 1
     };
 %% Union types
-do_to_schema(TypeInfo, #sp_union{types = Types}) ->
+do_to_schema_inner(TypeInfo, #sp_union{types = Types}) ->
     case
         lists:partition(
             fun
@@ -182,31 +222,31 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
             end
     end;
 %% Map types
-do_to_schema(TypeInfo, #sp_map{fields = Fields}) ->
+do_to_schema_inner(TypeInfo, #sp_map{fields = Fields}) ->
     map_fields_to_schema(TypeInfo, Fields);
 %% Record types
-do_to_schema(TypeInfo, #sp_rec{} = RecordInfo) ->
+do_to_schema_inner(TypeInfo, #sp_rec{} = RecordInfo) ->
     record_to_schema_internal(TypeInfo, RecordInfo);
 %% Record references
-do_to_schema(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
+do_to_schema_inner(TypeInfo, #sp_rec_ref{record_name = RecordName}) ->
     Record = spectra_type_info:get_record(TypeInfo, RecordName),
     Schema = record_to_schema_internal(TypeInfo, Record),
     merge_type_doc_into_schema(TypeInfo, Record, Schema);
 %% User type references
-do_to_schema(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
+do_to_schema_inner(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
     TypeArity = length(TypeArgs),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
     do_to_schema(TypeInfo, TypeWithoutVars);
 %% Remote types
-do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
+do_to_schema_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}) ->
     TypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
     do_to_schema(TypeInfo, TypeWithoutVars);
 %% Unsupported types
-do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -215,13 +255,13 @@ do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_tuple{} = Type) ->
+do_to_schema_inner(_TypeInfo, #sp_tuple{} = Type) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_function{} = Type) ->
+do_to_schema_inner(_TypeInfo, #sp_function{} = Type) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
+do_to_schema_inner(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
+do_to_schema_inner(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
     erlang:error({type_not_supported, Type}).
 
 %% Helper functions

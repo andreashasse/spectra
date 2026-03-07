@@ -33,9 +33,14 @@ and converts it to the corresponding Erlang value.
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    from_string(TypeInfo, Type, String);
+from_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, String) when is_atom(TypeName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            M:decode(string, TypeRef, String);
+        error ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            from_string(TypeInfo, Type, String)
+    end;
 from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
@@ -67,12 +72,22 @@ from_string(
         {error, Reason} ->
             {error, Reason}
     end;
+from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} -> M:decode(string, {type, N, length(Args)}, String);
+        error -> {error, [sp_error:type_mismatch(TypeRef, String)]}
+    end;
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
-    TypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    from_string(TypeInfo, TypeWithoutVars, String);
+    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
+        {ok, M} ->
+            M:decode(string, {type, TypeName, length(Args)}, String);
+        error ->
+            TypeInfo = spectra_module_types:get(Module),
+            TypeArity = length(Args),
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            from_string(TypeInfo, TypeWithoutVars, String)
+    end;
 from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
     try_convert_string_to_literal(Literal, String);
 from_string(TypeInfo, #sp_union{} = Type, String) ->
@@ -104,9 +119,14 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    to_string(TypeInfo, Type, Data);
+to_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(TypeName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            M:encode(string, TypeRef, Data);
+        error ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            to_string(TypeInfo, Type, Data)
+    end;
 to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
 to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
@@ -138,12 +158,22 @@ to_string(
         {error, Reason} ->
             {error, Reason}
     end;
+to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data);
+        error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
+    end;
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    TypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    to_string(TypeInfo, TypeWithoutVars, Data);
+    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
+        {ok, M} ->
+            M:encode(string, {type, TypeName, length(Args)}, Data);
+        error ->
+            TypeInfo = spectra_module_types:get(Module),
+            TypeArity = length(Args),
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            to_string(TypeInfo, TypeWithoutVars, Data)
+    end;
 to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
     try_convert_literal_to_string(Literal, Data);
 to_string(TypeInfo, #sp_union{} = Type, Data) ->

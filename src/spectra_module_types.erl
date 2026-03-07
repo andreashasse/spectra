@@ -49,7 +49,7 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
         {Vsn, TypeInfo} ->
             TypeInfo;
         _ ->
-            TypeInfo = TypeInfoFun(),
+            TypeInfo = set_module_meta(Module, TypeInfoFun()),
             pers_types_set(Module, Vsn, TypeInfo),
             TypeInfo
     end.
@@ -57,9 +57,9 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
 -spec fetch_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
 fetch_type_info(Module, true) ->
-    apply(Module, ?TYPE_INFO_FUNCTION, []);
+    set_module_meta(Module, apply(Module, ?TYPE_INFO_FUNCTION, []));
 fetch_type_info(Module, false) ->
-    spectra_abstract_code:types_in_module(Module).
+    set_module_meta(Module, spectra_abstract_code:types_in_module(Module)).
 
 -spec pers_type(Module :: module()) ->
     {module_version(), spectra:type_info()} | undefined.
@@ -74,6 +74,11 @@ pers_type(Module) ->
     ok.
 pers_types_set(Module, Vsn, TypeInfo) ->
     persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
+
+set_module_meta(Module, TypeInfo) ->
+    Attrs = Module:module_info(attributes),
+    IsBehaviour = lists:member(spectra_codec, proplists:get_value(behaviour, Attrs, [])),
+    spectra_type_info:set_module_meta(TypeInfo, Module, IsBehaviour).
 
 ensure_module(Module) ->
     erlang:module_loaded(Module) orelse code:which(Module) =/= non_existing.

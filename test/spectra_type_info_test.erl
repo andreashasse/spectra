@@ -5,11 +5,11 @@
 -include("../include/spectra_internal.hrl").
 
 new_test() ->
-    TypeInfo = spectra_type_info:new(),
-    ?assertMatch(#type_info{}, TypeInfo).
+    TypeInfo = spectra_type_info:new(?MODULE),
+    ?assertMatch(#type_info{module = ?MODULE}, TypeInfo).
 
 add_and_get_type_test() ->
-    TypeInfo0 = spectra_type_info:new(),
+    TypeInfo0 = spectra_type_info:new(?MODULE),
     Type = #sp_simple_type{type = integer},
     TypeInfo1 = spectra_type_info:add_type(TypeInfo0, my_type, 0, Type),
 
@@ -17,7 +17,7 @@ add_and_get_type_test() ->
     ?assertEqual(error, spectra_type_info:find_type(TypeInfo1, non_existent, 0)).
 
 add_and_get_record_test() ->
-    TypeInfo0 = spectra_type_info:new(),
+    TypeInfo0 = spectra_type_info:new(?MODULE),
     Record =
         #sp_rec{
             name = user,
@@ -36,7 +36,7 @@ add_and_get_record_test() ->
     ?assertEqual(error, spectra_type_info:find_record(TypeInfo1, non_existent)).
 
 add_and_get_function_test() ->
-    TypeInfo0 = spectra_type_info:new(),
+    TypeInfo0 = spectra_type_info:new(?MODULE),
     FuncSpec =
         #sp_function_spec{
             args = [#sp_simple_type{type = integer}],
