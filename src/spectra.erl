@@ -68,6 +68,9 @@
 -type codec_key() :: {module(), sp_type_reference()}.
 -type binary_string_decode_opts() :: #{}.
 -type binary_string_encode_opts() :: #{}.
+-type codec_encode_opts() :: #{}.
+-type codec_decode_opts() :: #{}.
+-type codec_schema_opts() :: #{}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -117,6 +120,9 @@
     encode_option/0,
     binary_string_decode_opts/0,
     binary_string_encode_opts/0,
+    codec_encode_opts/0,
+    codec_decode_opts/0,
+    codec_schema_opts/0,
     codec_key/0
 ]).
 
