@@ -1,6 +1,15 @@
 [eqwalizer]
 ignore_modules = [
     "char_test",
+    "codec_calendar_codec",
+    "codec_geo_module",
+    "codec_middle_module",
+    "codec_no_schema_module",
+    "codec_remote_impl_module",
+    "codec_top_module",
+    "codec_tuple_module",
+    "codec_uses_remote_module",
+    "custom_codec_test",
     "elixir_struct_test",
     "enum_test",
     "example_test",

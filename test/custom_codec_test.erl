@@ -112,11 +112,11 @@ remote_module_implements_codec_test() ->
     ),
     ?assertEqual(#{primary => Color}, Decoded).
 
-%% 10. Schema falls through to default (throws) when schema/2 not exported by codec
+%% 10. Schema raises an exception when schema/2 not exported by codec
 schema_optional_callback_test() ->
     %% codec_no_schema_module implements encode/decode but NOT schema/2.
-    %% The underlying type is an opaque tuple, so schema falls through and throws.
+    %% Calling schema/2 must raise an explicit error rather than silently falling through.
     ?assertError(
-        {type_not_supported, _},
+        {schema_not_implemented, codec_no_schema_module, {type, point, 0}},
         spectra:schema(json_schema, codec_no_schema_module, {type, point, 0})
     ).

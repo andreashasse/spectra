@@ -1,10 +1,12 @@
 -module(spectra_binary_string).
 
--export([from_binary_string/3, to_binary_string/3]).
+-export([from_binary_string/3, from_binary_string/4, to_binary_string/3, to_binary_string/4]).
 
 -ignore_xref([
     {spectra_binary_string, from_binary_string, 3},
-    {spectra_binary_string, to_binary_string, 3}
+    {spectra_binary_string, from_binary_string, 4},
+    {spectra_binary_string, to_binary_string, 3},
+    {spectra_binary_string, to_binary_string, 4}
 ]).
 
 -include("../include/spectra.hrl").
@@ -18,10 +20,13 @@ Converts a binary string value to an Erlang value based on a type specification.
 This function validates the given binary string value against the specified type definition
 and converts it to the corresponding Erlang value.
 
+Equivalent to calling from_binary_string/4 with an empty options map.
+
 ### Returns
 {ok, ErlangValue} if conversion succeeds, or {error, Errors} if validation fails
 """.
 -doc #{
+    equiv => from_binary_string(TypeInfo, Type, BinaryString, #{}),
     params =>
         #{
             "BinaryString" => "The binary string value to convert to Erlang format",
@@ -36,7 +41,36 @@ and converts it to the corresponding Erlang value.
     BinaryString :: binary()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, BinaryString) when
+from_binary_string(TypeInfo, Type, BinaryString) ->
+    from_binary_string(TypeInfo, Type, BinaryString, #{}).
+
+-doc """
+Converts a binary string value to an Erlang value based on a type specification.
+
+This function validates the given binary string value against the specified type definition
+and converts it to the corresponding Erlang value.
+
+### Returns
+{ok, ErlangValue} if conversion succeeds, or {error, Errors} if validation fails
+""".
+-doc #{
+    params =>
+        #{
+            "BinaryString" => "The binary string value to convert to Erlang format",
+            "Opts" => "Decode options",
+            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "TypeInfo" => "The type information containing type definitions"
+        }
+}.
+
+-spec from_binary_string(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type_or_ref(),
+    BinaryString :: binary(),
+    Opts :: spectra:binary_string_decode_opts()
+) ->
+    {ok, dynamic()} | {error, [spectra:error()]}.
+from_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, BinaryString, Opts) when
     is_atom(TypeName)
 ->
     case spectra_type_info:find_local_codec(TypeInfo) of
@@ -44,13 +78,13 @@ from_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, BinaryString
             M:decode(binary_string, TypeRef, BinaryString);
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            from_binary_string(TypeInfo, Type, BinaryString)
+            from_binary_string(TypeInfo, Type, BinaryString, Opts)
     end;
-from_binary_string(_TypeInfo, {record, RecordName}, _BinaryString) when
+from_binary_string(_TypeInfo, {record, RecordName}, _BinaryString, _Opts) when
     is_atom(RecordName)
 ->
     erlang:error({type_not_supported, {record, RecordName}});
-from_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryString) when
+from_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryString, _Opts) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -59,7 +93,7 @@ from_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryS
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-from_binary_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, BinaryString) ->
+from_binary_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, BinaryString, _Opts) ->
     convert_binary_string_to_type(PrimaryType, BinaryString);
 from_binary_string(
     _TypeInfo,
@@ -69,7 +103,8 @@ from_binary_string(
         upper_bound = Max
     } =
         Range,
-    BinaryString
+    BinaryString,
+    _Opts
 ) ->
     case convert_binary_string_to_type(integer, BinaryString) of
         {ok, Value} when Min =< Value, Value =< Max ->
@@ -80,16 +115,21 @@ from_binary_string(
             {error, Reason}
     end;
 from_binary_string(
-    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, BinaryString
+    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, BinaryString, Opts
 ) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:decode(binary_string, {type, N, length(Args)}, BinaryString);
-        error -> {error, [sp_error:type_mismatch(TypeRef, BinaryString)]}
+        {ok, M} ->
+            M:decode(binary_string, {type, N, length(Args)}, BinaryString);
+        error ->
+            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
 from_binary_string(
     _TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}},
-    BinaryString
+    BinaryString,
+    Opts
 ) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
@@ -99,13 +139,13 @@ from_binary_string(
             TypeArity = length(Args),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            from_binary_string(TypeInfo, TypeWithoutVars, BinaryString)
+            from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
-from_binary_string(_TypeInfo, #sp_literal{value = Literal}, BinaryString) ->
+from_binary_string(_TypeInfo, #sp_literal{value = Literal}, BinaryString, _Opts) ->
     try_convert_binary_string_to_literal(Literal, BinaryString);
-from_binary_string(TypeInfo, #sp_union{} = Type, BinaryString) ->
-    union(fun from_binary_string/3, TypeInfo, Type, BinaryString);
-from_binary_string(_TypeInfo, Type, BinaryString) ->
+from_binary_string(TypeInfo, #sp_union{} = Type, BinaryString, Opts) ->
+    union(fun from_binary_string/4, TypeInfo, Type, BinaryString, Opts);
+from_binary_string(_TypeInfo, Type, BinaryString, _Opts) ->
     {error, [sp_error:type_mismatch(Type, BinaryString)]}.
 
 -doc """
@@ -114,10 +154,13 @@ Converts an Erlang value to a binary string based on a type specification.
 This function validates the given Erlang value against the specified type definition
 and converts it to a binary string representation.
 
+Equivalent to calling to_binary_string/4 with an empty options map.
+
 ### Returns
 {ok, BinaryString} if conversion succeeds, or {error, Errors} if validation fails
 """.
 -doc #{
+    equiv => to_binary_string(TypeInfo, Type, Data, #{}),
     params =>
         #{
             "Data" => "The Erlang value to convert to binary string format",
@@ -132,17 +175,48 @@ and converts it to a binary string representation.
     Data :: dynamic()
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
-to_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(TypeName) ->
+to_binary_string(TypeInfo, Type, Data) ->
+    to_binary_string(TypeInfo, Type, Data, #{}).
+
+-doc """
+Converts an Erlang value to a binary string based on a type specification.
+
+This function validates the given Erlang value against the specified type definition
+and converts it to a binary string representation.
+
+### Returns
+{ok, BinaryString} if conversion succeeds, or {error, Errors} if validation fails
+""".
+-doc #{
+    params =>
+        #{
+            "Data" => "The Erlang value to convert to binary string format",
+            "Opts" => "Encode options",
+            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "TypeInfo" => "The type information containing type definitions"
+        }
+}.
+
+-spec to_binary_string(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type_or_ref(),
+    Data :: dynamic(),
+    Opts :: spectra:binary_string_encode_opts()
+) ->
+    {ok, binary()} | {error, [spectra:error()]}.
+to_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data, Opts) when
+    is_atom(TypeName)
+->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             M:encode(binary_string, TypeRef, Data);
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            to_binary_string(TypeInfo, Type, Data)
+            to_binary_string(TypeInfo, Type, Data, Opts)
     end;
-to_binary_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
+to_binary_string(_TypeInfo, {record, RecordName}, _Data, _Opts) when is_atom(RecordName) ->
     erlang:error({type_not_supported, {record, RecordName}});
-to_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
+to_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data, _Opts) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -151,7 +225,7 @@ to_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) whe
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-to_binary_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data) ->
+to_binary_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data, _Opts) ->
     convert_type_to_binary_string(PrimaryType, Data);
 to_binary_string(
     _TypeInfo,
@@ -161,7 +235,8 @@ to_binary_string(
         upper_bound = Max
     } =
         Range,
-    Data
+    Data,
+    _Opts
 ) ->
     case convert_type_to_binary_string(integer, Data) of
         {ok, BinaryString} when Min =< Data, Data =< Max ->
@@ -171,27 +246,31 @@ to_binary_string(
         {error, Reason} ->
             {error, Reason}
     end;
-to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
+to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data, Opts) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:encode(binary_string, {type, N, length(Args)}, Data);
-        error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
-    end;
-to_binary_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:encode(binary_string, {type, TypeName, length(Args)}, Data);
+            M:encode(binary_string, {type, N, length(Args)}, Data);
+        error ->
+            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
+    end;
+to_binary_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts) ->
+    TypeArity = length(Args),
+    case spectra_type_info:find_remote_codec(Module, TypeName, TypeArity) of
+        {ok, M} ->
+            M:encode(binary_string, {type, TypeName, TypeArity}, Data);
         error ->
             TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_binary_string(TypeInfo, TypeWithoutVars, Data)
+            to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
     end;
-to_binary_string(_TypeInfo, #sp_literal{} = Type, Data) ->
+to_binary_string(_TypeInfo, #sp_literal{} = Type, Data, _Opts) ->
     try_convert_literal_to_binary_string(Type, Data);
-to_binary_string(TypeInfo, #sp_union{} = Type, Data) ->
-    union_to_binary_string(TypeInfo, Type, Data);
-to_binary_string(_TypeInfo, Type, Data) ->
+to_binary_string(TypeInfo, #sp_union{} = Type, Data, Opts) ->
+    union_to_binary_string(TypeInfo, Type, Data, Opts);
+to_binary_string(_TypeInfo, Type, Data, _Opts) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 %% INTERNAL
@@ -339,22 +418,22 @@ try_convert_binary_string_to_literal(Literal, BinaryString) ->
         )
     ]}.
 
-union(Fun, TypeInfo, #sp_union{types = Types} = T, BinaryString) ->
-    case do_first(Fun, TypeInfo, Types, BinaryString, []) of
+union(Fun, TypeInfo, #sp_union{types = Types} = T, BinaryString, Opts) ->
+    case do_first(Fun, TypeInfo, Types, BinaryString, Opts, []) of
         {error, UnionErrors} ->
             {error, [sp_error:no_match(T, BinaryString, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first(_Fun, _TypeInfo, [], _BinaryString, Errors) ->
+do_first(_Fun, _TypeInfo, [], _BinaryString, _Opts, Errors) ->
     {error, Errors};
-do_first(Fun, TypeInfo, [Type | Rest], BinaryString, ErrorsAcc) ->
-    case Fun(TypeInfo, Type, BinaryString) of
+do_first(Fun, TypeInfo, [Type | Rest], BinaryString, Opts, ErrorsAcc) ->
+    case Fun(TypeInfo, Type, BinaryString, Opts) of
         {ok, Result} ->
             {ok, Result};
         {error, Errors} ->
-            do_first(Fun, TypeInfo, Rest, BinaryString, [{Type, Errors} | ErrorsAcc])
+            do_first(Fun, TypeInfo, Rest, BinaryString, Opts, [{Type, Errors} | ErrorsAcc])
     end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
@@ -460,20 +539,20 @@ try_convert_literal_to_binary_string(#sp_literal{value = Literal}, Literal) when
 try_convert_literal_to_binary_string(#sp_literal{} = Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
-union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
-    case do_first_to_binary_string(TypeInfo, Types, Data, []) of
+union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data, Opts) ->
+    case do_first_to_binary_string(TypeInfo, Types, Data, Opts, []) of
         {error, UnionErrors} ->
             {error, [sp_error:no_match(T, Data, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first_to_binary_string(_TypeInfo, [], _Data, Errors) ->
+do_first_to_binary_string(_TypeInfo, [], _Data, _Opts, Errors) ->
     {error, Errors};
-do_first_to_binary_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
-    case to_binary_string(TypeInfo, Type, Data) of
+do_first_to_binary_string(TypeInfo, [Type | Rest], Data, Opts, ErrorsAcc) ->
+    case to_binary_string(TypeInfo, Type, Data, Opts) of
         {ok, Result} ->
             {ok, Result};
         {error, Errors} ->
-            do_first_to_binary_string(TypeInfo, Rest, Data, [{Type, Errors} | ErrorsAcc])
+            do_first_to_binary_string(TypeInfo, Rest, Data, Opts, [{Type, Errors} | ErrorsAcc])
     end.

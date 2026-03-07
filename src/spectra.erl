@@ -66,6 +66,8 @@
 -type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
+-type binary_string_decode_opts() :: #{}.
+-type binary_string_encode_opts() :: #{}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -113,6 +115,8 @@
     record_field/0,
     decode_option/0,
     encode_option/0,
+    binary_string_decode_opts/0,
+    binary_string_encode_opts/0,
     codec_key/0
 ]).
 

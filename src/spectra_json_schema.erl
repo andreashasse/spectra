@@ -60,9 +60,7 @@ to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName
                 true ->
                     add_schema_version(M:schema(json_schema, TypeRef));
                 false ->
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(TypeInfo, Type, []),
-                    to_schema_for_sp_type(TypeInfo, TypeWithoutVars)
+                    erlang:error({schema_not_implemented, M, TypeRef})
             end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
@@ -91,7 +89,7 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
         {ok, M} ->
             case erlang:function_exported(M, schema, 2) of
                 true -> M:schema(json_schema, {type, N, length(Args)});
-                false -> do_to_schema_inner(TypeInfo, TypeRef)
+                false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)
@@ -101,7 +99,7 @@ do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
         {ok, M} ->
             case erlang:function_exported(M, schema, 2) of
                 true -> M:schema(json_schema, {type, N, length(Args)});
-                false -> do_to_schema_inner(TypeInfo, TypeRef)
+                false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)

@@ -75,11 +75,14 @@ pers_type(Module) ->
 pers_types_set(Module, Vsn, TypeInfo) ->
     persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
 
+-spec set_module_meta(Module :: module(), TypeInfo :: spectra:type_info()) ->
+    spectra:type_info().
 set_module_meta(Module, TypeInfo) ->
     Attrs = Module:module_info(attributes),
     IsBehaviour = lists:member(spectra_codec, proplists:get_value(behaviour, Attrs, [])),
-    spectra_type_info:set_module_meta(TypeInfo, Module, IsBehaviour).
+    spectra_type_info:set_implements_codec(TypeInfo, IsBehaviour).
 
+-spec ensure_module(Module :: module()) -> boolean().
 ensure_module(Module) ->
     erlang:module_loaded(Module) orelse code:which(Module) =/= non_existing.
 

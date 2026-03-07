@@ -4,6 +4,6 @@
     {ok, term()} | {error, [spectra:error()]}.
 -callback decode(Format :: atom(), TypeRef :: spectra:sp_type_reference(), Input :: dynamic()) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
--callback schema(Format :: atom(), TypeRef :: spectra:sp_type_reference()) -> map().
+-callback schema(Format :: atom(), TypeRef :: spectra:sp_type_reference()) -> dynamic().
 
 -optional_callbacks([schema/2]).
