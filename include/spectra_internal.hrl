@@ -101,7 +101,9 @@
 }).
 %% New structured type information
 -record(type_info, {
+    module :: module(),
     types = #{} :: #{spectra_type_info:type_key() => spectra:sp_type()},
     records = #{} :: #{atom() => #sp_rec{}},
-    functions = #{} :: #{spectra_type_info:function_key() => [#sp_function_spec{}]}
+    functions = #{} :: #{spectra_type_info:function_key() => [#sp_function_spec{}]},
+    implements_codec = false :: boolean()
 }).

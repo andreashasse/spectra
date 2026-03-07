@@ -4,10 +4,11 @@
 
 -ignore_xref([find_function/3]).
 
--export([new/0]).
+-export([new/1]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
+-export([set_module_meta/3, find_local_codec/1, find_remote_codec/3]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -15,9 +16,9 @@
 -type type_key() :: {Name :: atom(), Arity :: arity()}.
 -type function_key() :: {Name :: atom(), Arity :: arity()}.
 
--spec new() -> type_info().
-new() ->
-    #type_info{}.
+-spec new(module()) -> type_info().
+new(Module) ->
+    #type_info{module = Module}.
 
 -spec add_type(type_info(), atom(), arity(), spectra:sp_type()) -> type_info().
 add_type(#type_info{types = Types} = TypeInfo, Name, Arity, Type) ->
@@ -62,3 +63,32 @@ add_function(#type_info{functions = Functions} = TypeInfo, Name, Arity, FuncSpec
     {ok, [spectra:sp_function_spec()]} | error.
 find_function(#type_info{functions = Functions}, Name, Arity) ->
     maps:find({Name, Arity}, Functions).
+
+-spec set_module_meta(type_info(), module(), boolean()) -> type_info().
+set_module_meta(TypeInfo, Module, ImplementsCodec) ->
+    TypeInfo#type_info{module = Module, implements_codec = ImplementsCodec}.
+
+-spec find_local_codec(type_info()) -> {ok, module()} | error.
+find_local_codec(#type_info{implements_codec = true, module = M}) -> {ok, M};
+find_local_codec(#type_info{implements_codec = false}) -> error.
+
+-spec find_remote_codec(module(), atom(), arity()) -> {ok, module()} | error.
+find_remote_codec(Mod, TypeName, Arity) ->
+    Key = {Mod, {type, TypeName, Arity}},
+    GlobalCodecs = application:get_env(spectra, codecs, #{}),
+    case maps:find(Key, GlobalCodecs) of
+        {ok, _} = R ->
+            R;
+        error ->
+            ModExists = erlang:module_loaded(Mod) orelse code:which(Mod) =/= non_existing,
+            case ModExists of
+                false ->
+                    error;
+                true ->
+                    Attrs = Mod:module_info(attributes),
+                    case lists:member(spectra_codec, proplists:get_value(behaviour, Attrs, [])) of
+                        true -> {ok, Mod};
+                        false -> error
+                    end
+            end
+    end.

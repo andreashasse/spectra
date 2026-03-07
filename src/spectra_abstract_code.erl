@@ -39,9 +39,9 @@ types_in_module(Module) ->
 -spec types_in_module_path(file:filename()) -> spectra:type_info().
 types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
-        {ok, {_Module, [{abstract_code, {_, Forms}}]}} ->
+        {ok, {Module, [{abstract_code, {_, Forms}}]}} ->
             NamedTypes = process_forms_with_docs(Forms),
-            build_type_info(NamedTypes);
+            build_type_info(Module, NamedTypes);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
         {error, beam_lib, Reason} ->
@@ -102,8 +102,8 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     ],
     {Key, Tagged}.
 
-build_type_info(NamedTypes) ->
-    lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(), NamedTypes).
+build_type_info(Module, NamedTypes) ->
+    lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(Module), NamedTypes).
 
 build_type_info_fold({{type, Name, Arity}, Type}, TypeInfo) ->
     spectra_type_info:add_type(TypeInfo, Name, Arity, Type);

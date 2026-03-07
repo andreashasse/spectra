@@ -65,6 +65,7 @@
 -type record_field() :: #sp_rec_field{}.
 -type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
+-type codec_key() :: {module(), sp_type_reference()}.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -111,7 +112,8 @@
     literal_value/0,
     record_field/0,
     decode_option/0,
-    encode_option/0
+    encode_option/0,
+    codec_key/0
 ]).
 
 -doc """
