@@ -56,9 +56,9 @@ to_schema(Module, Type) when is_atom(Module) ->
 to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 2) of
+            case erlang:function_exported(M, schema, 3) of
                 true ->
-                    add_schema_version(M:schema(json_schema, TypeRef));
+                    add_schema_version(M:schema(json_schema, TypeRef, #{}));
                 false ->
                     erlang:error({schema_not_implemented, M, TypeRef})
             end;
@@ -87,8 +87,8 @@ to_schema_for_sp_type(TypeInfo, Type) ->
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 2) of
-                true -> M:schema(json_schema, {type, N, length(Args)});
+            case erlang:function_exported(M, schema, 3) of
+                true -> M:schema(json_schema, {type, N, length(Args)}, #{});
                 false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->
@@ -97,8 +97,8 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
 do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
     case spectra_type_info:find_remote_codec(Mod, N, length(Args)) of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 2) of
-                true -> M:schema(json_schema, {type, N, length(Args)});
+            case erlang:function_exported(M, schema, 3) of
+                true -> M:schema(json_schema, {type, N, length(Args)}, #{});
                 false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->

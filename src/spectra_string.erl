@@ -36,7 +36,7 @@ and converts it to the corresponding Erlang value.
 from_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, String) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:decode(string, TypeRef, String);
+            M:decode(string, TypeRef, String, #{});
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             from_string(TypeInfo, Type, String)
@@ -74,13 +74,13 @@ from_string(
     end;
 from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:decode(string, {type, N, length(Args)}, String);
+        {ok, M} -> M:decode(string, {type, N, length(Args)}, String, #{});
         error -> {error, [sp_error:type_mismatch(TypeRef, String)]}
     end;
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:decode(string, {type, TypeName, length(Args)}, String);
+            M:decode(string, {type, TypeName, length(Args)}, String, #{});
         error ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
@@ -122,7 +122,7 @@ and converts it to a string representation.
 to_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:encode(string, TypeRef, Data);
+            M:encode(string, TypeRef, Data, #{});
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             to_string(TypeInfo, Type, Data)
@@ -160,13 +160,13 @@ to_string(
     end;
 to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data);
+        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data, #{});
         error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:encode(string, {type, TypeName, length(Args)}, Data);
+            M:encode(string, {type, TypeName, length(Args)}, Data, #{});
         error ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
