@@ -14,7 +14,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     MapResultType = spectra_type_info:get_type(TypeInfo, map_result, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_user_type_ref{
             type_name = result,
             variables =
@@ -34,7 +34,7 @@ type_in_form_test() ->
         MapResultType
     ),
     ResultType = spectra_type_info:get_type(TypeInfo, result, 1),
-    ?assertEqual(
+    ?assertMatch(
         #sp_type_with_variables{
             type =
                 #sp_union{

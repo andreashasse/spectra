@@ -19,16 +19,16 @@
 erl_abstract_code_parses_fun_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     Fun1Type = spectra_type_info:get_type(TypeInfo, fun1, 0),
-    ?assertEqual(#sp_function{args = any, return = #sp_simple_type{type = term}}, Fun1Type),
+    ?assertMatch(#sp_function{args = any, return = #sp_simple_type{type = term}}, Fun1Type),
     Fun2Type = spectra_type_info:get_type(TypeInfo, fun2, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_function{args = any, return = #sp_simple_type{type = integer}},
         Fun2Type
     ),
     Fun3Type = spectra_type_info:get_type(TypeInfo, fun3, 0),
-    ?assertEqual(#sp_function{args = [], return = #sp_simple_type{type = integer}}, Fun3Type),
+    ?assertMatch(#sp_function{args = [], return = #sp_simple_type{type = integer}}, Fun3Type),
     Fun4Type = spectra_type_info:get_type(TypeInfo, fun4, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_function{
             args =
                 [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}],
@@ -37,7 +37,7 @@ erl_abstract_code_parses_fun_types_test() ->
         Fun4Type
     ),
     Fun5Type = spectra_type_info:get_type(TypeInfo, fun5, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_function{
             args =
                 [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}],
@@ -47,7 +47,7 @@ erl_abstract_code_parses_fun_types_test() ->
         Fun5Type
     ),
     Fun6Type = spectra_type_info:get_type(TypeInfo, fun6, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_function{
             args =
                 [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}],
@@ -74,7 +74,8 @@ erl_abstract_code_parses_fun_types_test() ->
                         type = #sp_function{args = any, return = #sp_simple_type{type = term}}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, with_fun}}
         },
         WithFunRecord
     ).

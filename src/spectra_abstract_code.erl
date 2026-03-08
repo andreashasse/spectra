@@ -106,9 +106,13 @@ build_type_info(Module, NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(Module), NamedTypes).
 
 build_type_info_fold({{type, Name, Arity}, Type}, TypeInfo) ->
-    spectra_type_info:add_type(TypeInfo, Name, Arity, Type);
+    Meta = spectra_type:get_meta(Type),
+    TaggedType = spectra_type:set_meta(Type, Meta#{name => {type, Name, Arity}}),
+    spectra_type_info:add_type(TypeInfo, Name, Arity, TaggedType);
 build_type_info_fold({{record, Name}, Record}, TypeInfo) ->
-    spectra_type_info:add_record(TypeInfo, Name, Record);
+    Meta = spectra_type:get_meta(Record),
+    #sp_rec{} = TaggedRecord = spectra_type:set_meta(Record, Meta#{name => {record, Name}}),
+    spectra_type_info:add_record(TypeInfo, Name, TaggedRecord);
 build_type_info_fold({{function, Name, Arity}, FuncSpec}, TypeInfo) ->
     spectra_type_info:add_function(TypeInfo, Name, Arity, FuncSpec).
 

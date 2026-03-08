@@ -11,7 +11,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     IntResultType = spectra_type_info:get_type(TypeInfo, int_result, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_remote_type{
             mfargs =
                 {external_type, result_t, [#sp_simple_type{type = integer}]}

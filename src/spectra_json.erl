@@ -75,7 +75,7 @@ do_to_json_inner(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = T
     TypeArity = length(TypeArgs),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-    do_to_json(TypeInfo, TypeWithoutVars, Data);
+    do_to_json_inner(TypeInfo, TypeWithoutVars, Data);
 do_to_json_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -119,9 +119,9 @@ do_to_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
 do_to_json_inner(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
     list_to_json(TypeInfo, ListType, Data);
 do_to_json_inner(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    %% FIXME: For simple types without arity, default to 0
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    do_to_json(TypeInfo, Type, Data);
+    TypeWithoutVars = apply_args(TypeInfo, Type, []),
+    do_to_json_inner(TypeInfo, TypeWithoutVars, Data);
 do_to_json_inner(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
     case StructName of
         undefined ->
@@ -136,11 +136,11 @@ do_to_json_inner(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
             end
     end;
 do_to_json_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    TypeInfo = spectra_module_types:get(Module),
+    RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    do_to_json(TypeInfo, TypeWithoutVars, Data);
+    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+    do_to_json_inner(RemoteTypeInfo, TypeWithoutVars, Data);
 do_to_json_inner(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
 do_to_json_inner(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data) ->
@@ -151,7 +151,6 @@ do_to_json_inner(_TypeInfo, #sp_function{} = Type, _Data) ->
     erlang:error({type_not_supported, Type});
 do_to_json_inner(_TypeInfo, Type, OtherValue) ->
     {error, [sp_error:type_mismatch(Type, OtherValue)]}.
-
 -spec prim_type_to_json(Type :: spectra:sp_type(), Value :: dynamic()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
@@ -520,10 +519,11 @@ do_from_json_inner(
     TypeInfo,
     #sp_user_type_ref{type_name = TypeName, variables = TypeArgs},
     Json
-) when
-    is_atom(TypeName)
-->
-    type_from_json(TypeInfo, TypeName, length(TypeArgs), TypeArgs, Json);
+) when is_atom(TypeName) ->
+    TypeArity = length(TypeArgs),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    do_from_json_inner(TypeInfo, TypeWithoutVars, Json);
 do_from_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_from_json(TypeInfo, Type, Data);
 do_from_json_inner(TypeInfo, #sp_list{type = ListType} = Type, Data) ->
@@ -556,7 +556,9 @@ do_from_json_inner(_TypeInfo, #sp_literal{} = Type, Value) ->
             {error, [sp_error:type_mismatch(Type, Value)]}
     end;
 do_from_json_inner(TypeInfo, {type, TypeName, TypeArity}, Json) when is_atom(TypeName) ->
-    type_from_json(TypeInfo, TypeName, TypeArity, [], Json);
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = apply_args(TypeInfo, Type, []),
+    do_from_json_inner(TypeInfo, TypeWithoutVars, Json);
 do_from_json_inner(TypeInfo, #sp_union{} = Type, Json) ->
     %% Use do_from_json_inner (not do_from_json) for the same reason as do_to_json_inner.
     union(fun do_from_json_inner/3, TypeInfo, Type, Json);
@@ -754,19 +756,6 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
         {error, Errors} ->
             do_first(Fun, TypeInfo, Rest, Json, [{Type, Errors} | ErrorsAcc])
     end.
-
--spec type_from_json(
-    TypeInfo :: spectra:type_info(),
-    TypeName :: atom(),
-    TypeArity :: non_neg_integer(),
-    TypeArgs :: [spectra:sp_type()],
-    Json :: json:decode_value()
-) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
-type_from_json(TypeInfo, TypeName, TypeArity, TypeArgs, Json) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-    do_from_json(TypeInfo, TypeWithoutVars, Json).
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
     ArgNames = arg_names(Type),

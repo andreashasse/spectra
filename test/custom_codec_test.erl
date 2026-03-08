@@ -1,6 +1,7 @@
 -module(custom_codec_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 %% 1. Module with -behaviour(spectra_codec) encodes without config
 auto_discovery_encode_test() ->
@@ -120,3 +121,90 @@ schema_optional_callback_test() ->
         {schema_not_implemented, codec_no_schema_module, {type, point, 0}},
         spectra:schema(json_schema, codec_no_schema_module, {type, point, 0})
     ).
+
+%% 11. Discriminated-union codec: encode cat
+animal_encode_cat_test() ->
+    Cat = {cat, <<"Whiskers">>, true},
+    ?assertEqual(
+        {ok, #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true}},
+        spectra:encode(json, codec_animal_codec, {type, animal, 0}, Cat, [pre_encoded])
+    ).
+
+%% 12. Discriminated-union codec: encode dog
+animal_encode_dog_test() ->
+    Dog = {dog, <<"Rex">>, <<"Labrador">>},
+    ?assertEqual(
+        {ok, #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>}},
+        spectra:encode(json, codec_animal_codec, {type, animal, 0}, Dog, [pre_encoded])
+    ).
+
+%% 13. Discriminated-union codec: decode cat
+animal_decode_cat_test() ->
+    Json = #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
+    ?assertEqual(
+        {ok, {cat, <<"Whiskers">>, true}},
+        spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
+    ).
+
+%% 14. Discriminated-union codec: decode dog
+animal_decode_dog_test() ->
+    Json = #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>},
+    ?assertEqual(
+        {ok, {dog, <<"Rex">>, <<"Labrador">>}},
+        spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
+    ).
+
+%% 15. Discriminated-union codec: invalid data returns error
+animal_encode_invalid_test() ->
+    ?assertMatch(
+        {error, _},
+        spectra:encode(json, codec_animal_codec, {type, animal, 0}, not_an_animal, [pre_encoded])
+    ).
+
+%% 16. Discriminated-union codec: unknown type tag returns error
+animal_decode_unknown_tag_test() ->
+    Json = #{<<"type">> => <<"fish">>, <<"name">> => <<"Nemo">>},
+    ?assertMatch(
+        {error, _},
+        spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
+    ).
+
+%% 17. Atom, {type,N,A} and bare sp_type() all produce the same encode/decode result
+animal_type_ref_forms_test() ->
+    TypeInfo = spectra_module_types:get(codec_animal_codec),
+    AnimalSpType = spectra_type_info:get_type(TypeInfo, animal, 0),
+
+    Cat = {cat, <<"Whiskers">>, true},
+    CatJson = #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
+
+    EncAtom = spectra:encode(json, codec_animal_codec, animal, Cat, [pre_encoded]),
+    EncTupleRef = spectra:encode(json, codec_animal_codec, {type, animal, 0}, Cat, [pre_encoded]),
+    EncSpType = spectra:encode(json, TypeInfo, AnimalSpType, Cat, [pre_encoded]),
+    ?assertEqual({ok, CatJson}, EncAtom),
+    ?assertEqual(EncAtom, EncTupleRef),
+    ?assertEqual(EncAtom, EncSpType),
+
+    DecAtom = spectra:decode(json, codec_animal_codec, animal, CatJson, [pre_decoded]),
+    DecTupleRef = spectra:decode(json, codec_animal_codec, {type, animal, 0}, CatJson, [pre_decoded]),
+    DecSpType = spectra:decode(json, TypeInfo, AnimalSpType, CatJson, [pre_decoded]),
+    ?assertEqual({ok, Cat}, DecAtom),
+    ?assertEqual(DecAtom, DecTupleRef),
+    ?assertEqual(DecAtom, DecSpType).
+
+%% 18. {record,N} ref and bare #sp_rec{} sp_type() produce the same encode/decode result
+cat_record_ref_forms_test() ->
+    TypeInfo = spectra_module_types:get(codec_animal_codec),
+    {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
+
+    Cat = {cat, <<"Whiskers">>, true},
+    CatJson = #{<<"name">> => <<"Whiskers">>, <<"indoor">> => true},
+
+    EncTupleRef = spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded]),
+    EncSpType = spectra:encode(json, TypeInfo, CatSpRec, Cat, [pre_encoded]),
+    ?assertEqual({ok, CatJson}, EncTupleRef),
+    ?assertEqual(EncTupleRef, EncSpType),
+
+    DecTupleRef = spectra:decode(json, codec_animal_codec, {record, cat}, CatJson, [pre_decoded]),
+    DecSpType = spectra:decode(json, TypeInfo, CatSpRec, CatJson, [pre_decoded]),
+    ?assertEqual({ok, Cat}, DecTupleRef),
+    ?assertEqual(DecTupleRef, DecSpType).

@@ -30,10 +30,10 @@ simple_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     UserIdType = spectra_type_info:get_type(TypeInfo, user_id, 0),
-    ?assertEqual(#sp_simple_type{type = pos_integer}, UserIdType),
+    ?assertMatch(#sp_simple_type{type = pos_integer}, UserIdType),
 
     PersonType = spectra_type_info:get_type(TypeInfo, person, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_map{
             fields =
                 [
@@ -88,12 +88,13 @@ simple_test() ->
                         name = data, binary_name = <<"data">>, type = #sp_simple_type{type = term}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, my_rec}}
         },
         MyRecRecord
     ),
     MyRecTType = spectra_type_info:get_type(TypeInfo, my_rec_t, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_rec_ref{
             record_name = my_rec,
             field_types =

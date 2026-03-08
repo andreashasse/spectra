@@ -29,7 +29,8 @@ missing_test() ->
                         type = #sp_simple_type{type = pos_integer}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, person}}
         },
         PersonRecord
     ),

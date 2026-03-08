@@ -11,7 +11,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     ResultType = spectra_type_info:get_type(TypeInfo, result, 1),
-    ?assertEqual(
+    ?assertMatch(
         #sp_type_with_variables{
             type =
                 #sp_map{

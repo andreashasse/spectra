@@ -19,7 +19,7 @@ simple_test() ->
 
     %% Normal opaque type
     PersonType = spectra_type_info:get_type(TypeInfo, person, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_map{
             fields =
                 [
@@ -67,12 +67,13 @@ simple_test() ->
                         name = data, binary_name = <<"data">>, type = #sp_simple_type{type = term}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, my_rec}}
         },
         MyRecRecord
     ),
     MyRecTType = spectra_type_info:get_type(TypeInfo, my_rec_t, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_rec_ref{
             record_name = my_rec,
             field_types =

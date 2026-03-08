@@ -15,17 +15,18 @@
 erl_abstract_code_parses_tuple_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     EmptyTupleType = spectra_type_info:get_type(TypeInfo, empty_tuple, 0),
-    ?assertEqual(#sp_tuple{fields = []}, EmptyTupleType),
+    ?assertEqual(#sp_tuple{fields = [], meta = #{name => {type, empty_tuple, 0}}}, EmptyTupleType),
     Tuple2Type = spectra_type_info:get_type(TypeInfo, tuple2, 0),
     ?assertEqual(
         #sp_tuple{
             fields =
-                [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}]
+                [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}],
+            meta = #{name => {type, tuple2, 0}}
         },
         Tuple2Type
     ),
     Tuple3Type = spectra_type_info:get_type(TypeInfo, tuple3, 0),
-    ?assertEqual(#sp_tuple{fields = any}, Tuple3Type),
+    ?assertEqual(#sp_tuple{fields = any, meta = #{name => {type, tuple3, 0}}}, Tuple3Type),
     {ok, WithTupleRecord} = spectra_type_info:find_record(TypeInfo, with_tuple),
     ?assertEqual(
         #sp_rec{
@@ -39,7 +40,8 @@ erl_abstract_code_parses_tuple_types_test() ->
                         name = data, binary_name = <<"data">>, type = #sp_tuple{fields = any}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, with_tuple}}
         },
         WithTupleRecord
     ).

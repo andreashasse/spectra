@@ -13,7 +13,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     IntResultType = spectra_type_info:get_type(TypeInfo, int_result, 0),
-    ?assertEqual(
+    ?assertMatch(
         #sp_user_type_ref{
             type_name = result_t,
             variables = [#sp_simple_type{type = atom}]
@@ -21,7 +21,7 @@ type_in_form_test() ->
         IntResultType
     ),
     ResultTType = spectra_type_info:get_type(TypeInfo, result_t, 1),
-    ?assertEqual(
+    ?assertMatch(
         #sp_type_with_variables{
             type =
                 #sp_rec_ref{
