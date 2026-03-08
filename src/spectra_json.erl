@@ -108,6 +108,11 @@ do_to_json_inner(_TypeInfo, #sp_literal{value = Value}, Value) when
 ->
     {ok, Value};
 do_to_json_inner(TypeInfo, #sp_union{} = Type, Data) ->
+    %% Use do_to_json_inner (not do_to_json) for union member traversal so that
+    %% #sp_user_type_ref members are resolved structurally rather than re-triggering
+    %% codec dispatch. With do_to_json, a codec module's local types would always be
+    %% sent to the codec's catch-all when tried as union alternatives, preventing
+    %% structural matching of non-codec union members.
     union(fun do_to_json_inner/3, TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_to_json(TypeInfo, Type, Data);
@@ -553,6 +558,7 @@ do_from_json_inner(_TypeInfo, #sp_literal{} = Type, Value) ->
 do_from_json_inner(TypeInfo, {type, TypeName, TypeArity}, Json) when is_atom(TypeName) ->
     type_from_json(TypeInfo, TypeName, TypeArity, [], Json);
 do_from_json_inner(TypeInfo, #sp_union{} = Type, Json) ->
+    %% Use do_from_json_inner (not do_from_json) for the same reason as do_to_json_inner.
     union(fun do_from_json_inner/3, TypeInfo, Type, Json);
 do_from_json_inner(
     _TypeInfo,
