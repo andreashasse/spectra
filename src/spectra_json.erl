@@ -55,12 +55,10 @@ do_to_json(TypeInfo, Type, Data) ->
 
 -spec do_to_json_inner(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     Data :: dynamic()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-do_to_json_inner(TypeInfo, {record, RecordName}, Record) when is_atom(RecordName) ->
-    record_to_json(TypeInfo, RecordName, Record, []);
 do_to_json_inner(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
     record_to_json(TypeInfo, RecordInfo, Record, []);
 do_to_json_inner(
@@ -120,10 +118,6 @@ do_to_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_to_json(TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
     list_to_json(TypeInfo, ListType, Data);
-do_to_json_inner(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    do_to_json_inner(TypeInfo, TypeWithoutVars, Data);
 do_to_json_inner(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
     case StructName of
         undefined ->
@@ -487,12 +481,10 @@ do_from_json(TypeInfo, Type, Json) ->
 
 -spec do_from_json_inner(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     Json :: json:decode_value()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-do_from_json_inner(TypeInfo, {record, RecordName}, Json) when is_atom(RecordName) ->
-    record_from_json(TypeInfo, RecordName, Json, []);
 do_from_json_inner(TypeInfo, #sp_rec{} = Rec, Json) ->
     record_from_json(TypeInfo, Rec, Json, []);
 do_from_json_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
@@ -559,10 +551,6 @@ do_from_json_inner(_TypeInfo, #sp_literal{} = Type, Value) ->
         false ->
             {error, [sp_error:type_mismatch(Type, Value)]}
     end;
-do_from_json_inner(TypeInfo, {type, TypeName, TypeArity}, Json) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, []),
-    do_from_json_inner(TypeInfo, TypeWithoutVars, Json);
 do_from_json_inner(TypeInfo, #sp_union{} = Type, Json) ->
     %% Use do_from_json_inner (not do_from_json) for the same reason as do_to_json_inner.
     union(fun do_from_json_inner/3, TypeInfo, Type, Json);
