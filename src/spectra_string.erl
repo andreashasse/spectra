@@ -33,15 +33,21 @@ and converts it to the corresponding Erlang value.
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
+from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             case M:decode(string, {type, N, length(Args)}, String, #{}) of
-                continue -> {error, [sp_error:type_mismatch(TypeRef, String)]};
-                Result -> Result
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    from_string(TypeInfo, TypeWithoutVars, String);
+                Result ->
+                    Result
             end;
         error ->
-            {error, [sp_error:type_mismatch(TypeRef, String)]}
+            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            from_string(TypeInfo, TypeWithoutVars, String)
     end;
 from_string(TypeInfo, Type, String) ->
     from_string_inner(TypeInfo, Type, String).
@@ -82,7 +88,7 @@ from_string_inner(
             {error, Reason}
     end;
 from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
-    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
+    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
             case M:decode(string, {type, TypeName, length(Args)}, String, #{}) of
                 continue ->
@@ -134,15 +140,21 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
+to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             case M:encode(string, {type, N, length(Args)}, Data, #{}) of
-                continue -> {error, [sp_error:type_mismatch(TypeRef, Data)]};
-                Result -> Result
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    to_string(TypeInfo, TypeWithoutVars, Data);
+                Result ->
+                    Result
             end;
         error ->
-            {error, [sp_error:type_mismatch(TypeRef, Data)]}
+            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            to_string(TypeInfo, TypeWithoutVars, Data)
     end;
 to_string(TypeInfo, Type, Data) ->
     to_string_inner(TypeInfo, Type, Data).
@@ -183,7 +195,7 @@ to_string_inner(
             {error, Reason}
     end;
 to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
+    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
             case M:encode(string, {type, TypeName, length(Args)}, Data, #{}) of
                 continue ->

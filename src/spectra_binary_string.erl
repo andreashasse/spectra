@@ -136,7 +136,7 @@ from_binary_string_inner(
     BinaryString,
     Opts
 ) ->
-    case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
+    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
             case M:decode(binary_string, {type, TypeName, length(Args)}, BinaryString, Opts) of
                 continue ->
@@ -278,7 +278,7 @@ to_binary_string_inner(
     end;
 to_binary_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts) ->
     TypeArity = length(Args),
-    case spectra_type_info:find_remote_codec(Module, TypeName, TypeArity) of
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
             case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts) of
                 continue ->

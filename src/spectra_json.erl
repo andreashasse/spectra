@@ -41,7 +41,7 @@ do_to_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRe
             do_to_json_inner(TypeInfo, TypeRef, Data)
     end;
 do_to_json(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef, Data) ->
-    case spectra_type_info:find_remote_codec(Mod, N, length(Args)) of
+    case spectra_type_info:find_codec(Mod, N, length(Args)) of
         {ok, M} ->
             case M:encode(json, {type, N, length(Args)}, Data, #{}) of
                 continue -> do_to_json_inner(TypeInfo, TypeRef, Data);
@@ -473,7 +473,7 @@ do_from_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
             do_from_json_inner(TypeInfo, TypeRef, Json)
     end;
 do_from_json(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef, Json) ->
-    case spectra_type_info:find_remote_codec(Mod, N, length(Args)) of
+    case spectra_type_info:find_codec(Mod, N, length(Args)) of
         {ok, M} ->
             case M:decode(json, {type, N, length(Args)}, Json, #{}) of
                 continue -> do_from_json_inner(TypeInfo, TypeRef, Json);

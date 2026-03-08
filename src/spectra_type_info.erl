@@ -8,7 +8,7 @@
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([set_implements_codec/2, find_local_codec/1, find_remote_codec/3]).
+-export([set_implements_codec/2, find_local_codec/1, find_codec/3]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -76,23 +76,13 @@ set_implements_codec(TypeInfo, ImplementsCodec) ->
 find_local_codec(#type_info{implements_codec = true, module = M}) -> {ok, M};
 find_local_codec(#type_info{implements_codec = false}) -> error.
 
--spec find_remote_codec(module(), atom(), arity()) -> {ok, module()} | error.
-find_remote_codec(Mod, TypeName, Arity) ->
+-spec find_codec(module(), atom(), arity()) -> {ok, module()} | error.
+find_codec(Mod, TypeName, Arity) ->
     Key = {Mod, {type, TypeName, Arity}},
     GlobalCodecs = application:get_env(spectra, codecs, #{}),
     case maps:find(Key, GlobalCodecs) of
         {ok, _} = R ->
             R;
         error ->
-            ModExists = erlang:module_loaded(Mod) orelse code:which(Mod) =/= non_existing,
-            case ModExists of
-                false ->
-                    error;
-                true ->
-                    Attrs = Mod:module_info(attributes),
-                    case lists:member(spectra_codec, proplists:get_value(behaviour, Attrs, [])) of
-                        true -> {ok, Mod};
-                        false -> error
-                    end
-            end
+            find_local_codec(spectra_module_types:get(Mod))
     end.
