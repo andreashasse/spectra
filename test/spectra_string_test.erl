@@ -1127,3 +1127,23 @@ to_string_invalid_input_test() ->
     ),
 
     ok.
+
+%% Test that a codec returning `continue` for a local type falls back to
+%% structural decoding rather than returning {error, type_mismatch}.
+%% codec_string_continue_module has a `name() :: binary()` type and a codec
+%% that always returns `continue` for every callback.
+string_codec_continue_decode_test() ->
+    %% Without a codec the structural path gives {ok, <<"hello">>}.
+    %% With a codec that returns `continue`, the result must be identical.
+    ?assertEqual(
+        {ok, <<"hello">>},
+        spectra:decode(string, codec_string_continue_module, name, "hello")
+    ).
+
+string_codec_continue_encode_test() ->
+    %% Without a codec the structural path gives {ok, "hello"}.
+    %% With a codec that returns `continue`, the result must be identical.
+    ?assertEqual(
+        {ok, "hello"},
+        spectra:encode(string, codec_string_continue_module, name, <<"hello">>)
+    ).
