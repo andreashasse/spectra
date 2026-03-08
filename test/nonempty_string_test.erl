@@ -41,9 +41,9 @@ validate_nonempty_string_test() ->
 -spec to_json(nonempty_user()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(User) ->
-    spectra_json:to_json(?MODULE, {type, nonempty_user, 0}, User).
+    spectra:encode(json, ?MODULE, {type, nonempty_user, 0}, User, [pre_encoded]).
 
 -spec from_json(json:encode_value()) ->
     {ok, nonempty_user()} | {error, [spectra:error()]}.
 from_json(Json) ->
-    spectra_json:from_json(?MODULE, {type, nonempty_user, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, nonempty_user, 0}, Json, [pre_decoded]).

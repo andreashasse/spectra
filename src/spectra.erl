@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, decode/5, encode/4, encode/5, schema/3]).
+-export([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
 
--ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3]).
+-ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -66,12 +66,15 @@
 -type record_field() :: #sp_rec_field{}.
 -type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
+-type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
 -type binary_string_decode_opts() :: #{}.
 -type binary_string_encode_opts() :: #{}.
 -type codec_encode_opts() :: #{}.
 -type codec_decode_opts() :: #{}.
 -type codec_schema_opts() :: #{}.
+-type codec_encode_result() :: {ok, term()} | {error, [error()]} | continue.
+-type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -124,7 +127,10 @@
     codec_encode_opts/0,
     codec_decode_opts/0,
     codec_schema_opts/0,
-    codec_key/0
+    codec_encode_result/0,
+    codec_decode_result/0,
+    codec_key/0,
+    schema_option/0
 ]).
 
 -doc """
@@ -389,6 +395,41 @@ schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
 schema(json_schema, TypeInfo, TypeOrRef) ->
     SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
     json:encode(SchemaMap).
+
+-doc """
+Generates a schema for the specified type in the given format.
+
+Accepts an options list. Supported options:
+- `pre_encoded`: Skip the final JSON encoding step and return the raw schema map
+  instead of encoded `iodata()`. Useful for inspecting or manipulating the schema
+  before serialisation.
+
+### Example:
+
+```
+1> spectra:schema(json_schema, my_module, user, [pre_encoded]).
+#{<<"type">> => <<"object">>, <<"properties">> => #{...}}
+```
+""".
+-spec schema(
+    Format :: atom(),
+    ModuleOrTypeinfo :: module() | type_info(),
+    TypeOrRef :: atom() | sp_type_or_ref(),
+    Options :: [schema_option()]
+) ->
+    iodata() | map().
+schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
+    TypeInfo = spectra_module_types:get(Module),
+    schema(Format, TypeInfo, TypeOrRef, Options);
+schema(Format, TypeInfo, TypeAtom, Options) when is_atom(TypeAtom) ->
+    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    schema(Format, TypeInfo, TypeRef, Options);
+schema(json_schema, TypeInfo, TypeOrRef, Options) ->
+    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
+    case proplists:get_value(pre_encoded, Options, false) of
+        true -> SchemaMap;
+        false -> json:encode(SchemaMap)
+    end.
 
 -spec type_ref_from_meta(sp_type()) -> {ok, sp_type_reference()} | error.
 type_ref_from_meta(SpType) ->

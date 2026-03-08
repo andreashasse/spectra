@@ -89,17 +89,17 @@ validate_role_test() ->
 -spec to_json_non_atom_enum(non_atom_enum()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_non_atom_enum(Data) ->
-    spectra_json:to_json(?MODULE, {type, non_atom_enum, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, non_atom_enum, 0}, Data, [pre_encoded]).
 
 -spec from_json_non_atom_enum(json:encode_value()) ->
     {ok, non_atom_enum()} | {error, [spectra:error()]}.
 from_json_non_atom_enum(Json) ->
-    spectra_json:from_json(?MODULE, {type, non_atom_enum, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, non_atom_enum, 0}, Json, [pre_decoded]).
 
 -spec to_json_role(role()) -> {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_role(Data) ->
-    spectra_json:to_json(?MODULE, {type, role, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, role, 0}, Data, [pre_encoded]).
 
 -spec from_json_role(json:encode_value()) -> {ok, role()} | {error, [spectra:error()]}.
 from_json_role(Json) ->
-    spectra_json:from_json(?MODULE, {type, role, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, role, 0}, Json, [pre_decoded]).

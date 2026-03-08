@@ -51,8 +51,8 @@ map1_from_json_test() ->
 
 -spec from_json_result_1(term()) -> int_result().
 from_json_result_1(Data) ->
-    spectra_json:from_json(?MODULE, {type, int_result, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, int_result, 0}, Data, [pre_decoded]).
 
 -spec to_json_result_1(int_result()) -> json:encode_value().
 to_json_result_1(Data) ->
-    spectra_json:to_json(?MODULE, {type, int_result, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, int_result, 0}, Data, [pre_encoded]).

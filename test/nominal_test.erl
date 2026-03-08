@@ -62,14 +62,16 @@ simple_test() ->
     Person = #{id => 1, name => <<"John">>, age => 42},
     ?assertEqual(
         {ok, #{<<"id">> => 1, <<"name">> => <<"John">>, <<"age">> => 42}},
-        spectra_json:to_json(?MODULE, {type, person, 0}, Person)
+        spectra:encode(json, ?MODULE, {type, person, 0}, Person, [pre_encoded])
     ),
     ?assertEqual(
         {ok, Person},
-        spectra_json:from_json(
+        spectra:decode(
+            json,
             ?MODULE,
             {type, person, 0},
-            #{<<"id">> => 1, <<"name">> => <<"John">>, <<"age">> => 42}
+            #{<<"id">> => 1, <<"name">> => <<"John">>, <<"age">> => 42},
+            [pre_decoded]
         )
     ),
 
@@ -107,21 +109,25 @@ simple_test() ->
         {ok, #{
             <<"id">> => 1, <<"data">> => #{<<"id">> => 2, <<"name">> => <<"John">>, <<"age">> => 42}
         }},
-        spectra_json:to_json(
+        spectra:encode(
+            json,
             ?MODULE,
             {type, my_rec_t, 0},
-            #my_rec{id = 1, data = #{id => 2, name => <<"John">>, age => 42}}
+            #my_rec{id = 1, data = #{id => 2, name => <<"John">>, age => 42}},
+            [pre_encoded]
         )
     ),
     ?assertEqual(
         {ok, #my_rec{id = 1, data = #{id => 2, name => <<"John">>, age => 42}}},
-        spectra_json:from_json(
+        spectra:decode(
+            json,
             ?MODULE,
             {type, my_rec_t, 0},
             #{
                 <<"id">> => 1,
                 <<"data">> =>
                     #{<<"id">> => 2, <<"name">> => <<"John">>, <<"age">> => 42}
-            }
+            },
+            [pre_decoded]
         )
     ).

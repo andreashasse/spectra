@@ -84,9 +84,9 @@ validate_accesses_test() ->
 -spec to_json_accesses(accesses()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_accesses(Data) ->
-    spectra_json:to_json(?MODULE, {type, accesses, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, accesses, 0}, Data, [pre_encoded]).
 
 -spec from_json_accesses(json:encode_value()) ->
     {ok, accesses()} | {error, [spectra:error()]}.
 from_json_accesses(Json) ->
-    spectra_json:from_json(?MODULE, {type, accesses, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, accesses, 0}, Json, [pre_decoded]).

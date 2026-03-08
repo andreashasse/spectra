@@ -103,11 +103,11 @@ spectra_json_handles_maybe_improper_list_data_test() ->
     Iolist1 = ["hello", <<"world">>],
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, iolist1, 0}, Iolist1)
+        spectra:encode(json, ?MODULE, {type, iolist1, 0}, Iolist1, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, non_empty_iolist1, 0}, Iolist1)
+        spectra:encode(json, ?MODULE, {type, non_empty_iolist1, 0}, Iolist1, [pre_encoded])
     ),
     ok.
 
@@ -115,24 +115,24 @@ spectra_json_handles_maybe_improper_list_data_from_json_test() ->
     Data = <<"[]">>,
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, iolist1, 0}, Data)
+        spectra:decode(json, ?MODULE, {type, iolist1, 0}, Data, [pre_decoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, non_empty_iolist1, 0}, Data)
+        spectra:decode(json, ?MODULE, {type, non_empty_iolist1, 0}, Data, [pre_decoded])
     ),
     ok.
 
 spectra_json_schema_handles_maybe_improper_list_test() ->
     ?assertError(
         {type_not_supported, _},
-        spectra_json_schema:to_schema(?MODULE, {type, iolist1, 0})
+        spectra:schema(json_schema, ?MODULE, {type, iolist1, 0}, [pre_encoded])
     ),
     ok.
 
 spectra_json_schema_handles_nonempty_improper_list_test() ->
     ?assertError(
         {type_not_supported, _},
-        spectra_json_schema:to_schema(?MODULE, {type, non_empty_iolist1, 0})
+        spectra:schema(json_schema, ?MODULE, {type, non_empty_iolist1, 0}, [pre_encoded])
     ),
     ok.

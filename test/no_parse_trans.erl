@@ -7,8 +7,8 @@
 
 -spec name_to_json(name()) -> json:encode_value().
 name_to_json(Name) ->
-    spectra_json:to_json(no_parse_trans, name, Name).
+    spectra:encode(json, no_parse_trans, name, Name, [pre_encoded]).
 
 -spec name_from_json(json:encode_value()) -> name().
 name_from_json(Json) ->
-    spectra_json:from_json(no_parse_trans, name, Json).
+    spectra:decode(json, no_parse_trans, name, Json, [pre_decoded]).

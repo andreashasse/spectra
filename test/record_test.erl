@@ -36,30 +36,42 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, #{<<"name">> => <<"John">>, <<"age">> => 1}},
-        spectra_json:to_json(?MODULE, {record, person}, #person{name = "John"}),
+        spectra:encode(json, ?MODULE, {record, person}, #person{name = "John"}, [pre_encoded]),
         "Default value for age picked up when constructing the record, no change needed for to_json"
     ),
     ?assertMatch(
         {error, [#sp_error{location = [age], type = missing_data}]},
-        spectra_json:from_json(?MODULE, {record, person}, #{<<"name">> => <<"John">>}),
+        spectra:decode(json, ?MODULE, {record, person}, #{<<"name">> => <<"John">>}, [pre_decoded]),
         "Default value not picked up here, should it?"
     ).
 
 extra_fields_test() ->
     ?assertMatch(
         {ok, #person{name = "John", age = 30}},
-        spectra_json:from_json(?MODULE, {record, person}, #{
-            <<"name">> => <<"John">>, <<"age">> => 30, <<"extra">> => <<"field">>
-        }),
+        spectra:decode(
+            json,
+            ?MODULE,
+            {record, person},
+            #{
+                <<"name">> => <<"John">>, <<"age">> => 30, <<"extra">> => <<"field">>
+            },
+            [pre_decoded]
+        ),
         "Extra fields in JSON should be ignored"
     ),
     ?assertMatch(
         {ok, #person{name = "John", age = 30}},
-        spectra_json:from_json(?MODULE, {record, person}, #{
-            <<"name">> => <<"John">>,
-            <<"age">> => 30,
-            <<"extra1">> => <<"value1">>,
-            <<"extra2">> => <<"value2">>
-        }),
+        spectra:decode(
+            json,
+            ?MODULE,
+            {record, person},
+            #{
+                <<"name">> => <<"John">>,
+                <<"age">> => 30,
+                <<"extra1">> => <<"value1">>,
+                <<"extra2">> => <<"value2">>
+            },
+            [pre_decoded]
+        ),
         "Multiple extra fields in JSON should be ignored"
     ).

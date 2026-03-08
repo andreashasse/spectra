@@ -38,19 +38,19 @@ validate_missing_test() ->
 -spec to_json_remote(remote()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_remote(Data) ->
-    spectra_json:to_json(?MODULE, {type, remote, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, remote, 0}, Data, [pre_encoded]).
 
 -spec from_json_remote(json:encode_value()) ->
     {ok, remote()} | {error, [spectra:error()]}.
 from_json_remote(Json) ->
-    spectra_json:from_json(?MODULE, {type, remote, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, remote, 0}, Json, [pre_decoded]).
 
 -spec to_json_missing(missing()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_missing(Data) ->
-    spectra_json:to_json(?MODULE, {type, missing, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, missing, 0}, Data, [pre_encoded]).
 
 -spec from_json_missing(json:encode_value()) ->
     {ok, missing()} | {error, [spectra:error()]}.
 from_json_missing(Json) ->
-    spectra_json:from_json(?MODULE, {type, missing, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, missing, 0}, Json, [pre_decoded]).

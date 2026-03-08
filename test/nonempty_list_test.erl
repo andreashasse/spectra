@@ -52,9 +52,9 @@ validate_nonempty_list_test() ->
 -spec to_json(user_with_items()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(User) ->
-    spectra_json:to_json(?MODULE, {type, user_with_items, 0}, User).
+    spectra:encode(json, ?MODULE, {type, user_with_items, 0}, User, [pre_encoded]).
 
 -spec from_json(json:encode_value()) ->
     {ok, user_with_items()} | {error, [spectra:error()]}.
 from_json(Json) ->
-    spectra_json:from_json(?MODULE, {type, user_with_items, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, user_with_items, 0}, Json, [pre_decoded]).

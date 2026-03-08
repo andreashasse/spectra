@@ -36,15 +36,36 @@ and converts it to the corresponding Erlang value.
 from_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, String) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:decode(string, TypeRef, String, #{});
+            case M:decode(string, TypeRef, String, #{}) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    from_string(TypeInfo, Type, String);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             from_string(TypeInfo, Type, String)
     end;
 from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:decode(string, {type, N, length(Args)}, String, #{});
-        error -> {error, [sp_error:type_mismatch(TypeRef, String)]}
+        {ok, M} ->
+            case M:decode(string, {type, N, length(Args)}, String, #{}) of
+                continue -> {error, [sp_error:type_mismatch(TypeRef, String)]};
+                Result -> Result
+            end;
+        error ->
+            {error, [sp_error:type_mismatch(TypeRef, String)]}
+    end;
+from_string(TypeInfo, {record, RecordName} = TypeRef, String) when is_atom(RecordName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case M:decode(string, TypeRef, String, #{}) of
+                continue -> erlang:error({type_not_supported, TypeRef});
+                Result -> Result
+            end;
+        error ->
+            erlang:error({type_not_supported, TypeRef})
     end;
 from_string(TypeInfo, Type, String) ->
     from_string_inner(TypeInfo, Type, String).
@@ -55,8 +76,6 @@ from_string(TypeInfo, Type, String) ->
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string_inner(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
-    erlang:error({type_not_supported, {record, RecordName}});
 from_string_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -89,7 +108,16 @@ from_string_inner(
 from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:decode(string, {type, TypeName, length(Args)}, String, #{});
+            case M:decode(string, {type, TypeName, length(Args)}, String, #{}) of
+                continue ->
+                    TypeInfo = spectra_module_types:get(Module),
+                    TypeArity = length(Args),
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    from_string(TypeInfo, TypeWithoutVars, String);
+                Result ->
+                    Result
+            end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
@@ -131,15 +159,36 @@ and converts it to a string representation.
 to_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:encode(string, TypeRef, Data, #{});
+            case M:encode(string, TypeRef, Data, #{}) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    to_string(TypeInfo, Type, Data);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             to_string(TypeInfo, Type, Data)
     end;
 to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} -> M:encode(string, {type, N, length(Args)}, Data, #{});
-        error -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
+        {ok, M} ->
+            case M:encode(string, {type, N, length(Args)}, Data, #{}) of
+                continue -> {error, [sp_error:type_mismatch(TypeRef, Data)]};
+                Result -> Result
+            end;
+        error ->
+            {error, [sp_error:type_mismatch(TypeRef, Data)]}
+    end;
+to_string(TypeInfo, {record, RecordName} = TypeRef, Data) when is_atom(RecordName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case M:encode(string, TypeRef, Data, #{}) of
+                continue -> erlang:error({type_not_supported, TypeRef});
+                Result -> Result
+            end;
+        error ->
+            erlang:error({type_not_supported, TypeRef})
     end;
 to_string(TypeInfo, Type, Data) ->
     to_string_inner(TypeInfo, Type, Data).
@@ -150,8 +199,6 @@ to_string(TypeInfo, Type, Data) ->
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string_inner(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
-    erlang:error({type_not_supported, {record, RecordName}});
 to_string_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -184,7 +231,16 @@ to_string_inner(
 to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:encode(string, {type, TypeName, length(Args)}, Data, #{});
+            case M:encode(string, {type, TypeName, length(Args)}, Data, #{}) of
+                continue ->
+                    TypeInfo = spectra_module_types:get(Module),
+                    TypeArity = length(Args),
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    to_string(TypeInfo, TypeWithoutVars, Data);
+                Result ->
+                    Result
+            end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),

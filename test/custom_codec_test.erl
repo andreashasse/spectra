@@ -87,12 +87,13 @@ no_codec_still_throws_test() ->
         spectra:encode(json, codec_tuple_module, {type, pair, 0}, {1, 2})
     ).
 
-%% 8. Verify codec callbacks receive the correct sp_type_reference (tuple form)
+%% 8. Verify codec callbacks receive the correct sp_type_reference (tuple form).
+%%    The codec returns `continue` for bad data, so spectra falls through to the
+%%    structural encoder for the opaque tuple type, which crashes (tuples are not
+%%    supported in JSON).
 type_ref_passed_to_codec_test() ->
-    %% Passing wrong data to the geo codec should return {error,_} (codec's catch-all),
-    %% proving the codec was invoked with {type, point, 0}.
-    ?assertMatch(
-        {error, _},
+    ?assertError(
+        {type_not_supported, _},
         spectra:encode(json, codec_geo_module, {type, point, 0}, not_a_tuple, [pre_encoded])
     ).
 
@@ -208,3 +209,24 @@ cat_record_ref_forms_test() ->
     DecSpType = spectra:decode(json, TypeInfo, CatSpRec, CatJson, [pre_decoded]),
     ?assertEqual({ok, Cat}, DecTupleRef),
     ?assertEqual(DecTupleRef, DecSpType).
+
+%% 19. Codec is dispatched for {record, N} refs — codec returns continue, falling
+%%     through to structural encode/decode, matching the result of encoding via #sp_rec{}
+record_ref_codec_dispatch_continue_test() ->
+    TypeInfo = spectra_module_types:get(codec_animal_codec),
+    {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
+
+    Cat = {cat, <<"Luna">>, false},
+    CatJson = #{<<"name">> => <<"Luna">>, <<"indoor">> => false},
+
+    %% {record, cat} now dispatches to codec, codec returns `continue`, structural
+    %% encoding takes over — result must match direct #sp_rec{} encoding.
+    {ok, Encoded} = spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded]),
+    {ok, EncodedDirect} = spectra:encode(json, TypeInfo, CatSpRec, Cat, [pre_encoded]),
+    ?assertEqual(CatJson, Encoded),
+    ?assertEqual(EncodedDirect, Encoded),
+
+    {ok, Decoded} = spectra:decode(json, codec_animal_codec, {record, cat}, CatJson, [pre_decoded]),
+    {ok, DecodedDirect} = spectra:decode(json, TypeInfo, CatSpRec, CatJson, [pre_decoded]),
+    ?assertEqual(Cat, Decoded),
+    ?assertEqual(DecodedDirect, Decoded).

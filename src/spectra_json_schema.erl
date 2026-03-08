@@ -49,16 +49,20 @@
 
 %% API
 
--spec to_schema(module() | spectra:type_info(), spectra:sp_type_or_ref()) -> json_schema().
-to_schema(Module, Type) when is_atom(Module) ->
-    TypeInfo = spectra_module_types:get(Module),
-    to_schema(TypeInfo, Type);
+-spec to_schema(spectra:type_info(), spectra:sp_type_or_ref()) -> json_schema().
 to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    add_schema_version(M:schema(json_schema, TypeRef, #{}));
+                    case M:schema(json_schema, TypeRef, #{}) of
+                        continue ->
+                            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                            TypeWithoutVars = apply_args(TypeInfo, Type, []),
+                            to_schema_for_sp_type(TypeInfo, TypeWithoutVars);
+                        Schema ->
+                            add_schema_version(Schema)
+                    end;
                 false ->
                     erlang:error({schema_not_implemented, M, TypeRef})
             end;
@@ -67,9 +71,25 @@ to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName
             TypeWithoutVars = apply_args(TypeInfo, Type, []),
             to_schema_for_sp_type(TypeInfo, TypeWithoutVars)
     end;
-to_schema(TypeInfo, {record, RecordName}) when is_atom(RecordName) ->
-    Record = spectra_type_info:get_record(TypeInfo, RecordName),
-    to_schema_for_sp_type(TypeInfo, Record);
+to_schema(TypeInfo, {record, RecordName} = TypeRef) when is_atom(RecordName) ->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case erlang:function_exported(M, schema, 3) of
+                true ->
+                    case M:schema(json_schema, TypeRef, #{}) of
+                        continue ->
+                            Record = spectra_type_info:get_record(TypeInfo, RecordName),
+                            to_schema_for_sp_type(TypeInfo, Record);
+                        Schema ->
+                            add_schema_version(Schema)
+                    end;
+                false ->
+                    erlang:error({schema_not_implemented, M, TypeRef})
+            end;
+        error ->
+            Record = spectra_type_info:get_record(TypeInfo, RecordName),
+            to_schema_for_sp_type(TypeInfo, Record)
+    end;
 to_schema(TypeInfo, Type) ->
     to_schema_for_sp_type(TypeInfo, Type).
 
@@ -88,8 +108,13 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
-                true -> M:schema(json_schema, {type, N, length(Args)}, #{});
-                false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
+                true ->
+                    case M:schema(json_schema, {type, N, length(Args)}, #{}) of
+                        continue -> do_to_schema_inner(TypeInfo, TypeRef);
+                        Schema -> Schema
+                    end;
+                false ->
+                    erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)
@@ -98,8 +123,13 @@ do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
     case spectra_type_info:find_remote_codec(Mod, N, length(Args)) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
-                true -> M:schema(json_schema, {type, N, length(Args)}, #{});
-                false -> erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
+                true ->
+                    case M:schema(json_schema, {type, N, length(Args)}, #{}) of
+                        continue -> do_to_schema_inner(TypeInfo, TypeRef);
+                        Schema -> Schema
+                    end;
+                false ->
+                    erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)

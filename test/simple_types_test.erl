@@ -39,7 +39,9 @@ missing_test() ->
 
     %% range
     %% FIXME: more specific matching
-    ?assertMatch({error, _}, spectra_json:to_json(?MODULE, {type, my_range, 0}, -0.0)),
+    ?assertMatch(
+        {error, _}, spectra:encode(json, ?MODULE, {type, my_range, 0}, -0.0, [pre_encoded])
+    ),
 
     %% arity
     MyArityType = spectra_type_info:get_type(TypeInfo, my_arity, 0),
@@ -52,8 +54,8 @@ missing_test() ->
         },
         MyArityType
     ),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_arity, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_arity, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_arity, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_arity, 0}, 42, [pre_decoded])),
 
     %% byte
     MyByteType = spectra_type_info:get_type(TypeInfo, my_byte, 0),
@@ -66,8 +68,8 @@ missing_test() ->
         },
         MyByteType
     ),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_byte, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_byte, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_byte, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_byte, 0}, 42, [pre_decoded])),
 
     %% char
     MyCharType = spectra_type_info:get_type(TypeInfo, my_char, 0),
@@ -80,8 +82,8 @@ missing_test() ->
         },
         MyCharType
     ),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_char, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_char, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_char, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_char, 0}, 42, [pre_decoded])),
 
     %% mfa
     MyMfaType = spectra_type_info:get_type(TypeInfo, my_mfa, 0),
@@ -103,18 +105,18 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_mfa, 0}, {module, function, 42})
+        spectra:encode(json, ?MODULE, {type, my_mfa, 0}, {module, function, 42}, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_mfa, 0}, {module, function, 42})
+        spectra:decode(json, ?MODULE, {type, my_mfa, 0}, {module, function, 42}, [pre_decoded])
     ),
 
     %% any
     MyTermType = spectra_type_info:get_type(TypeInfo, my_term, 0),
     ?assertEqual(#sp_simple_type{type = term, meta = #{name => {type, my_term, 0}}}, MyTermType),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_term, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_term, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_term, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_term, 0}, 42, [pre_decoded])),
 
     %% timeout
     MyTimeoutType = spectra_type_info:get_type(TypeInfo, my_timeout, 0),
@@ -131,29 +133,31 @@ missing_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_json:to_json(?MODULE, {type, my_timeout, 0}, <<"infinity">>)
+        spectra:encode(json, ?MODULE, {type, my_timeout, 0}, <<"infinity">>, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"infinity">>},
-        spectra_json:to_json(?MODULE, {type, my_timeout, 0}, infinity)
+        spectra:encode(json, ?MODULE, {type, my_timeout, 0}, infinity, [pre_encoded])
     ),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_timeout, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_timeout, 0}, 42, [pre_encoded])),
     ?assertEqual(
         {ok, infinity},
-        spectra_json:from_json(?MODULE, {type, my_timeout, 0}, infinity)
+        spectra:decode(json, ?MODULE, {type, my_timeout, 0}, infinity, [pre_decoded])
     ),
-    ?assertEqual({ok, 1000}, spectra_json:from_json(?MODULE, {type, my_timeout, 0}, 1000)),
+    ?assertEqual(
+        {ok, 1000}, spectra:decode(json, ?MODULE, {type, my_timeout, 0}, 1000, [pre_decoded])
+    ),
 
     %% pid
     MyPidType = spectra_type_info:get_type(TypeInfo, my_pid, 0),
     ?assertEqual(#sp_simple_type{type = pid, meta = #{name => {type, my_pid, 0}}}, MyPidType),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_pid, 0}, self())
+        spectra:encode(json, ?MODULE, {type, my_pid, 0}, self(), [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_pid, 0}, <<"not_a_pid">>)
+        spectra:decode(json, ?MODULE, {type, my_pid, 0}, <<"not_a_pid">>, [pre_decoded])
     ),
 
     %% iodata
@@ -167,23 +171,23 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iodata, 0}, IoList1)
+        spectra:encode(json, ?MODULE, {type, my_iodata, 0}, IoList1, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iodata, 0}, IoList2)
+        spectra:encode(json, ?MODULE, {type, my_iodata, 0}, IoList2, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iodata, 0}, IoList3)
+        spectra:encode(json, ?MODULE, {type, my_iodata, 0}, IoList3, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iodata, 0}, <<"helloworld">>)
+        spectra:encode(json, ?MODULE, {type, my_iodata, 0}, <<"helloworld">>, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:from_json(?MODULE, {type, my_iodata, 0}, <<"helloworld">>)
+        spectra:decode(json, ?MODULE, {type, my_iodata, 0}, <<"helloworld">>, [pre_decoded])
     ),
 
     MyIolistType = spectra_type_info:get_type(TypeInfo, my_iolist, 0),
@@ -192,23 +196,23 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iolist, 0}, IoList1)
+        spectra:encode(json, ?MODULE, {type, my_iolist, 0}, IoList1, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iolist, 0}, IoList2)
+        spectra:encode(json, ?MODULE, {type, my_iolist, 0}, IoList2, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"helloworld">>},
-        spectra_json:to_json(?MODULE, {type, my_iolist, 0}, IoList3)
+        spectra:encode(json, ?MODULE, {type, my_iolist, 0}, IoList3, [pre_encoded])
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_json:to_json(?MODULE, {type, my_iolist, 0}, <<"helloworld">>)
+        spectra:encode(json, ?MODULE, {type, my_iolist, 0}, <<"helloworld">>, [pre_encoded])
     ),
     ?assertEqual(
         {ok, [<<"helloworld">>]},
-        spectra_json:from_json(?MODULE, {type, my_iolist, 0}, <<"helloworld">>)
+        spectra:decode(json, ?MODULE, {type, my_iolist, 0}, <<"helloworld">>, [pre_decoded])
     ),
 
     %% port
@@ -216,11 +220,11 @@ missing_test() ->
     ?assertEqual(#sp_simple_type{type = port, meta = #{name => {type, my_port, 0}}}, MyPortType),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_port, 0}, not_a_port)
+        spectra:encode(json, ?MODULE, {type, my_port, 0}, not_a_port, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_port, 0}, <<"not_a_port">>)
+        spectra:decode(json, ?MODULE, {type, my_port, 0}, <<"not_a_port">>, [pre_decoded])
     ),
 
     %% reference
@@ -231,11 +235,11 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_reference, 0}, make_ref())
+        spectra:encode(json, ?MODULE, {type, my_reference, 0}, make_ref(), [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_reference, 0}, <<"not_a_reference">>)
+        spectra:decode(json, ?MODULE, {type, my_reference, 0}, <<"not_a_reference">>, [pre_decoded])
     ),
 
     %% node
@@ -243,11 +247,11 @@ missing_test() ->
     ?assertEqual(#sp_simple_type{type = atom, meta = #{name => {type, my_node, 0}}}, MyNodeType),
     ?assertEqual(
         {ok, nonode@nohost},
-        spectra_json:to_json(?MODULE, {type, my_node, 0}, nonode@nohost)
+        spectra:encode(json, ?MODULE, {type, my_node, 0}, nonode@nohost, [pre_encoded])
     ),
     ?assertEqual(
         {ok, nonode@nohost},
-        spectra_json:from_json(?MODULE, {type, my_node, 0}, <<"nonode@nohost">>)
+        spectra:decode(json, ?MODULE, {type, my_node, 0}, <<"nonode@nohost">>, [pre_decoded])
     ),
 
     %% identifier
@@ -266,11 +270,11 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_identifier, 0}, my_identifier)
+        spectra:encode(json, ?MODULE, {type, my_identifier, 0}, my_identifier, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_identifier, 0}, my_identifier)
+        spectra:encode(json, ?MODULE, {type, my_identifier, 0}, my_identifier, [pre_encoded])
     ),
 
     %% literal
@@ -279,8 +283,8 @@ missing_test() ->
         #sp_literal{value = 1, binary_value = <<"1">>, meta = #{name => {type, my_literal, 0}}},
         MyLiteralType
     ),
-    ?assertEqual({ok, 1}, spectra_json:to_json(?MODULE, {type, my_literal, 0}, 1)),
-    ?assertEqual({ok, 1}, spectra_json:from_json(?MODULE, {type, my_literal, 0}, 1)),
+    ?assertEqual({ok, 1}, spectra:encode(json, ?MODULE, {type, my_literal, 0}, 1, [pre_encoded])),
+    ?assertEqual({ok, 1}, spectra:decode(json, ?MODULE, {type, my_literal, 0}, 1, [pre_decoded])),
 
     %% list
     MyListType = spectra_type_info:get_type(TypeInfo, my_list, 0),
@@ -290,18 +294,18 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:to_json(?MODULE, {type, my_list, 0}, [1, 2, 3])
+        spectra:encode(json, ?MODULE, {type, my_list, 0}, [1, 2, 3], [pre_encoded])
     ),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:from_json(?MODULE, {type, my_list, 0}, [1, 2, 3])
+        spectra:decode(json, ?MODULE, {type, my_list, 0}, [1, 2, 3], [pre_decoded])
     ),
 
     %% term
     MyTermType2 = spectra_type_info:get_type(TypeInfo, my_term, 0),
     ?assertEqual(#sp_simple_type{type = term, meta = #{name => {type, my_term, 0}}}, MyTermType2),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_term, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_term, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_term, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_term, 0}, 42, [pre_decoded])),
 
     %% nonempty_list
     MyNonemptyListType = spectra_type_info:get_type(TypeInfo, my_nonempty_list, 0),
@@ -313,19 +317,19 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:to_json(?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3])
+        spectra:encode(json, ?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3], [pre_encoded])
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_json:to_json(?MODULE, {type, my_nonempty_list, 0}, [])
+        spectra:encode(json, ?MODULE, {type, my_nonempty_list, 0}, [], [pre_encoded])
     ),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:from_json(?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3])
+        spectra:decode(json, ?MODULE, {type, my_nonempty_list, 0}, [1, 2, 3], [pre_decoded])
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_json:from_json(?MODULE, {type, my_nonempty_list, 0}, [])
+        spectra:decode(json, ?MODULE, {type, my_nonempty_list, 0}, [], [pre_decoded])
     ),
 
     %% nil
@@ -334,16 +338,16 @@ missing_test() ->
         #sp_literal{value = [], binary_value = <<"[]">>, meta = #{name => {type, my_nil, 0}}},
         MyNilType
     ),
-    ?assertEqual({ok, []}, spectra_json:to_json(?MODULE, {type, my_nil, 0}, [])),
-    ?assertEqual({ok, []}, spectra_json:from_json(?MODULE, {type, my_nil, 0}, [])),
+    ?assertEqual({ok, []}, spectra:encode(json, ?MODULE, {type, my_nil, 0}, [], [pre_encoded])),
+    ?assertEqual({ok, []}, spectra:decode(json, ?MODULE, {type, my_nil, 0}, [], [pre_decoded])),
 
     %% dynamic
     MyDynamicType = spectra_type_info:get_type(TypeInfo, my_dynamic, 0),
     ?assertEqual(
         #sp_simple_type{type = term, meta = #{name => {type, my_dynamic, 0}}}, MyDynamicType
     ),
-    ?assertEqual({ok, 42}, spectra_json:to_json(?MODULE, {type, my_dynamic, 0}, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(?MODULE, {type, my_dynamic, 0}, 42)),
+    ?assertEqual({ok, 42}, spectra:encode(json, ?MODULE, {type, my_dynamic, 0}, 42, [pre_encoded])),
+    ?assertEqual({ok, 42}, spectra:decode(json, ?MODULE, {type, my_dynamic, 0}, 42, [pre_decoded])),
 
     %% nonempty_binary
     MyNonemptyBinaryType =
@@ -354,19 +358,19 @@ missing_test() ->
     ),
     ?assertEqual(
         {ok, <<"hello">>},
-        spectra_json:to_json(?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>)
+        spectra:encode(json, ?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>, [pre_encoded])
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_json:to_json(?MODULE, {type, my_nonempty_binary, 0}, <<>>)
+        spectra:encode(json, ?MODULE, {type, my_nonempty_binary, 0}, <<>>, [pre_encoded])
     ),
     ?assertEqual(
         {ok, <<"hello">>},
-        spectra_json:from_json(?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>)
+        spectra:decode(json, ?MODULE, {type, my_nonempty_binary, 0}, <<"hello">>, [pre_decoded])
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_json:from_json(?MODULE, {type, my_nonempty_binary, 0}, <<>>)
+        spectra:decode(json, ?MODULE, {type, my_nonempty_binary, 0}, <<>>, [pre_decoded])
     ),
 
     %% bitstring
@@ -377,11 +381,11 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_bitstring, 0}, <<1, 2, 3>>)
+        spectra:encode(json, ?MODULE, {type, my_bitstring, 0}, <<1, 2, 3>>, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_bitstring, 0}, <<1, 2, 3>>)
+        spectra:decode(json, ?MODULE, {type, my_bitstring, 0}, <<1, 2, 3>>, [pre_decoded])
     ),
 
     %% nonempty_bitstring
@@ -395,11 +399,11 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_nonempty_bitstring, 0}, <<1, 2, 3>>)
+        spectra:encode(json, ?MODULE, {type, my_nonempty_bitstring, 0}, <<1, 2, 3>>, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_nonempty_bitstring, 0}, <<1, 2, 3>>)
+        spectra:decode(json, ?MODULE, {type, my_nonempty_bitstring, 0}, <<1, 2, 3>>, [pre_decoded])
     ),
 
     %% no_return
@@ -410,11 +414,11 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_no_return, 0}, a)
+        spectra:encode(json, ?MODULE, {type, my_no_return, 0}, a, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_no_return, 0}, <<"not_a_no_return">>)
+        spectra:decode(json, ?MODULE, {type, my_no_return, 0}, <<"not_a_no_return">>, [pre_decoded])
     ),
 
     %% none
@@ -425,9 +429,9 @@ missing_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, my_none, 0}, a)
+        spectra:encode(json, ?MODULE, {type, my_none, 0}, a, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, my_none, 0}, <<"not_a_none">>)
+        spectra:decode(json, ?MODULE, {type, my_none, 0}, <<"not_a_none">>, [pre_decoded])
     ).

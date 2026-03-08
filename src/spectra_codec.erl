@@ -6,14 +6,14 @@
     Data :: dynamic(),
     Opts :: spectra:codec_encode_opts()
 ) ->
-    {ok, term()} | {error, [spectra:error()]}.
+    spectra:codec_encode_result().
 -callback decode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
     Opts :: spectra:codec_decode_opts()
 ) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
+    spectra:codec_decode_result().
 -callback schema(
     Format :: atom(), TypeRef :: spectra:sp_type_reference(), Opts :: spectra:codec_schema_opts()
 ) ->

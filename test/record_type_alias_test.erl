@@ -167,47 +167,47 @@ from_json_address_alias_test() ->
 -spec to_json_person_new_age(person_new_age()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_person_new_age(Data) ->
-    spectra_json:to_json(?MODULE, {type, person_new_age, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, person_new_age, 0}, Data, [pre_encoded]).
 
 -spec to_json_person_t(person_t()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_person_t(Data) ->
-    spectra_json:to_json(?MODULE, {type, person_t, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, person_t, 0}, Data, [pre_encoded]).
 
 -spec to_json_person(#person{}) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_person(Person) ->
-    spectra_json:to_json(?MODULE, {record, person}, Person).
+    spectra:encode(json, ?MODULE, {record, person}, Person, [pre_encoded]).
 
 -spec from_json_person(json:decode_value()) ->
     {ok, #person{}} | {error, [spectra:error()]}.
 from_json_person(Person) ->
-    spectra_json:from_json(?MODULE, {record, person}, Person).
+    spectra:decode(json, ?MODULE, {record, person}, Person, [pre_decoded]).
 
 -spec to_json_person_alias(term()) -> {ok, person_alias()} | {error, [spectra:error()]}.
 to_json_person_alias(Data) ->
-    spectra_json:to_json(?MODULE, {type, person_alias, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, person_alias, 0}, Data, [pre_encoded]).
 
 -spec from_json_person_new_age(term()) ->
     {ok, person_new_age()} | {error, [spectra:error()]}.
 from_json_person_new_age(Data) ->
-    spectra_json:from_json(?MODULE, {type, person_new_age, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, person_new_age, 0}, Data, [pre_decoded]).
 
 -spec from_json_person_t(term()) -> {ok, person_t()} | {error, [spectra:error()]}.
 from_json_person_t(Data) ->
-    spectra_json:from_json(?MODULE, {type, person_t, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, person_t, 0}, Data, [pre_decoded]).
 
 -spec from_json_person_alias(term()) ->
     {ok, person_alias()} | {error, [spectra:error()]}.
 from_json_person_alias(Data) ->
-    spectra_json:from_json(?MODULE, {type, person_alias, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, person_alias, 0}, Data, [pre_decoded]).
 
 -spec to_json_address_alias(term()) ->
     {ok, address_alias()} | {error, [spectra:error()]}.
 to_json_address_alias(Data) ->
-    spectra_json:to_json(?MODULE, {type, address_alias, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, address_alias, 0}, Data, [pre_encoded]).
 
 -spec from_json_address_alias(term()) ->
     {ok, address_alias()} | {error, [spectra:error()]}.
 from_json_address_alias(Data) ->
-    spectra_json:from_json(?MODULE, {type, address_alias, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, address_alias, 0}, Data, [pre_decoded]).

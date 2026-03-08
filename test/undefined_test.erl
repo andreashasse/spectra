@@ -137,37 +137,37 @@ undefined_scalar_test() ->
 %% Helper functions for record type
 -spec to_json(#undefined_test_record{}) -> {ok, map()} | {error, [spectra:error()]}.
 to_json(Record) ->
-    spectra_json:to_json(?MODULE, {record, undefined_test_record}, Record).
+    spectra:encode(json, ?MODULE, {record, undefined_test_record}, Record, [pre_encoded]).
 
 -spec from_json(map()) -> {ok, #undefined_test_record{}} | {error, [spectra:error()]}.
 from_json(Json) ->
-    spectra_json:from_json(?MODULE, {record, undefined_test_record}, Json).
+    spectra:decode(json, ?MODULE, {record, undefined_test_record}, Json, [pre_decoded]).
 
 %% Helper functions for map type
 -spec to_json_map(test_map()) -> {ok, map()} | {error, [spectra:error()]}.
 to_json_map(Map) ->
-    spectra_json:to_json(?MODULE, {type, test_map, 0}, Map).
+    spectra:encode(json, ?MODULE, {type, test_map, 0}, Map, [pre_encoded]).
 
 -spec from_json_map(map()) -> {ok, test_map()} | {error, [spectra:error()]}.
 from_json_map(Json) ->
-    spectra_json:from_json(?MODULE, {type, test_map, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, test_map, 0}, Json, [pre_decoded]).
 
 %% Helper functions for list type
 -spec to_json_list(maybe_int_list()) -> {ok, list()} | {error, [spectra:error()]}.
 to_json_list(List) ->
-    spectra_json:to_json(?MODULE, {type, maybe_int_list, 0}, List).
+    spectra:encode(json, ?MODULE, {type, maybe_int_list, 0}, List, [pre_encoded]).
 
 -spec from_json_list(list()) -> {ok, maybe_int_list()} | {error, [spectra:error()]}.
 from_json_list(Json) ->
-    spectra_json:from_json(?MODULE, {type, maybe_int_list, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, maybe_int_list, 0}, Json, [pre_decoded]).
 
 %% Helper functions for maybe_string type
 -spec to_json_maybe_string(maybe_string()) ->
     {ok, binary() | undefined} | {error, [spectra:error()]}.
 to_json_maybe_string(MaybeString) ->
-    spectra_json:to_json(?MODULE, {type, maybe_string, 0}, MaybeString).
+    spectra:encode(json, ?MODULE, {type, maybe_string, 0}, MaybeString, [pre_encoded]).
 
 -spec from_json_maybe_string(binary() | undefined) ->
     {ok, maybe_string()} | {error, [spectra:error()]}.
 from_json_maybe_string(Json) ->
-    spectra_json:from_json(?MODULE, {type, maybe_string, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, maybe_string, 0}, Json, [pre_decoded]).

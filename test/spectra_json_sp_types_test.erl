@@ -181,13 +181,13 @@ typeinfo_vs_module_test() ->
     IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
 
     %% These two should give the same result
-    Result1 = spectra_json:to_json(?MODULE, IntegerType, 42),
+    Result1 = spectra:encode(json, ?MODULE, IntegerType, 42, [pre_encoded]),
     Result2 = spectra_json:to_json(TypeInfo, IntegerType, 42),
     ?assertEqual(Result1, Result2),
     ?assertEqual({ok, 42}, Result1),
 
     %% Same for from_json
-    JsonResult1 = spectra_json:from_json(?MODULE, IntegerType, 42),
+    JsonResult1 = spectra:decode(json, ?MODULE, IntegerType, 42, [pre_decoded]),
     JsonResult2 = spectra_json:from_json(TypeInfo, IntegerType, 42),
     ?assertEqual(JsonResult1, JsonResult2),
     ?assertEqual({ok, 42}, JsonResult1).

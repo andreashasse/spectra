@@ -75,7 +75,13 @@ from_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, BinaryString
 ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:decode(binary_string, TypeRef, BinaryString, Opts);
+            case M:decode(binary_string, TypeRef, BinaryString, Opts) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    from_binary_string(TypeInfo, Type, BinaryString, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             from_binary_string(TypeInfo, Type, BinaryString, Opts)
@@ -85,11 +91,30 @@ from_binary_string(
 ) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:decode(binary_string, {type, N, length(Args)}, BinaryString, Opts);
+            case M:decode(binary_string, {type, N, length(Args)}, BinaryString, Opts) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
+    end;
+from_binary_string(TypeInfo, {record, RecordName} = TypeRef, BinaryString, Opts) when
+    is_atom(RecordName)
+->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case M:decode(binary_string, TypeRef, BinaryString, Opts) of
+                continue -> erlang:error({type_not_supported, TypeRef});
+                Result -> Result
+            end;
+        error ->
+            erlang:error({type_not_supported, TypeRef})
     end;
 from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
     from_binary_string_inner(TypeInfo, Type, BinaryString, Opts).
@@ -101,10 +126,6 @@ from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
     Opts :: spectra:binary_string_decode_opts()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_binary_string_inner(_TypeInfo, {record, RecordName}, _BinaryString, _Opts) when
-    is_atom(RecordName)
-->
-    erlang:error({type_not_supported, {record, RecordName}});
 from_binary_string_inner(
     _TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryString, _Opts
 ) when
@@ -145,7 +166,16 @@ from_binary_string_inner(
 ) ->
     case spectra_type_info:find_remote_codec(Module, TypeName, length(Args)) of
         {ok, M} ->
-            M:decode(binary_string, {type, TypeName, length(Args)}, BinaryString, Opts);
+            case M:decode(binary_string, {type, TypeName, length(Args)}, BinaryString, Opts) of
+                continue ->
+                    TypeInfo = spectra_module_types:get(Module),
+                    TypeArity = length(Args),
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
             TypeArity = length(Args),
@@ -221,7 +251,13 @@ to_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data, Opts) wh
 ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:encode(binary_string, TypeRef, Data, Opts);
+            case M:encode(binary_string, TypeRef, Data, Opts) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    to_binary_string(TypeInfo, Type, Data, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             to_binary_string(TypeInfo, Type, Data, Opts)
@@ -229,11 +265,30 @@ to_binary_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data, Opts) wh
 to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data, Opts) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            M:encode(binary_string, {type, N, length(Args)}, Data, Opts);
+            case M:encode(binary_string, {type, N, length(Args)}, Data, Opts) of
+                continue ->
+                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
+    end;
+to_binary_string(TypeInfo, {record, RecordName} = TypeRef, Data, Opts) when
+    is_atom(RecordName)
+->
+    case spectra_type_info:find_local_codec(TypeInfo) of
+        {ok, M} ->
+            case M:encode(binary_string, TypeRef, Data, Opts) of
+                continue -> erlang:error({type_not_supported, TypeRef});
+                Result -> Result
+            end;
+        error ->
+            erlang:error({type_not_supported, TypeRef})
     end;
 to_binary_string(TypeInfo, Type, Data, Opts) ->
     to_binary_string_inner(TypeInfo, Type, Data, Opts).
@@ -245,10 +300,6 @@ to_binary_string(TypeInfo, Type, Data, Opts) ->
     Opts :: spectra:binary_string_encode_opts()
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
-to_binary_string_inner(_TypeInfo, {record, RecordName}, _Data, _Opts) when
-    is_atom(RecordName)
-->
-    erlang:error({type_not_supported, {record, RecordName}});
 to_binary_string_inner(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data, _Opts) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -283,7 +334,15 @@ to_binary_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Ar
     TypeArity = length(Args),
     case spectra_type_info:find_remote_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts);
+            case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts) of
+                continue ->
+                    TypeInfo = spectra_module_types:get(Module),
+                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+                    to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
+                Result ->
+                    Result
+            end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),

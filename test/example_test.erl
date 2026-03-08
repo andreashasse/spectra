@@ -61,12 +61,13 @@ bad_source_json_test() ->
 -spec json_to_contacts(binary()) -> {ok, contacts()} | {error, [spectra:error()]}.
 json_to_contacts(Json) ->
     Decoded = json:decode(Json),
-    spectra_json:from_json(?MODULE, {type, contacts, 0}, Decoded).
+    spectra:decode(json, ?MODULE, {type, contacts, 0}, Decoded, [pre_decoded]).
 
 -spec contacts_to_json(contacts()) -> binary() | {error, [spectra:error()]}.
 contacts_to_json(Contacts) ->
     maybe
-        {ok, Encodeable} ?= spectra_json:to_json(?MODULE, {type, contacts, 0}, Contacts),
+        {ok, Encodeable} ?=
+            spectra:encode(json, ?MODULE, {type, contacts, 0}, Contacts, [pre_encoded]),
         iolist_to_binary(json:encode(Encodeable))
     end.
 
