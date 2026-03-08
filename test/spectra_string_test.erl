@@ -7,6 +7,10 @@
 
 -compile(nowarn_unused_type).
 
+%% Helper: resolve a type reference to an sp_type() struct
+resolve_type(TypeInfo, Name, Arity) ->
+    spectra_type_info:get_type(TypeInfo, Name, Arity).
+
 %% Test types
 -type my_integer() :: integer().
 -type my_float() :: float().
@@ -393,71 +397,75 @@ type_reference_test() ->
     %% Test various type references from the module
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, {type, my_integer, 0}, "42")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), "42")
     ),
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, {type, my_float, 0}, "3.14")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), "3.14")
     ),
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, {type, my_number, 0}, "42")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "42")
     ),
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, {type, my_number, 0}, "3.14")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "3.14")
     ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, {type, my_boolean, 0}, "true")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), "true")
     ),
     ?assertEqual(
         {ok, hello},
-        spectra_string:from_string(TypeInfo, {type, my_atom, 0}, "hello")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), "hello")
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:from_string(TypeInfo, {type, my_string, 0}, "test")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
     ),
     ?assertEqual(
         {ok, <<"test">>},
-        spectra_string:from_string(TypeInfo, {type, my_binary, 0}, "test")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), "test")
     ),
 
     %% Test range type
-    ?assertEqual({ok, 5}, spectra_string:from_string(TypeInfo, {type, my_range, 0}, "5")),
+    ?assertEqual(
+        {ok, 5}, spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "5")
+    ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, {type, my_range, 0}, "15")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "15")
     ),
 
     %% Test literal types
     ?assertEqual(
         {ok, hello},
-        spectra_string:from_string(TypeInfo, {type, my_literal_atom, 0}, "hello")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), "hello")
     ),
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, {type, my_literal_integer, 0}, "42")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), "42")
     ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, {type, my_literal_boolean, 0}, "true")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), "true")
     ),
 
     %% Test union types
-    ?assertEqual({ok, 42}, spectra_string:from_string(TypeInfo, {type, my_union, 0}, "42")),
+    ?assertEqual(
+        {ok, 42}, spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "42")
+    ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, {type, my_union, 0}, "true")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "true")
     ),
     ?assertEqual(
         {ok, 1},
-        spectra_string:from_string(TypeInfo, {type, my_complex_union, 0}, "1")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "1")
     ),
     ?assertEqual(
         {ok, false},
-        spectra_string:from_string(TypeInfo, {type, my_complex_union, 0}, "false")
+        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "false")
     ),
 
     ok.
@@ -469,7 +477,9 @@ unsupported_test() ->
     %% Record types are not supported for string conversion
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, {record, some_record}, "test")
+        spectra_string:from_string(
+            TypeInfo, #sp_rec{name = some_record, fields = [], arity = 0}, "test"
+        )
     ),
 
     %% Unsupported simple types should error
@@ -930,67 +940,75 @@ to_string_type_reference_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
 
     %% Test various type references from the module
-    ?assertEqual({ok, "42"}, spectra_string:to_string(TypeInfo, {type, my_integer, 0}, 42)),
     ?assertEqual(
-        {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, {type, my_float, 0}, 3.14)
+        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), 42)
     ),
-    ?assertEqual({ok, "42"}, spectra_string:to_string(TypeInfo, {type, my_number, 0}, 42)),
     ?assertEqual(
         {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, {type, my_number, 0}, 3.14)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), 3.14)
+    ),
+    ?assertEqual(
+        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 42)
+    ),
+    ?assertEqual(
+        {ok, "3.14000000000000012434e+00"},
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 3.14)
     ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, {type, my_boolean, 0}, true)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), true)
     ),
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, {type, my_atom, 0}, hello)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), hello)
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:to_string(TypeInfo, {type, my_string, 0}, "test")
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:to_string(TypeInfo, {type, my_binary, 0}, <<"test">>)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), <<"test">>)
     ),
 
     %% Test range type
-    ?assertEqual({ok, "5"}, spectra_string:to_string(TypeInfo, {type, my_range, 0}, 5)),
+    ?assertEqual(
+        {ok, "5"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 5)
+    ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, {type, my_range, 0}, 15)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 15)
     ),
 
     %% Test literal types
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, {type, my_literal_atom, 0}, hello)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), hello)
     ),
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, {type, my_literal_integer, 0}, 42)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), 42)
     ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, {type, my_literal_boolean, 0}, true)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), true)
     ),
 
     %% Test union types
-    ?assertEqual({ok, "42"}, spectra_string:to_string(TypeInfo, {type, my_union, 0}, 42)),
+    ?assertEqual(
+        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), 42)
+    ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, {type, my_union, 0}, true)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), true)
     ),
     ?assertEqual(
         {ok, "1"},
-        spectra_string:to_string(TypeInfo, {type, my_complex_union, 0}, 1)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), 1)
     ),
     ?assertEqual(
         {ok, "false"},
-        spectra_string:to_string(TypeInfo, {type, my_complex_union, 0}, false)
+        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), false)
     ),
 
     ok.
@@ -1002,7 +1020,9 @@ to_string_unsupported_test() ->
     %% Record types are not supported for string conversion
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, {record, some_record}, some_value)
+        spectra_string:to_string(
+            TypeInfo, #sp_rec{name = some_record, fields = [], arity = 0}, some_value
+        )
     ),
 
     %% Unsupported simple types should error

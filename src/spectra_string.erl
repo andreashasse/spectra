@@ -22,31 +22,17 @@ and converts it to the corresponding Erlang value.
     params =>
         #{
             "String" => "The string value to convert to Erlang format",
-            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "Type" => "The type specification (spectra:sp_type())",
             "TypeInfo" => "The type information containing type definitions"
         }
 }.
 
 -spec from_string(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, String) when is_atom(TypeName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case M:decode(string, TypeRef, String, #{}) of
-                continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    from_string(TypeInfo, Type, String);
-                Result ->
-                    Result
-            end;
-        error ->
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            from_string(TypeInfo, Type, String)
-    end;
 from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, String) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
@@ -57,22 +43,12 @@ from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeR
         error ->
             {error, [sp_error:type_mismatch(TypeRef, String)]}
     end;
-from_string(TypeInfo, {record, RecordName} = TypeRef, String) when is_atom(RecordName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case M:decode(string, TypeRef, String, #{}) of
-                continue -> erlang:error({type_not_supported, TypeRef});
-                Result -> Result
-            end;
-        error ->
-            erlang:error({type_not_supported, TypeRef})
-    end;
 from_string(TypeInfo, Type, String) ->
     from_string_inner(TypeInfo, Type, String).
 
 -spec from_string_inner(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
@@ -129,6 +105,8 @@ from_string_inner(_TypeInfo, #sp_literal{value = Literal}, String) ->
     try_convert_string_to_literal(Literal, String);
 from_string_inner(TypeInfo, #sp_union{} = Type, String) ->
     union(fun from_string_inner/3, TypeInfo, Type, String);
+from_string_inner(_TypeInfo, #sp_rec{} = T, _String) ->
+    erlang:error({type_not_supported, T});
 from_string_inner(_TypeInfo, Type, String) ->
     {error, [sp_error:type_mismatch(Type, String)]}.
 
@@ -145,31 +123,17 @@ and converts it to a string representation.
     params =>
         #{
             "Data" => "The Erlang value to convert to string format",
-            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "Type" => "The type specification (spectra:sp_type())",
             "TypeInfo" => "The type information containing type definitions"
         }
 }.
 
 -spec to_string(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, {type, TypeName, TypeArity} = TypeRef, Data) when is_atom(TypeName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case M:encode(string, TypeRef, Data, #{}) of
-                continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    to_string(TypeInfo, Type, Data);
-                Result ->
-                    Result
-            end;
-        error ->
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            to_string(TypeInfo, Type, Data)
-    end;
 to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
@@ -180,22 +144,12 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef
         error ->
             {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
-to_string(TypeInfo, {record, RecordName} = TypeRef, Data) when is_atom(RecordName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case M:encode(string, TypeRef, Data, #{}) of
-                continue -> erlang:error({type_not_supported, TypeRef});
-                Result -> Result
-            end;
-        error ->
-            erlang:error({type_not_supported, TypeRef})
-    end;
 to_string(TypeInfo, Type, Data) ->
     to_string_inner(TypeInfo, Type, Data).
 
 -spec to_string_inner(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
@@ -252,6 +206,8 @@ to_string_inner(_TypeInfo, #sp_literal{value = Literal}, Data) ->
     try_convert_literal_to_string(Literal, Data);
 to_string_inner(TypeInfo, #sp_union{} = Type, Data) ->
     union_to_string(TypeInfo, Type, Data);
+to_string_inner(_TypeInfo, #sp_rec{} = T, _Data) ->
+    erlang:error({type_not_supported, T});
 to_string_inner(_TypeInfo, Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 

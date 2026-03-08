@@ -710,7 +710,7 @@ copy_if_present(Key, Source, Target) ->
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
     Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
     Base = Doc#{schema => OpenApiSchema},
@@ -755,7 +755,7 @@ generate_parameter(
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
     Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
@@ -856,10 +856,8 @@ filter_typeref(Schema, Module) ->
 generate_components(SchemaRefs) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
-            Schema = spectra_json_schema:to_schema(
-                spectra_module_types:get(Module),
-                TypeRef
-            ),
+            ModuleTypeInfo = spectra_module_types:get(Module),
+            Schema = to_inline_schema(ModuleTypeInfo, TypeRef),
             SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
@@ -913,3 +911,14 @@ capitalize_word([]) ->
     [];
 capitalize_word([First | Rest]) ->
     [string:to_upper(First) | Rest].
+
+-spec to_inline_schema(spectra:type_info(), spectra:sp_type_or_ref()) ->
+    spectra_json_schema:json_schema().
+to_inline_schema(TypeInfo, {type, Name, Arity}) ->
+    Type = spectra_type_info:get_type(TypeInfo, Name, Arity),
+    spectra_json_schema:to_schema(TypeInfo, Type);
+to_inline_schema(TypeInfo, {record, RecordName}) ->
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    spectra_json_schema:to_schema(TypeInfo, Record);
+to_inline_schema(TypeInfo, SpType) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType).

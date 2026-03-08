@@ -7,6 +7,10 @@
 
 -compile(nowarn_unused_type).
 
+%% Helper: resolve a type reference to an sp_type() struct
+resolve_type(TypeInfo, Name, Arity) ->
+    spectra_type_info:get_type(TypeInfo, Name, Arity).
+
 %% Test types
 -type my_integer() :: integer().
 -type my_float() :: float().
@@ -528,7 +532,7 @@ type_reference_test() ->
         {ok, 42},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_integer, 0},
+            resolve_type(TypeInfo, my_integer, 0),
             <<"42">>
         )
     ),
@@ -536,7 +540,7 @@ type_reference_test() ->
         {ok, 3.14},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_float, 0},
+            resolve_type(TypeInfo, my_float, 0),
             <<"3.14">>
         )
     ),
@@ -544,7 +548,7 @@ type_reference_test() ->
         {ok, 42},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_number, 0},
+            resolve_type(TypeInfo, my_number, 0),
             <<"42">>
         )
     ),
@@ -552,7 +556,7 @@ type_reference_test() ->
         {ok, 3.14},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_number, 0},
+            resolve_type(TypeInfo, my_number, 0),
             <<"3.14">>
         )
     ),
@@ -560,7 +564,7 @@ type_reference_test() ->
         {ok, true},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_boolean, 0},
+            resolve_type(TypeInfo, my_boolean, 0),
             <<"true">>
         )
     ),
@@ -568,7 +572,7 @@ type_reference_test() ->
         {ok, hello},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_atom, 0},
+            resolve_type(TypeInfo, my_atom, 0),
             <<"hello">>
         )
     ),
@@ -576,7 +580,7 @@ type_reference_test() ->
         {ok, "test"},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_string, 0},
+            resolve_type(TypeInfo, my_string, 0),
             <<"test">>
         )
     ),
@@ -584,7 +588,7 @@ type_reference_test() ->
         {ok, <<"test">>},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_binary, 0},
+            resolve_type(TypeInfo, my_binary, 0),
             <<"test">>
         )
     ),
@@ -594,7 +598,7 @@ type_reference_test() ->
         {ok, 5},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_range, 0},
+            resolve_type(TypeInfo, my_range, 0),
             <<"5">>
         )
     ),
@@ -602,7 +606,7 @@ type_reference_test() ->
         {error, [#sp_error{type = type_mismatch}]},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_range, 0},
+            resolve_type(TypeInfo, my_range, 0),
             <<"15">>
         )
     ),
@@ -612,7 +616,7 @@ type_reference_test() ->
         {ok, hello},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_literal_atom, 0},
+            resolve_type(TypeInfo, my_literal_atom, 0),
             <<"hello">>
         )
     ),
@@ -620,7 +624,7 @@ type_reference_test() ->
         {ok, 42},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_literal_integer, 0},
+            resolve_type(TypeInfo, my_literal_integer, 0),
             <<"42">>
         )
     ),
@@ -628,7 +632,7 @@ type_reference_test() ->
         {ok, true},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_literal_boolean, 0},
+            resolve_type(TypeInfo, my_literal_boolean, 0),
             <<"true">>
         )
     ),
@@ -638,7 +642,7 @@ type_reference_test() ->
         {ok, 42},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_union, 0},
+            resolve_type(TypeInfo, my_union, 0),
             <<"42">>
         )
     ),
@@ -646,7 +650,7 @@ type_reference_test() ->
         {ok, true},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_union, 0},
+            resolve_type(TypeInfo, my_union, 0),
             <<"true">>
         )
     ),
@@ -654,7 +658,7 @@ type_reference_test() ->
         {ok, 1},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_complex_union, 0},
+            resolve_type(TypeInfo, my_complex_union, 0),
             <<"1">>
         )
     ),
@@ -662,7 +666,7 @@ type_reference_test() ->
         {ok, false},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_complex_union, 0},
+            resolve_type(TypeInfo, my_complex_union, 0),
             <<"false">>
         )
     ),
@@ -678,7 +682,7 @@ unsupported_test() ->
         {type_not_supported, _},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {record, some_record},
+            #sp_rec{name = some_record, fields = [], arity = 0},
             <<"test">>
         )
     ),
@@ -1330,37 +1334,41 @@ to_binary_string_type_reference_test() ->
     %% Test various type references from the module
     ?assertEqual(
         {ok, <<"42">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_integer, 0}, 42)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), 42)
     ),
     ?assertEqual(
         {ok, <<"3.14000000000000012434e+00">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_float, 0}, 3.14)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), 3.14)
     ),
     ?assertEqual(
         {ok, <<"42">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_number, 0}, 42)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 42)
     ),
     ?assertEqual(
         {ok, <<"3.14000000000000012434e+00">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_number, 0}, 3.14)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 3.14)
     ),
     ?assertEqual(
         {ok, <<"true">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_boolean, 0}, true)
+        spectra_binary_string:to_binary_string(
+            TypeInfo, resolve_type(TypeInfo, my_boolean, 0), true
+        )
     ),
     ?assertEqual(
         {ok, <<"hello">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_atom, 0}, hello)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), hello)
     ),
     ?assertEqual(
         {ok, <<"test">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_string, 0}, "test")
+        spectra_binary_string:to_binary_string(
+            TypeInfo, resolve_type(TypeInfo, my_string, 0), "test"
+        )
     ),
     ?assertEqual(
         {ok, <<"test">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_binary, 0},
+            resolve_type(TypeInfo, my_binary, 0),
             <<"test">>
         )
     ),
@@ -1368,11 +1376,11 @@ to_binary_string_type_reference_test() ->
     %% Test range type
     ?assertEqual(
         {ok, <<"5">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_range, 0}, 5)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 5)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_range, 0}, 15)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 15)
     ),
 
     %% Test literal types
@@ -1380,7 +1388,7 @@ to_binary_string_type_reference_test() ->
         {ok, <<"hello">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_literal_atom, 0},
+            resolve_type(TypeInfo, my_literal_atom, 0),
             hello
         )
     ),
@@ -1388,7 +1396,7 @@ to_binary_string_type_reference_test() ->
         {ok, <<"42">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_literal_integer, 0},
+            resolve_type(TypeInfo, my_literal_integer, 0),
             42
         )
     ),
@@ -1396,7 +1404,7 @@ to_binary_string_type_reference_test() ->
         {ok, <<"true">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_literal_boolean, 0},
+            resolve_type(TypeInfo, my_literal_boolean, 0),
             true
         )
     ),
@@ -1404,17 +1412,17 @@ to_binary_string_type_reference_test() ->
     %% Test union types
     ?assertEqual(
         {ok, <<"42">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_union, 0}, 42)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), 42)
     ),
     ?assertEqual(
         {ok, <<"true">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_union, 0}, true)
+        spectra_binary_string:to_binary_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), true)
     ),
     ?assertEqual(
         {ok, <<"1">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_complex_union, 0},
+            resolve_type(TypeInfo, my_complex_union, 0),
             1
         )
     ),
@@ -1422,7 +1430,7 @@ to_binary_string_type_reference_test() ->
         {ok, <<"false">>},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {type, my_complex_union, 0},
+            resolve_type(TypeInfo, my_complex_union, 0),
             false
         )
     ),
@@ -1438,7 +1446,7 @@ to_binary_string_unsupported_test() ->
         {type_not_supported, _},
         spectra_binary_string:to_binary_string(
             TypeInfo,
-            {record, some_record},
+            #sp_rec{name = some_record, fields = [], arity = 0},
             some_value
         )
     ),
@@ -1606,7 +1614,7 @@ type_variables_test() ->
         {error, [#sp_error{type = type_mismatch}]},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_parameterized, 1},
+            resolve_type(TypeInfo, my_parameterized, 1),
             <<"42">>
         )
     ),
@@ -1616,13 +1624,15 @@ type_variables_test() ->
         {ok, 42},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_var_integer, 0},
+            resolve_type(TypeInfo, my_var_integer, 0),
             <<"42">>
         )
     ),
     ?assertEqual(
         {ok, <<"42">>},
-        spectra_binary_string:to_binary_string(TypeInfo, {type, my_var_integer, 0}, 42)
+        spectra_binary_string:to_binary_string(
+            TypeInfo, resolve_type(TypeInfo, my_var_integer, 0), 42
+        )
     ),
 
     %% Test that it rejects non-integer values
@@ -1630,7 +1640,7 @@ type_variables_test() ->
         {error, [#sp_error{type = type_mismatch}]},
         spectra_binary_string:from_binary_string(
             TypeInfo,
-            {type, my_var_integer, 0},
+            resolve_type(TypeInfo, my_var_integer, 0),
             <<"not_a_number">>
         )
     ),

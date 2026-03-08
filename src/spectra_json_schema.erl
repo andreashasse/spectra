@@ -49,47 +49,7 @@
 
 %% API
 
--spec to_schema(spectra:type_info(), spectra:sp_type_or_ref()) -> json_schema().
-to_schema(TypeInfo, {type, TypeName, TypeArity} = TypeRef) when is_atom(TypeName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
-                true ->
-                    case M:schema(json_schema, TypeRef, #{}) of
-                        continue ->
-                            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                            TypeWithoutVars = apply_args(TypeInfo, Type, []),
-                            to_schema_for_sp_type(TypeInfo, TypeWithoutVars);
-                        Schema ->
-                            add_schema_version(Schema)
-                    end;
-                false ->
-                    erlang:error({schema_not_implemented, M, TypeRef})
-            end;
-        error ->
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(TypeInfo, Type, []),
-            to_schema_for_sp_type(TypeInfo, TypeWithoutVars)
-    end;
-to_schema(TypeInfo, {record, RecordName} = TypeRef) when is_atom(RecordName) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
-        {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
-                true ->
-                    case M:schema(json_schema, TypeRef, #{}) of
-                        continue ->
-                            Record = spectra_type_info:get_record(TypeInfo, RecordName),
-                            to_schema_for_sp_type(TypeInfo, Record);
-                        Schema ->
-                            add_schema_version(Schema)
-                    end;
-                false ->
-                    erlang:error({schema_not_implemented, M, TypeRef})
-            end;
-        error ->
-            Record = spectra_type_info:get_record(TypeInfo, RecordName),
-            to_schema_for_sp_type(TypeInfo, Record)
-    end;
+-spec to_schema(spectra:type_info(), spectra:sp_type()) -> json_schema().
 to_schema(TypeInfo, Type) ->
     to_schema_for_sp_type(TypeInfo, Type).
 
