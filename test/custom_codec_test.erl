@@ -230,3 +230,25 @@ record_ref_codec_dispatch_continue_test() ->
     {ok, DecodedDirect} = spectra:decode(json, TypeInfo, CatSpRec, CatJson, [pre_decoded]),
     ?assertEqual(Cat, Decoded),
     ?assertEqual(DecodedDirect, Decoded).
+
+%% 20. Atom, {type,N,A} and bare sp_type() all produce the same schema result.
+%%     Mirrors the encode/decode all-forms test (test 17) for schema/3.
+schema_type_ref_forms_test() ->
+    TypeInfo = spectra_module_types:get(codec_geo_module),
+    PointSpType = spectra_type_info:get_type(TypeInfo, point, 0),
+
+    SchemaAtom = spectra:schema(json_schema, codec_geo_module, point),
+    SchemaTupleRef = spectra:schema(json_schema, codec_geo_module, {type, point, 0}),
+    SchemaSpType = spectra:schema(json_schema, TypeInfo, PointSpType),
+    ?assertEqual(SchemaTupleRef, SchemaAtom),
+    ?assertEqual(SchemaTupleRef, SchemaSpType).
+
+%% 21. {record, N} form produces the same schema as a bare #sp_rec{} sp_type()
+%%     when no codec is registered (structural path for both).
+schema_record_ref_forms_test() ->
+    TypeInfo = spectra_module_types:get(record_test),
+    {ok, PersonSpRec} = spectra_type_info:find_record(TypeInfo, person),
+
+    SchemaRecordRef = spectra:schema(json_schema, record_test, {record, person}),
+    SchemaSpType = spectra:schema(json_schema, TypeInfo, PersonSpRec),
+    ?assertEqual(SchemaRecordRef, SchemaSpType).

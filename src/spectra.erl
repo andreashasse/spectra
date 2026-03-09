@@ -390,8 +390,12 @@ schema(json_schema, TypeInfo, {type, _, _} = TypeRef) ->
     json:encode(maybe_codec_schema(TypeInfo, TypeRef));
 schema(json_schema, TypeInfo, {record, _} = TypeRef) ->
     json:encode(maybe_codec_schema(TypeInfo, TypeRef));
-schema(json_schema, TypeInfo, TypeOrRef) ->
-    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
+schema(json_schema, TypeInfo, SpType) when is_record(TypeInfo, type_info) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(TypeInfo, TypeRef);
+            error -> spectra_json_schema:to_schema(TypeInfo, SpType)
+        end,
     json:encode(SchemaMap).
 
 -doc """
@@ -426,8 +430,12 @@ schema(json_schema, TypeInfo, {type, _, _} = TypeRef, Options) ->
     do_schema_ref(TypeInfo, TypeRef, Options);
 schema(json_schema, TypeInfo, {record, _} = TypeRef, Options) ->
     do_schema_ref(TypeInfo, TypeRef, Options);
-schema(json_schema, TypeInfo, TypeOrRef, Options) ->
-    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
+schema(json_schema, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(TypeInfo, TypeRef);
+            error -> spectra_json_schema:to_schema(TypeInfo, SpType)
+        end,
     case proplists:get_value(pre_encoded, Options, false) of
         true -> SchemaMap;
         false -> json:encode(SchemaMap)
