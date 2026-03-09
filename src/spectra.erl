@@ -356,6 +356,8 @@ default_encode(string, Typeinfo, TypeOrRef, Data, _Options) ->
 -doc """
 Generates a schema for the specified type in the given format.
 
+Equivalent to calling schema/4 with an empty options list.
+
 ### Example:
 
 ```
@@ -374,29 +376,19 @@ Generates a schema for the specified type in the given format.
 <<"{\"type\":\"integer\",\"minimum\":1}">>
 ```
 """.
+-doc #{
+    equiv => schema(Format, ModuleOrTypeinfo, TypeOrRef, [])
+}.
 -spec schema(
     Format :: atom(),
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref()
 ) ->
-    iodata().
+    iodata() | map().
 schema(Format, Module, TypeOrRef) when is_atom(Module) ->
-    TypeInfo = spectra_module_types:get(Module),
-    schema(Format, TypeInfo, TypeOrRef);
-schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
-    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
-    schema(Format, TypeInfo, TypeRef);
-schema(json_schema, TypeInfo, {type, _, _} = TypeRef) ->
-    json:encode(maybe_codec_schema(TypeInfo, TypeRef));
-schema(json_schema, TypeInfo, {record, _} = TypeRef) ->
-    json:encode(maybe_codec_schema(TypeInfo, TypeRef));
-schema(json_schema, TypeInfo, SpType) when is_record(TypeInfo, type_info) ->
-    SchemaMap =
-        case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(TypeInfo, TypeRef);
-            error -> spectra_json_schema:to_schema(TypeInfo, SpType)
-        end,
-    json:encode(SchemaMap).
+    schema(Format, Module, TypeOrRef, []);
+schema(Format, TypeInfo, TypeOrRef) ->
+    schema(Format, TypeInfo, TypeOrRef, []).
 
 -doc """
 Generates a schema for the specified type in the given format.
