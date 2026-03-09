@@ -79,7 +79,9 @@ pers_types_set(Module, Vsn, TypeInfo) ->
     spectra:type_info().
 set_module_meta(Module, TypeInfo) ->
     Attrs = Module:module_info(attributes),
-    IsBehaviour = lists:member(spectra_codec, proplists:get_value(behaviour, Attrs, [])),
+    IsBehaviour = lists:member(
+        spectra_codec, lists:flatten(proplists:get_all_values(behaviour, Attrs))
+    ),
     spectra_type_info:set_implements_codec(TypeInfo, IsBehaviour).
 
 -spec ensure_module(Module :: module()) -> boolean().

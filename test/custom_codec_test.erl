@@ -225,3 +225,23 @@ schema_record_ref_forms_test() ->
     SchemaRecordRef = spectra:schema(json_schema, record_test, {record, person}),
     SchemaSpType = spectra:schema(json_schema, TypeInfo, PersonSpRec),
     ?assertEqual(SchemaRecordRef, SchemaSpType).
+
+%% A module that declares spectra_codec as its *second* -behaviour attribute
+%% must be recognised as a codec. The bug: proplists:get_value/3 returns only
+%% the first -behaviour match, so the codec is silently skipped and the opaque
+%% tuple type falls through to structural encoding, which crashes.
+multi_behaviour_codec_detected_test() ->
+    ?assertEqual(
+        {ok, [1.0, 2.0]},
+        spectra:encode(
+            json, codec_multi_behaviour_module, {type, point, 0}, {1.0, 2.0}, [pre_encoded]
+        )
+    ).
+
+multi_behaviour_codec_decode_test() ->
+    ?assertEqual(
+        {ok, {1.0, 2.0}},
+        spectra:decode(
+            json, codec_multi_behaviour_module, {type, point, 0}, [1.0, 2.0], [pre_decoded]
+        )
+    ).
