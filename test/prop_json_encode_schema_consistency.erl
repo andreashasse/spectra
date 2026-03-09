@@ -160,19 +160,18 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
             % Schema generation succeeded, now check from_json
             FromJsonResult = safe_from_json(TypeInfo, Type, JsonValue),
             case FromJsonResult of
-                {ok, _DecodedData} ->
-                    % Success! All three operations succeeded
-                    % Note: We don't check roundtrip equality because
-                    % the type system may allow lossy conversions
+                {ok, DecodedData} ->
+                    % Success! All three operations succeeded — assert lossless roundtrip.
                     ?WHENFAIL(
                         io:format(
-                            "~nSuccess case (all operations succeeded):~n"
-                            "  Type: ~p~n"
+                            "~nRoundtrip mismatch (to_json then from_json != original):~n"
+                            "  Type:          ~p~n"
                             "  Original Data: ~p~n"
-                            "  JSON: ~p~n",
-                            [Type, OriginalData, JsonValue]
+                            "  JSON:          ~p~n"
+                            "  Decoded Data:  ~p~n",
+                            [Type, OriginalData, JsonValue, DecodedData]
                         ),
-                        collect({success, type_category(Type)}, true)
+                        collect({success, type_category(Type)}, DecodedData =:= OriginalData)
                     );
                 {error, FromJsonError} ->
                     ?WHENFAIL(
@@ -284,8 +283,11 @@ exception_type(Other) ->
 is_problematic_type(#sp_var{}) ->
     % Type variables are not supported
     true;
+is_problematic_type(#sp_remote_type{mfargs = {codec_geo_module, _, _}}) ->
+    % Codec remote types are supported — data generator and codec are both available
+    false;
 is_problematic_type(#sp_remote_type{}) ->
-    % Remote types require module type info which is complex to set up in tests
+    % Plain remote types require module type info which is complex to set up in tests
     true;
 is_problematic_type(_) ->
     false.

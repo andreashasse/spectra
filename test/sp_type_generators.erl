@@ -278,6 +278,12 @@ sp_remote_type() ->
     ?SIZED(Size, sp_remote_type(Size)).
 
 sp_remote_type(Size) ->
+    oneof([
+        sp_plain_remote_type(Size),
+        sp_codec_remote_type()
+    ]).
+
+sp_plain_remote_type(Size) ->
     ?LET(
         Len,
         choose(0, Size),
@@ -285,12 +291,18 @@ sp_remote_type(Size) ->
             Args,
             vector(Len, sp_type(Size)),
             #sp_remote_type{
-                mfargs = {known_module(), known_type_name(), Args}
+                mfargs = {known_plain_module(), known_plain_type_name(), Args}
             }
         )
     ).
 
-known_module() ->
+%% Remote types backed by a codec module — no args needed, module provides the codec
+sp_codec_remote_type() ->
+    oneof([
+        #sp_remote_type{mfargs = {codec_geo_module, point, []}}
+    ]).
+
+known_plain_module() ->
     %% Use prop_json_encode_schema_consistency as it's guaranteed to be loaded
     prop_json_encode_schema_consistency.
 
@@ -335,13 +347,13 @@ sp_user_type_ref(Size) ->
             Variables,
             vector(Len, sp_type(Size)),
             #sp_user_type_ref{
-                type_name = known_type_name(),
+                type_name = known_plain_type_name(),
                 variables = Variables
             }
         )
     ).
 
-known_type_name() ->
+known_plain_type_name() ->
     oneof([my_type, my_string_type, my_int_type]).
 
 %% Variable generator
