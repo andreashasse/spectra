@@ -34,18 +34,19 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String) ->
+    Arity = length(Args),
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case M:decode(string, {type, N, length(Args)}, String, #{}) of
+            case M:decode(string, {type, N, Arity}, String, #{}) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     from_string(TypeInfo, TypeWithoutVars, String);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String)
     end;
@@ -88,12 +89,12 @@ from_string_inner(
             {error, Reason}
     end;
 from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
-    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:decode(string, {type, TypeName, length(Args)}, String, #{}) of
+            case M:decode(string, {type, TypeName, TypeArity}, String, #{}) of
                 continue ->
                     TypeInfo = spectra_module_types:get(Module),
-                    TypeArity = length(Args),
                     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     from_string(TypeInfo, TypeWithoutVars, String);
@@ -102,7 +103,6 @@ from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}},
             end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String)
@@ -141,18 +141,19 @@ and converts it to a string representation.
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
+    Arity = length(Args),
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case M:encode(string, {type, N, length(Args)}, Data, #{}) of
+            case M:encode(string, {type, N, Arity}, Data, #{}) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_string(TypeInfo, TypeWithoutVars, Data);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data)
     end;
@@ -195,12 +196,12 @@ to_string_inner(
             {error, Reason}
     end;
 to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:encode(string, {type, TypeName, length(Args)}, Data, #{}) of
+            case M:encode(string, {type, TypeName, TypeArity}, Data, #{}) of
                 continue ->
                     TypeInfo = spectra_module_types:get(Module),
-                    TypeArity = length(Args),
                     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_string(TypeInfo, TypeWithoutVars, Data);
@@ -209,7 +210,6 @@ to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, D
             end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data)

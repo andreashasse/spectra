@@ -65,31 +65,33 @@ to_schema_for_sp_type(TypeInfo, Type) ->
 ) ->
     json_schema_object().
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef) ->
+    Arity = length(Args),
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {type, N, length(Args)}, #{}) of
+                    case M:schema(json_schema, {type, N, Arity}, #{}) of
                         continue -> do_to_schema_inner(TypeInfo, TypeRef);
                         Schema -> Schema
                     end;
                 false ->
-                    erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
+                    erlang:error({schema_not_implemented, M, {type, N, Arity}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)
     end;
 do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
-    case spectra_type_info:find_codec(Mod, N, length(Args)) of
+    Arity = length(Args),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {type, N, length(Args)}, #{}) of
+                    case M:schema(json_schema, {type, N, Arity}, #{}) of
                         continue -> do_to_schema_inner(TypeInfo, TypeRef);
                         Schema -> Schema
                     end;
                 false ->
-                    erlang:error({schema_not_implemented, M, {type, N, length(Args)}})
+                    erlang:error({schema_not_implemented, M, {type, N, Arity}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)

@@ -73,18 +73,19 @@ and converts it to the corresponding Erlang value.
 from_binary_string(
     TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, BinaryString, Opts
 ) ->
+    Arity = length(Args),
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case M:decode(binary_string, {type, N, length(Args)}, BinaryString, Opts) of
+            case M:decode(binary_string, {type, N, Arity}, BinaryString, Opts) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
@@ -136,12 +137,12 @@ from_binary_string_inner(
     BinaryString,
     Opts
 ) ->
-    case spectra_type_info:find_codec(Module, TypeName, length(Args)) of
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:decode(binary_string, {type, TypeName, length(Args)}, BinaryString, Opts) of
+            case M:decode(binary_string, {type, TypeName, TypeArity}, BinaryString, Opts) of
                 continue ->
                     TypeInfo = spectra_module_types:get(Module),
-                    TypeArity = length(Args),
                     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
@@ -150,7 +151,6 @@ from_binary_string_inner(
             end;
         error ->
             TypeInfo = spectra_module_types:get(Module),
-            TypeArity = length(Args),
             Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
@@ -221,18 +221,19 @@ and converts it to a binary string representation.
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
 to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data, Opts) ->
+    Arity = length(Args),
     case spectra_type_info:find_local_codec(TypeInfo) of
         {ok, M} ->
-            case M:encode(binary_string, {type, N, length(Args)}, Data, Opts) of
+            case M:encode(binary_string, {type, N, Arity}, Data, Opts) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, length(Args)),
+            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
     end;
