@@ -170,12 +170,98 @@ DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
 
 ```erlang
 spectra:schema(Format, Module, Type) -> Schema :: iodata().
+spectra:schema(Format, Module, Type, Options) -> Schema :: iodata() | map().
 ```
 
 Where:
 - `Format` is `json_schema` (for now)
 
 And the rest of the arguments are the same as for the data serialization API.
+
+The optional `Options` list supports:
+
+| Option | Effect |
+|--------|--------|
+| `pre_encoded` | Returns the raw schema map instead of encoded `iodata()` — useful for inspection or merging before serialisation |
+
+```erlang
+%% Get encoded JSON binary (default)
+IoData = spectra:schema(json_schema, my_module, user),
+
+%% Get the raw map for inspection or merging
+SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]),
+```
+
+### Custom Codecs
+
+Custom codecs let you override how spectra encodes, decodes, and generates schemas for specific types. This is useful for types that cannot be represented structurally (e.g. tagged unions, opaque types, external types).
+
+#### Implementing a Codec
+
+Implement the `spectra_codec` behaviour in your module:
+
+```erlang
+-module(my_geo_codec).
+-behaviour(spectra_codec).
+
+-export([encode/4, decode/4, schema/3]).
+
+encode(json, {type, point, 0}, {X, Y}, _Opts) ->
+    {ok, [X, Y]};
+encode(_Format, _TypeRef, _Data, _Opts) ->
+    continue.
+
+decode(json, {type, point, 0}, [X, Y], _Opts) ->
+    {ok, {X, Y}};
+decode(_Format, _TypeRef, _Input, _Opts) ->
+    continue.
+
+schema(json_schema, {type, point, 0}, _Opts) ->
+    #{type => <<"array">>, items => #{type => <<"number">>}, minItems => 2, maxItems => 2};
+schema(_Format, _TypeRef, _Opts) ->
+    continue.
+```
+
+Return `continue` for any type or format your codec does not handle — spectra falls through to its default structural encoder/decoder.
+
+The `schema/3` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+
+#### Auto-Discovery (Local Module)
+
+If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no configuration required:
+
+```erlang
+-module(my_geo_module).
+-behaviour(spectra_codec).
+
+-export([encode/4, decode/4, schema/3]).
+
+-type point() :: {float(), float()}.
+
+%% ... encode/4, decode/4, schema/3 as above
+```
+
+```erlang
+spectra:encode(json, my_geo_module, point, {1.0, 2.0}).
+%% => {ok, <<"[1.0,2.0]">>}
+```
+
+#### App Environment (Remote Types)
+
+To use a codec for a type defined in another module (e.g., from a dependency), register it in the application environment:
+
+```erlang
+%% sys.config
+{spectra, [
+    {codecs, #{
+        {calendar, {type, datetime, 0}} => my_datetime_codec
+    }}
+]}
+```
+
+The key is a `spectra:codec_key()` — a `{Module, {type, TypeName, Arity}}` tuple identifying the type's owning module and type reference.
+
+Alternatively, if the remote module itself implements `-behaviour(spectra_codec)`, spectra discovers and uses it automatically with no configuration.
 
 ### Adding Documentation and Examples to Schemas
 

@@ -3,21 +3,18 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/spectra_internal.hrl").
 
-%% 1. Module with -behaviour(spectra_codec) encodes without config
 auto_discovery_encode_test() ->
     ?assertEqual(
         {ok, [1.0, 2.0]},
         spectra:encode(json, codec_geo_module, {type, point, 0}, {1.0, 2.0}, [pre_encoded])
     ).
 
-%% 2. Same module, decode direction
 auto_discovery_decode_test() ->
     ?assertEqual(
         {ok, {1.0, 2.0}},
         spectra:decode(json, codec_geo_module, {type, point, 0}, [1.0, 2.0], [pre_decoded])
     ).
 
-%% 3. Same module, schema (optional callback present)
 auto_discovery_schema_test() ->
     Schema = iolist_to_binary(spectra:schema(json_schema, codec_geo_module, {type, point, 0})),
     Decoded = json:decode(Schema),
@@ -31,7 +28,6 @@ auto_discovery_schema_test() ->
         Decoded
     ).
 
-%% 4. Codec in app env, encode works for a module that uses calendar:datetime()
 app_env_remote_codec_encode_test() ->
     application:set_env(spectra, codecs, #{{calendar, {type, datetime, 0}} => codec_calendar_codec}),
     try
@@ -44,7 +40,6 @@ app_env_remote_codec_encode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% 5. App env codec, decode direction
 app_env_remote_codec_decode_test() ->
     application:set_env(spectra, codecs, #{{calendar, {type, datetime, 0}} => codec_calendar_codec}),
     try
@@ -57,8 +52,6 @@ app_env_remote_codec_decode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% 6. Cascading: codec_top_module -> codec_middle_module -> calendar:datetime()
-%% app env codec for calendar:datetime() resolves through two intermediate modules.
 cascading_encode_test() ->
     application:set_env(spectra, codecs, #{{calendar, {type, datetime, 0}} => codec_calendar_codec}),
     try
@@ -79,7 +72,6 @@ cascading_encode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% 7. Existing behaviour preserved when no codec registered — tuple type still throws
 no_codec_still_throws_test() ->
     application:unset_env(spectra, codecs),
     ?assertError(
@@ -87,17 +79,15 @@ no_codec_still_throws_test() ->
         spectra:encode(json, codec_tuple_module, {type, pair, 0}, {1, 2})
     ).
 
-%% 8. Verify codec callbacks receive the correct sp_type_reference (tuple form).
-%%    The codec returns `continue` for bad data, so spectra falls through to the
-%%    structural encoder for the opaque tuple type, which crashes (tuples are not
-%%    supported in JSON).
+%% The codec returns `continue` for bad data, so spectra falls through to the
+%% structural encoder for the opaque tuple type, which crashes (tuples are not
+%% supported in JSON).
 type_ref_passed_to_codec_test() ->
     ?assertError(
         {type_not_supported, _},
         spectra:encode(json, codec_geo_module, {type, point, 0}, not_a_tuple, [pre_encoded])
     ).
 
-%% 9. Remote module that implements spectra_codec is used automatically (no app env)
 remote_module_implements_codec_test() ->
     application:unset_env(spectra, codecs),
     Color = {255, 128, 0},
@@ -114,16 +104,12 @@ remote_module_implements_codec_test() ->
     ),
     ?assertEqual(#{primary => Color}, Decoded).
 
-%% 10. Schema raises an exception when schema/2 not exported by codec
 schema_optional_callback_test() ->
-    %% codec_no_schema_module implements encode/decode but NOT schema/2.
-    %% Calling schema/2 must raise an explicit error rather than silently falling through.
     ?assertError(
         {schema_not_implemented, codec_no_schema_module, {type, point, 0}},
         spectra:schema(json_schema, codec_no_schema_module, {type, point, 0})
     ).
 
-%% 11. Discriminated-union codec: encode cat
 animal_encode_cat_test() ->
     Cat = {cat, <<"Whiskers">>, true},
     ?assertEqual(
@@ -131,7 +117,6 @@ animal_encode_cat_test() ->
         spectra:encode(json, codec_animal_codec, {type, animal, 0}, Cat, [pre_encoded])
     ).
 
-%% 12. Discriminated-union codec: encode dog
 animal_encode_dog_test() ->
     Dog = {dog, <<"Rex">>, <<"Labrador">>},
     ?assertEqual(
@@ -139,7 +124,6 @@ animal_encode_dog_test() ->
         spectra:encode(json, codec_animal_codec, {type, animal, 0}, Dog, [pre_encoded])
     ).
 
-%% 13. Discriminated-union codec: decode cat
 animal_decode_cat_test() ->
     Json = #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
     ?assertEqual(
@@ -147,7 +131,6 @@ animal_decode_cat_test() ->
         spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
     ).
 
-%% 14. Discriminated-union codec: decode dog
 animal_decode_dog_test() ->
     Json = #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>},
     ?assertEqual(
@@ -155,14 +138,12 @@ animal_decode_dog_test() ->
         spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
     ).
 
-%% 15. Discriminated-union codec: invalid data returns error
 animal_encode_invalid_test() ->
     ?assertMatch(
         {error, _},
         spectra:encode(json, codec_animal_codec, {type, animal, 0}, not_an_animal, [pre_encoded])
     ).
 
-%% 16. Discriminated-union codec: unknown type tag returns error
 animal_decode_unknown_tag_test() ->
     Json = #{<<"type">> => <<"fish">>, <<"name">> => <<"Nemo">>},
     ?assertMatch(
@@ -170,7 +151,6 @@ animal_decode_unknown_tag_test() ->
         spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
     ).
 
-%% 17. Atom, {type,N,A} and bare sp_type() all produce the same encode/decode result
 animal_type_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_animal_codec),
     AnimalSpType = spectra_type_info:get_type(TypeInfo, animal, 0),
@@ -192,7 +172,6 @@ animal_type_ref_forms_test() ->
     ?assertEqual(DecAtom, DecTupleRef),
     ?assertEqual(DecAtom, DecSpType).
 
-%% 18. {record,N} ref and bare #sp_rec{} sp_type() produce the same encode/decode result
 cat_record_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_animal_codec),
     {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
@@ -210,8 +189,8 @@ cat_record_ref_forms_test() ->
     ?assertEqual({ok, Cat}, DecTupleRef),
     ?assertEqual(DecTupleRef, DecSpType).
 
-%% 19. Codec is dispatched for {record, N} refs — codec returns continue, falling
-%%     through to structural encode/decode, matching the result of encoding via #sp_rec{}
+%% {record, cat} dispatches to codec; codec returns `continue`, so structural
+%% encoding takes over — result must match direct #sp_rec{} encoding.
 record_ref_codec_dispatch_continue_test() ->
     TypeInfo = spectra_module_types:get(codec_animal_codec),
     {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
@@ -219,8 +198,6 @@ record_ref_codec_dispatch_continue_test() ->
     Cat = {cat, <<"Luna">>, false},
     CatJson = #{<<"name">> => <<"Luna">>, <<"indoor">> => false},
 
-    %% {record, cat} now dispatches to codec, codec returns `continue`, structural
-    %% encoding takes over — result must match direct #sp_rec{} encoding.
     {ok, Encoded} = spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded]),
     {ok, EncodedDirect} = spectra:encode(json, TypeInfo, CatSpRec, Cat, [pre_encoded]),
     ?assertEqual(CatJson, Encoded),
@@ -231,8 +208,6 @@ record_ref_codec_dispatch_continue_test() ->
     ?assertEqual(Cat, Decoded),
     ?assertEqual(DecodedDirect, Decoded).
 
-%% 20. Atom, {type,N,A} and bare sp_type() all produce the same schema result.
-%%     Mirrors the encode/decode all-forms test (test 17) for schema/3.
 schema_type_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_geo_module),
     PointSpType = spectra_type_info:get_type(TypeInfo, point, 0),
@@ -243,8 +218,6 @@ schema_type_ref_forms_test() ->
     ?assertEqual(SchemaTupleRef, SchemaAtom),
     ?assertEqual(SchemaTupleRef, SchemaSpType).
 
-%% 21. {record, N} form produces the same schema as a bare #sp_rec{} sp_type()
-%%     when no codec is registered (structural path for both).
 schema_record_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(record_test),
     {ok, PersonSpRec} = spectra_type_info:find_record(TypeInfo, person),

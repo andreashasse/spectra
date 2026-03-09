@@ -922,7 +922,7 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
     Json :: json:decode_value(),
     TypeArgs :: [spectra:record_field_arg()]
 ) ->
-    {ok, dynamic()} | {error, list()}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) ->
     case spectra_type_info:find_record(TypeInfo, RecordName) of
         {ok, Record} ->
@@ -942,7 +942,7 @@ record_from_json(
     #sp_rec{},
     Json :: json:decode_value()
 ) ->
-    {ok, dynamic()} | {error, list()}.
+    {ok, dynamic()} | {error, [spectra:error()]}.
 do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, Json) when
     is_map(Json)
 ->
