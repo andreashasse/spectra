@@ -5,8 +5,16 @@
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
+-compile(nowarn_unused_type).
+
 -record(person, {name :: string(), age :: integer()}).
 -record(address, {street :: string(), city :: string()}).
+
+json_encode(TypeRef, Data) ->
+    spectra:encode(json, ?MODULE, TypeRef, Data, [pre_encoded]).
+
+json_decode(TypeRef, Data) ->
+    spectra:decode(json, ?MODULE, TypeRef, Data, [pre_decoded]).
 
 -type person_alias() :: #person{name :: string(), age :: integer()}.
 -type address_alias() :: #address{street :: string(), city :: string()}.
@@ -56,19 +64,25 @@ type_in_form_test() ->
 
 to_json_person_record_test() ->
     Person = #person{name = "John", age = 30},
-    ?assertEqual({ok, #{<<"name">> => <<"John">>, <<"age">> => 30}}, to_json_person(Person)).
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"John">>, <<"age">> => 30}}, json_encode({record, person}, Person)
+    ).
 
 to_json_person_record_bad_test() ->
     NotPersonArity = {person, "John"},
-    ?assertMatch({error, [#sp_error{type = type_mismatch}]}, to_json_person(NotPersonArity)).
+    ?assertMatch(
+        {error, [#sp_error{type = type_mismatch}]}, json_encode({record, person}, NotPersonArity)
+    ).
 
 from_json_person_record_test() ->
     Person = #{<<"name">> => <<"John">>, <<"age">> => 30},
-    ?assertEqual({ok, #person{name = "John", age = 30}}, from_json_person(Person)).
+    ?assertEqual({ok, #person{name = "John", age = 30}}, json_decode({record, person}, Person)).
 
 to_json_person_alias_test() ->
     Person = #person{name = "John", age = -1},
-    ?assertEqual({ok, #{<<"name">> => <<"John">>, <<"age">> => -1}}, to_json_person_alias(Person)).
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"John">>, <<"age">> => -1}}, json_encode(person_alias, Person)
+    ).
 
 to_json_person_alias_bad_test() ->
     Person = #person{name = "John", age = "not_an_integer"},
@@ -79,12 +93,14 @@ to_json_person_alias_bad_test() ->
                 age
             )
         ]},
-        to_json_person_alias(Person)
+        json_encode(person_alias, Person)
     ).
 
 to_json_person_new_age_test() ->
     Person = #person{name = "John", age = 0},
-    ?assertEqual({ok, #{<<"name">> => <<"John">>, <<"age">> => 0}}, to_json_person_new_age(Person)).
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"John">>, <<"age">> => 0}}, json_encode(person_new_age, Person)
+    ).
 
 to_json_person_new_age_bad_test() ->
     Person = #person{name = "John", age = -1},
@@ -95,16 +111,16 @@ to_json_person_new_age_bad_test() ->
                 age
             )
         ]},
-        to_json_person_new_age(Person)
+        json_encode(person_new_age, Person)
     ).
 
 to_json_person_t_test() ->
     Person = #person{name = "John", age = 0},
-    ?assertEqual({ok, #{<<"name">> => <<"John">>, <<"age">> => 0}}, to_json_person_t(Person)).
+    ?assertEqual({ok, #{<<"name">> => <<"John">>, <<"age">> => 0}}, json_encode(person_t, Person)).
 
 from_json_person_alias_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => 30},
-    ?assertEqual({ok, #person{name = "John", age = 30}}, from_json_person_alias(Json)).
+    ?assertEqual({ok, #person{name = "John", age = 30}}, json_decode(person_alias, Json)).
 
 from_json_person_alias_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => <<"not_an_integer">>},
@@ -115,12 +131,12 @@ from_json_person_alias_bad_test() ->
                 age
             )
         ]},
-        from_json_person_alias(Json)
+        json_decode(person_alias, Json)
     ).
 
 from_json_person_new_age_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => 30},
-    ?assertEqual({ok, #person{name = "John", age = 30}}, from_json_person_new_age(Json)).
+    ?assertEqual({ok, #person{name = "John", age = 30}}, json_decode(person_new_age, Json)).
 
 from_json_person_new_age_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => -1},
@@ -131,12 +147,12 @@ from_json_person_new_age_bad_test() ->
                 age
             )
         ]},
-        from_json_person_new_age(Json)
+        json_decode(person_new_age, Json)
     ).
 
 from_json_person_t_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => 30},
-    ?assertEqual({ok, #person{name = "John", age = 30}}, from_json_person_t(Json)).
+    ?assertEqual({ok, #person{name = "John", age = 30}}, json_decode(person_t, Json)).
 
 from_json_person_t_bad_test() ->
     Json = #{<<"name">> => <<"John">>, <<"age">> => <<"not_an_integer">>},
@@ -147,67 +163,19 @@ from_json_person_t_bad_test() ->
                 age
             )
         ]},
-        from_json_person_t(Json)
+        json_decode(person_t, Json)
     ).
 
 to_json_address_alias_test() ->
     Address = #address{street = "Main St", city = "Boston"},
     ?assertEqual(
         {ok, #{<<"street">> => <<"Main St">>, <<"city">> => <<"Boston">>}},
-        to_json_address_alias(Address)
+        json_encode(address_alias, Address)
     ).
 
 from_json_address_alias_test() ->
     Json = #{<<"street">> => <<"Main St">>, <<"city">> => <<"Boston">>},
     ?assertEqual(
         {ok, #address{street = "Main St", city = "Boston"}},
-        from_json_address_alias(Json)
+        json_decode(address_alias, Json)
     ).
-
--spec to_json_person_new_age(person_new_age()) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
-to_json_person_new_age(Data) ->
-    spectra:encode(json, ?MODULE, {type, person_new_age, 0}, Data, [pre_encoded]).
-
--spec to_json_person_t(person_t()) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
-to_json_person_t(Data) ->
-    spectra:encode(json, ?MODULE, {type, person_t, 0}, Data, [pre_encoded]).
-
--spec to_json_person(#person{}) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
-to_json_person(Person) ->
-    spectra:encode(json, ?MODULE, {record, person}, Person, [pre_encoded]).
-
--spec from_json_person(json:decode_value()) ->
-    {ok, #person{}} | {error, [spectra:error()]}.
-from_json_person(Person) ->
-    spectra:decode(json, ?MODULE, {record, person}, Person, [pre_decoded]).
-
--spec to_json_person_alias(term()) -> {ok, person_alias()} | {error, [spectra:error()]}.
-to_json_person_alias(Data) ->
-    spectra:encode(json, ?MODULE, {type, person_alias, 0}, Data, [pre_encoded]).
-
--spec from_json_person_new_age(term()) ->
-    {ok, person_new_age()} | {error, [spectra:error()]}.
-from_json_person_new_age(Data) ->
-    spectra:decode(json, ?MODULE, {type, person_new_age, 0}, Data, [pre_decoded]).
-
--spec from_json_person_t(term()) -> {ok, person_t()} | {error, [spectra:error()]}.
-from_json_person_t(Data) ->
-    spectra:decode(json, ?MODULE, {type, person_t, 0}, Data, [pre_decoded]).
-
--spec from_json_person_alias(term()) ->
-    {ok, person_alias()} | {error, [spectra:error()]}.
-from_json_person_alias(Data) ->
-    spectra:decode(json, ?MODULE, {type, person_alias, 0}, Data, [pre_decoded]).
-
--spec to_json_address_alias(term()) ->
-    {ok, address_alias()} | {error, [spectra:error()]}.
-to_json_address_alias(Data) ->
-    spectra:encode(json, ?MODULE, {type, address_alias, 0}, Data, [pre_encoded]).
-
--spec from_json_address_alias(term()) ->
-    {ok, address_alias()} | {error, [spectra:error()]}.
-from_json_address_alias(Data) ->
-    spectra:decode(json, ?MODULE, {type, address_alias, 0}, Data, [pre_decoded]).
