@@ -198,7 +198,7 @@ Custom codecs let you override how spectra encodes, decodes, and generates schem
 
 #### Implementing a Codec
 
-Implement the `spectra_codec` behaviour in your module:
+Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a `{type, Name, Arity}` type reference — only named types (declared with `-type name() :: ...`) are supported as codec targets; records are handled structurally and cannot be intercepted by a codec.
 
 ```erlang
 -module(my_geo_codec).
@@ -226,9 +226,9 @@ Return `continue` for any type or format your codec does not handle — spectra 
 
 The `schema/3` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
-#### Auto-Discovery (Local Module)
+#### Types in the Same Module (No Configuration)
 
-If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no configuration required:
+If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no configuration required:
 
 ```erlang
 -module(my_geo_module).
@@ -238,7 +238,7 @@ If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it 
 
 -type point() :: {float(), float()}.
 
-%% ... encode/4, decode/4, schema/3 as above
+%% encode/4, decode/4, schema/3 implementations here
 ```
 
 ```erlang
@@ -246,9 +246,9 @@ spectra:encode(json, my_geo_module, point, {1.0, 2.0}).
 %% => {ok, <<"[1.0,2.0]">>}
 ```
 
-#### App Environment (Remote Types)
+#### Types from Other Modules (App Environment)
 
-To use a codec for a type defined in another module (e.g., from a dependency), register it in the application environment:
+To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
 
 ```erlang
 %% sys.config
@@ -259,9 +259,9 @@ To use a codec for a type defined in another module (e.g., from a dependency), r
 ]}
 ```
 
-The key is a `spectra:codec_key()` — a `{Module, {type, TypeName, Arity}}` tuple identifying the type's owning module and type reference.
+The key is a `spectra:codec_key()` — a `{Module, {type, TypeName, Arity}}` tuple identifying the type's owning module and type name.
 
-Alternatively, if the remote module itself implements `-behaviour(spectra_codec)`, spectra discovers and uses it automatically with no configuration.
+Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra discovers and uses it automatically with no configuration.
 
 ### Adding Documentation and Examples to Schemas
 

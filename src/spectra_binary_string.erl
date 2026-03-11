@@ -89,6 +89,23 @@ from_binary_string(
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
+from_binary_string(
+    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, BinaryString, Opts
+) ->
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
+        {ok, M} ->
+            case M:decode(binary_string, {type, TypeName, TypeArity}, BinaryString, Opts) of
+                continue ->
+                    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+                    from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts);
+                Result ->
+                    Result
+            end;
+        error ->
+            {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+            from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts)
+    end;
 from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
     from_binary_string_inner(TypeInfo, Type, BinaryString, Opts).
 
@@ -130,30 +147,6 @@ from_binary_string_inner(
             {error, [sp_error:type_mismatch(Range, Value)]};
         {error, Reason} ->
             {error, Reason}
-    end;
-from_binary_string_inner(
-    _TypeInfo,
-    #sp_remote_type{mfargs = {Module, TypeName, Args}},
-    BinaryString,
-    Opts
-) ->
-    TypeArity = length(Args),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            case M:decode(binary_string, {type, TypeName, TypeArity}, BinaryString, Opts) of
-                continue ->
-                    TypeInfo = spectra_module_types:get(Module),
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
-                Result ->
-                    Result
-            end;
-        error ->
-            TypeInfo = spectra_module_types:get(Module),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
 from_binary_string_inner(_TypeInfo, #sp_literal{value = Literal}, BinaryString, _Opts) ->
     try_convert_binary_string_to_literal(Literal, BinaryString);
@@ -237,6 +230,23 @@ to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, D
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
     end;
+to_binary_string(
+    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts
+) ->
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
+        {ok, M} ->
+            case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts) of
+                continue ->
+                    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+                    to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts);
+                Result ->
+                    Result
+            end;
+        error ->
+            {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+            to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts)
+    end;
 to_binary_string(TypeInfo, Type, Data, Opts) ->
     to_binary_string_inner(TypeInfo, Type, Data, Opts).
 
@@ -276,25 +286,6 @@ to_binary_string_inner(
             {error, [sp_error:type_mismatch(Range, Data)]};
         {error, Reason} ->
             {error, Reason}
-    end;
-to_binary_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts) ->
-    TypeArity = length(Args),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts) of
-                continue ->
-                    TypeInfo = spectra_module_types:get(Module),
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
-                Result ->
-                    Result
-            end;
-        error ->
-            TypeInfo = spectra_module_types:get(Module),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
     end;
 to_binary_string_inner(_TypeInfo, #sp_literal{} = Type, Data, _Opts) ->
     try_convert_literal_to_binary_string(Type, Data);
@@ -467,6 +458,14 @@ do_first(Fun, TypeInfo, [Type | Rest], BinaryString, Opts, ErrorsAcc) ->
         {error, Errors} ->
             do_first(Fun, TypeInfo, Rest, BinaryString, Opts, [{Type, Errors} | ErrorsAcc])
     end.
+
+-spec resolve_remote_type(module(), atom(), [spectra:sp_type()]) ->
+    {spectra:type_info(), spectra:sp_type()}.
+resolve_remote_type(Module, TypeName, Args) ->
+    TypeInfo = spectra_module_types:get(Module),
+    TypeArity = length(Args),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    {TypeInfo, apply_args(TypeInfo, Type, Args)}.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
     ArgNames = arg_names(Type),

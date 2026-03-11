@@ -3,6 +3,10 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/spectra_internal.hrl").
 
+%% Copied from codec_animal_codec to avoid a shared header file.
+-record(cat, {name :: binary(), indoor :: boolean()}).
+-record(dog, {name :: binary(), breed :: binary()}).
+
 auto_discovery_encode_test() ->
     ?assertEqual(
         {ok, [1.0, 2.0]},
@@ -111,14 +115,14 @@ schema_optional_callback_test() ->
     ).
 
 animal_encode_cat_test() ->
-    Cat = {cat, <<"Whiskers">>, true},
+    Cat = #cat{name = <<"Whiskers">>, indoor = true},
     ?assertEqual(
         {ok, #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true}},
         spectra:encode(json, codec_animal_codec, {type, animal, 0}, Cat, [pre_encoded])
     ).
 
 animal_encode_dog_test() ->
-    Dog = {dog, <<"Rex">>, <<"Labrador">>},
+    Dog = #dog{name = <<"Rex">>, breed = <<"Labrador">>},
     ?assertEqual(
         {ok, #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>}},
         spectra:encode(json, codec_animal_codec, {type, animal, 0}, Dog, [pre_encoded])
@@ -127,14 +131,14 @@ animal_encode_dog_test() ->
 animal_decode_cat_test() ->
     Json = #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
     ?assertEqual(
-        {ok, {cat, <<"Whiskers">>, true}},
+        {ok, #cat{name = <<"Whiskers">>, indoor = true}},
         spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
     ).
 
 animal_decode_dog_test() ->
     Json = #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>},
     ?assertEqual(
-        {ok, {dog, <<"Rex">>, <<"Labrador">>}},
+        {ok, #dog{name = <<"Rex">>, breed = <<"Labrador">>}},
         spectra:decode(json, codec_animal_codec, {type, animal, 0}, Json, [pre_decoded])
     ).
 
@@ -155,7 +159,7 @@ animal_type_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_animal_codec),
     AnimalSpType = spectra_type_info:get_type(TypeInfo, animal, 0),
 
-    Cat = {cat, <<"Whiskers">>, true},
+    Cat = #cat{name = <<"Whiskers">>, indoor = true},
     CatJson = #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
 
     EncAtom = spectra:encode(json, codec_animal_codec, animal, Cat, [pre_encoded]),
@@ -176,7 +180,7 @@ cat_record_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_animal_codec),
     {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
 
-    Cat = {cat, <<"Whiskers">>, true},
+    Cat = #cat{name = <<"Whiskers">>, indoor = true},
     CatJson = #{<<"name">> => <<"Whiskers">>, <<"indoor">> => true},
 
     EncTupleRef = spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded]),
@@ -190,23 +194,18 @@ cat_record_ref_forms_test() ->
     ?assertEqual(DecTupleRef, DecSpType).
 
 %% {record, cat} dispatches to codec; codec returns `continue`, so structural
-%% encoding takes over — result must match direct #sp_rec{} encoding.
+%% encoding takes over.
 record_ref_codec_dispatch_continue_test() ->
-    TypeInfo = spectra_module_types:get(codec_animal_codec),
-    {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
-
-    Cat = {cat, <<"Luna">>, false},
+    Cat = #cat{name = <<"Luna">>, indoor = false},
     CatJson = #{<<"name">> => <<"Luna">>, <<"indoor">> => false},
-
-    {ok, Encoded} = spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded]),
-    {ok, EncodedDirect} = spectra:encode(json, TypeInfo, CatSpRec, Cat, [pre_encoded]),
-    ?assertEqual(CatJson, Encoded),
-    ?assertEqual(EncodedDirect, Encoded),
-
-    {ok, Decoded} = spectra:decode(json, codec_animal_codec, {record, cat}, CatJson, [pre_decoded]),
-    {ok, DecodedDirect} = spectra:decode(json, TypeInfo, CatSpRec, CatJson, [pre_decoded]),
-    ?assertEqual(Cat, Decoded),
-    ?assertEqual(DecodedDirect, Decoded).
+    ?assertEqual(
+        {ok, CatJson},
+        spectra:encode(json, codec_animal_codec, {record, cat}, Cat, [pre_encoded])
+    ),
+    ?assertEqual(
+        {ok, Cat},
+        spectra:decode(json, codec_animal_codec, {record, cat}, CatJson, [pre_decoded])
+    ).
 
 schema_type_ref_forms_test() ->
     TypeInfo = spectra_module_types:get(codec_geo_module),
@@ -244,4 +243,31 @@ multi_behaviour_codec_decode_test() ->
         spectra:decode(
             json, codec_multi_behaviour_module, {type, point, 0}, [1.0, 2.0], [pre_decoded]
         )
+    ).
+
+%% zoo() uses a fully-qualified self-reference codec_animal_codec:animal(), verifying
+%% that remote type refs within the same codec module are dispatched correctly.
+zoo_encode_test() ->
+    Zoo = [
+        #cat{name = <<"Whiskers">>, indoor = true}, #dog{name = <<"Rex">>, breed = <<"Labrador">>}
+    ],
+    ?assertEqual(
+        {ok, [
+            #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
+            #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>}
+        ]},
+        spectra:encode(json, codec_animal_codec, {type, zoo, 0}, Zoo, [pre_encoded])
+    ).
+
+zoo_decode_test() ->
+    Json = [
+        #{<<"type">> => <<"cat">>, <<"name">> => <<"Whiskers">>, <<"indoor">> => true},
+        #{<<"type">> => <<"dog">>, <<"name">> => <<"Rex">>, <<"breed">> => <<"Labrador">>}
+    ],
+    ?assertEqual(
+        {ok, [
+            #cat{name = <<"Whiskers">>, indoor = true},
+            #dog{name = <<"Rex">>, breed = <<"Labrador">>}
+        ]},
+        spectra:decode(json, codec_animal_codec, {type, zoo, 0}, Json, [pre_decoded])
     ).

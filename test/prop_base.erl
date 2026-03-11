@@ -10,7 +10,7 @@ prop_hej() ->
         {test_type(), json_generator:json_value()},
         begin
             TypeInfo = spectra_type_info:add_type(
-                spectra_type_info:new(?MODULE), TypeName, 0, Type
+                spectra_type_info:new(?MODULE, false), TypeName, 0, Type
             ),
             case from_json(TypeInfo, Type, JsonValue) of
                 {ok, Data} ->

@@ -18,8 +18,9 @@
 -type cat() :: #cat{}.
 -type dog() :: #dog{}.
 -type animal() :: cat() | dog().
+-type zoo() :: [codec_animal_codec:animal()].
 
--export_type([animal/0, cat/0, dog/0]).
+-export_type([animal/0, cat/0, dog/0, zoo/0]).
 -export([encode/4, decode/4]).
 
 -spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->

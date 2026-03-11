@@ -108,7 +108,7 @@ create_typeinfo_with_known_types(Type) ->
         }}
     ],
 
-    TypeInfo0 = spectra_type_info:new(?MODULE),
+    TypeInfo0 = spectra_type_info:new(?MODULE, false),
     TypeInfo1 = lists:foldl(
         fun({Name, Arity, T}, Acc) ->
             spectra_type_info:add_type(Acc, Name, Arity, T)

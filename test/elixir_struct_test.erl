@@ -63,7 +63,7 @@ run_to_json() ->
         },
 
     %% Convert to JSON - should exclude __struct__ field and contain expected data
-    TypeInfo = spectra_type_info:new(?MODULE),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
     {ok, JsonIoList} = spectra:encode(json, TypeInfo, StructType, StructData),
     JsonBinary = iolist_to_binary(JsonIoList),
 
@@ -126,7 +126,7 @@ run_from_json() ->
         },
 
     %% Convert from JSON - should add back __struct__ field with all data
-    TypeInfo = spectra_type_info:new(?MODULE),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
     {ok, Result} = spectra:decode(json, TypeInfo, StructType, JsonBinary),
     ?assertEqual(
         #{
@@ -199,7 +199,7 @@ run_to_json_nil_email() ->
         },
 
     %% Convert to JSON - nil email should be omitted from JSON
-    TypeInfo = spectra_type_info:new(?MODULE),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
     {ok, JsonIoList} = spectra:encode(json, TypeInfo, StructType, StructData),
     JsonBinary = iolist_to_binary(JsonIoList),
 
@@ -265,7 +265,7 @@ run_from_json_missing_email() ->
         },
 
     %% Convert from JSON - missing email should become nil
-    TypeInfo = spectra_type_info:new(?MODULE),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
     {ok, Result} = spectra:decode(json, TypeInfo, StructType, JsonBinary),
     ?assertEqual(
         #{

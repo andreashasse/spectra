@@ -68,11 +68,11 @@
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
--type binary_string_decode_opts() :: #{}.
--type binary_string_encode_opts() :: #{}.
--type codec_encode_opts() :: #{}.
--type codec_decode_opts() :: #{}.
--type codec_schema_opts() :: #{}.
+-type binary_string_decode_opts() :: map().
+-type binary_string_encode_opts() :: map().
+-type codec_encode_opts() :: map().
+-type codec_decode_opts() :: map().
+-type codec_schema_opts() :: map().
 -type codec_encode_result() :: {ok, term()} | {error, [error()]} | continue.
 -type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 %% Internal type definitions moved from spectra_internal.hrl
@@ -384,11 +384,9 @@ Equivalent to calling schema/4 with an empty options list.
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref()
 ) ->
-    iodata() | map().
-schema(Format, Module, TypeOrRef) when is_atom(Module) ->
-    schema(Format, Module, TypeOrRef, []);
-schema(Format, TypeInfo, TypeOrRef) ->
-    schema(Format, TypeInfo, TypeOrRef, []).
+    iodata() | dynamic().
+schema(Format, ModuleOrTypeinfo, TypeOrRef) ->
+    schema(Format, ModuleOrTypeinfo, TypeOrRef, []).
 
 -doc """
 Generates a schema for the specified type in the given format.
@@ -411,7 +409,7 @@ Accepts an options list. Supported options:
     TypeOrRef :: atom() | sp_type_or_ref(),
     Options :: [schema_option()]
 ) ->
-    iodata() | map().
+    iodata() | dynamic().
 schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
     schema(Format, TypeInfo, TypeOrRef, Options);

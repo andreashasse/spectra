@@ -37,7 +37,7 @@ clear(Module) ->
     spectra:type_info().
 cached_type_info(Module, true) ->
     Vsn = module_vsn(Module),
-    TypeInfoFun = fun() -> apply(Module, ?TYPE_INFO_FUNCTION, []) end,
+    TypeInfoFun = fun() -> set_module_meta(Module, apply(Module, ?TYPE_INFO_FUNCTION, [])) end,
     do_cached_type_info(Module, Vsn, TypeInfoFun);
 cached_type_info(Module, false) ->
     Vsn = module_vsn(Module),
@@ -49,7 +49,7 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
         {Vsn, TypeInfo} ->
             TypeInfo;
         _ ->
-            TypeInfo = set_module_meta(Module, TypeInfoFun()),
+            TypeInfo = TypeInfoFun(),
             pers_types_set(Module, Vsn, TypeInfo),
             TypeInfo
     end.
@@ -59,7 +59,7 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
 fetch_type_info(Module, true) ->
     set_module_meta(Module, apply(Module, ?TYPE_INFO_FUNCTION, []));
 fetch_type_info(Module, false) ->
-    set_module_meta(Module, spectra_abstract_code:types_in_module(Module)).
+    spectra_abstract_code:types_in_module(Module).
 
 -spec pers_type(Module :: module()) ->
     {module_version(), spectra:type_info()} | undefined.

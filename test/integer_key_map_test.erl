@@ -6,6 +6,12 @@
 
 -compile(nowarn_unused_type).
 
+json_encode(TypeName, Data) ->
+    spectra:encode(json, ?MODULE, {type, TypeName, 0}, Data, [pre_encoded]).
+
+json_decode(TypeName, Data) ->
+    spectra:decode(json, ?MODULE, {type, TypeName, 0}, Data, [pre_decoded]).
+
 %% Helper to validate schemas with Python validator
 validate_with_python(Schema) ->
     json_schema_validator_helper:validate_or_skip(Schema).
@@ -23,103 +29,49 @@ validate_with_python(Schema) ->
 encode_int_literal_key_test() ->
     ?assertEqual(
         {ok, #{<<"1">> => <<"value1">>, <<"2">> => <<"value2">>}},
-        spectra:encode(
-            json,
-            ?MODULE,
-            {type, int_literal_key_map, 0},
-            #{
-                1 => <<"value1">>, 2 => <<"value2">>
-            },
-            [pre_encoded]
-        )
+        json_encode(int_literal_key_map, #{1 => <<"value1">>, 2 => <<"value2">>})
     ).
 
 encode_int_literal_key_missing_required_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [1], type = missing_data}]},
-        spectra:encode(json, ?MODULE, {type, int_literal_key_map, 0}, #{2 => <<"value2">>}, [
-            pre_encoded
-        ])
+        json_encode(int_literal_key_map, #{2 => <<"value2">>})
     ),
     ?assertMatch(
         {error, [#sp_error{location = [2], type = missing_data}]},
-        spectra:encode(json, ?MODULE, {type, int_literal_key_map, 0}, #{1 => <<"value1">>}, [
-            pre_encoded
-        ])
+        json_encode(int_literal_key_map, #{1 => <<"value1">>})
     ).
 
 encode_int_literal_key_wrong_value_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [1], type = type_mismatch}]},
-        spectra:encode(
-            json,
-            ?MODULE,
-            {type, int_literal_key_map, 0},
-            #{
-                1 => not_a_binary, 2 => <<"value2">>
-            },
-            [pre_encoded]
-        )
+        json_encode(int_literal_key_map, #{1 => not_a_binary, 2 => <<"value2">>})
     ).
 
 encode_int_literal_optional_map_test() ->
     ?assertEqual(
         {ok, #{<<"1">> => <<"value1">>}},
-        spectra:encode(json, ?MODULE, {type, int_literal_optional_map, 0}, #{1 => <<"value1">>}, [
-            pre_encoded
-        ])
+        json_encode(int_literal_optional_map, #{1 => <<"value1">>})
     ),
     ?assertEqual(
         {ok, #{<<"2">> => some_atom}},
-        spectra:encode(json, ?MODULE, {type, int_literal_optional_map, 0}, #{2 => some_atom}, [
-            pre_encoded
-        ])
+        json_encode(int_literal_optional_map, #{2 => some_atom})
     ),
     ?assertEqual(
         {ok, #{<<"1">> => <<"value1">>, <<"2">> => other_atom}},
-        spectra:encode(
-            json,
-            ?MODULE,
-            {type, int_literal_optional_map, 0},
-            #{
-                1 => <<"value1">>, 2 => other_atom
-            },
-            [pre_encoded]
-        )
+        json_encode(int_literal_optional_map, #{1 => <<"value1">>, 2 => other_atom})
     ).
 
 encode_mixed_int_atom_keys_test() ->
     ?assertEqual(
         {ok, #{<<"1">> => <<"value1">>, <<"foo">> => 42}},
-        spectra:encode(
-            json,
-            ?MODULE,
-            {type, mixed_int_atom_keys, 0},
-            #{
-                1 => <<"value1">>, foo => 42
-            },
-            [pre_encoded]
-        )
+        json_encode(mixed_int_atom_keys, #{1 => <<"value1">>, foo => 42})
     ).
 
 encode_nested_int_key_map_test() ->
     ?assertEqual(
-        {ok, #{
-            <<"outer">> =>
-                #{
-                    <<"1">> => <<"inner_value">>,
-                    <<"2">> => 100
-                }
-        }},
-        spectra:encode(
-            json,
-            ?MODULE,
-            {type, nested_int_key_map, 0},
-            #{
-                outer => #{1 => <<"inner_value">>, 2 => 100}
-            },
-            [pre_encoded]
-        )
+        {ok, #{<<"outer">> => #{<<"1">> => <<"inner_value">>, <<"2">> => 100}}},
+        json_encode(nested_int_key_map, #{outer => #{1 => <<"inner_value">>, 2 => 100}})
     ).
 
 %%====================================================================
@@ -129,127 +81,59 @@ encode_nested_int_key_map_test() ->
 decode_int_literal_key_test() ->
     ?assertEqual(
         {ok, #{1 => <<"value1">>, 2 => <<"value2">>}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_key_map, 0},
-            #{
-                <<"1">> => <<"value1">>, <<"2">> => <<"value2">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_key_map, #{<<"1">> => <<"value1">>, <<"2">> => <<"value2">>})
     ).
 
 decode_int_literal_key_missing_required_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [1], type = missing_data}]},
-        spectra:decode(json, ?MODULE, {type, int_literal_key_map, 0}, #{<<"2">> => <<"value2">>}, [
-            pre_decoded
-        ])
+        json_decode(int_literal_key_map, #{<<"2">> => <<"value2">>})
     ),
     ?assertMatch(
         {error, [#sp_error{location = [2], type = missing_data}]},
-        spectra:decode(json, ?MODULE, {type, int_literal_key_map, 0}, #{<<"1">> => <<"value1">>}, [
-            pre_decoded
-        ])
+        json_decode(int_literal_key_map, #{<<"1">> => <<"value1">>})
     ).
 
 decode_int_literal_key_wrong_value_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [1], type = type_mismatch}]},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_key_map, 0},
-            #{
-                <<"1">> => 123, <<"2">> => <<"value2">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_key_map, #{<<"1">> => 123, <<"2">> => <<"value2">>})
     ).
 
 decode_int_literal_key_wrong_key_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [1], type = missing_data}]},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_key_map, 0},
-            #{
-                <<"3">> => <<"value">>, <<"2">> => <<"value2">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_key_map, #{<<"3">> => <<"value">>, <<"2">> => <<"value2">>})
     ).
 
 decode_int_literal_optional_map_test() ->
     ?assertEqual(
         {ok, #{1 => <<"value1">>}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_optional_map, 0},
-            #{
-                <<"1">> => <<"value1">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_optional_map, #{<<"1">> => <<"value1">>})
     ),
     ?assertEqual(
         {ok, #{2 => some_atom}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_optional_map, 0},
-            #{
-                <<"2">> => <<"some_atom">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_optional_map, #{<<"2">> => <<"some_atom">>})
     ),
     ?assertEqual(
         {ok, #{1 => <<"value1">>, 2 => other_atom}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, int_literal_optional_map, 0},
-            #{
-                <<"1">> => <<"value1">>, <<"2">> => <<"other_atom">>
-            },
-            [pre_decoded]
-        )
+        json_decode(int_literal_optional_map, #{
+            <<"1">> => <<"value1">>, <<"2">> => <<"other_atom">>
+        })
     ).
 
 decode_mixed_int_atom_keys_test() ->
     ?assertEqual(
         {ok, #{1 => <<"value1">>, foo => 42}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, mixed_int_atom_keys, 0},
-            #{
-                <<"1">> => <<"value1">>, <<"foo">> => 42
-            },
-            [pre_decoded]
-        )
+        json_decode(mixed_int_atom_keys, #{<<"1">> => <<"value1">>, <<"foo">> => 42})
     ).
 
 decode_nested_int_key_map_test() ->
     ?assertEqual(
         {ok, #{outer => #{1 => <<"inner_value">>, 2 => 100}}},
-        spectra:decode(
-            json,
-            ?MODULE,
-            {type, nested_int_key_map, 0},
-            #{
-                <<"outer">> =>
-                    #{
-                        <<"1">> => <<"inner_value">>,
-                        <<"2">> => 100
-                    }
-            },
-            [pre_decoded]
-        )
+        json_decode(nested_int_key_map, #{
+            <<"outer">> => #{<<"1">> => <<"inner_value">>, <<"2">> => 100}
+        })
     ).
 
 %%====================================================================
@@ -258,24 +142,20 @@ decode_nested_int_key_map_test() ->
 
 round_trip_int_literal_key_test() ->
     Data = #{1 => <<"value1">>, 2 => <<"value2">>},
-    {ok, Json} = spectra:encode(json, ?MODULE, {type, int_literal_key_map, 0}, Data, [pre_encoded]),
-    {ok, Decoded} = spectra:decode(json, ?MODULE, {type, int_literal_key_map, 0}, Json, [
-        pre_decoded
-    ]),
+    {ok, Json} = json_encode(int_literal_key_map, Data),
+    {ok, Decoded} = json_decode(int_literal_key_map, Json),
     ?assertEqual(Data, Decoded).
 
 round_trip_mixed_int_atom_keys_test() ->
     Data = #{1 => <<"value1">>, foo => 42},
-    {ok, Json} = spectra:encode(json, ?MODULE, {type, mixed_int_atom_keys, 0}, Data, [pre_encoded]),
-    {ok, Decoded} = spectra:decode(json, ?MODULE, {type, mixed_int_atom_keys, 0}, Json, [
-        pre_decoded
-    ]),
+    {ok, Json} = json_encode(mixed_int_atom_keys, Data),
+    {ok, Decoded} = json_decode(mixed_int_atom_keys, Json),
     ?assertEqual(Data, Decoded).
 
 round_trip_nested_int_key_map_test() ->
     Data = #{outer => #{1 => <<"inner_value">>, 2 => 100}},
-    {ok, Json} = spectra:encode(json, ?MODULE, {type, nested_int_key_map, 0}, Data, [pre_encoded]),
-    {ok, Decoded} = spectra:decode(json, ?MODULE, {type, nested_int_key_map, 0}, Json, [pre_decoded]),
+    {ok, Json} = json_encode(nested_int_key_map, Data),
+    {ok, Decoded} = json_decode(nested_int_key_map, Json),
     ?assertEqual(Data, Decoded).
 
 %%====================================================================
@@ -300,16 +180,7 @@ schema_int_literal_key_test() ->
     validate_with_python(Schema).
 
 schema_int_literal_optional_map_test() ->
-    Schema = spectra:schema(
-        json_schema,
-        ?MODULE,
-        {
-            type,
-            int_literal_optional_map,
-            0
-        },
-        [pre_encoded]
-    ),
+    Schema = spectra:schema(json_schema, ?MODULE, {type, int_literal_optional_map, 0}, [pre_encoded]),
     ?assertMatch(
         #{
             type := <<"object">>,

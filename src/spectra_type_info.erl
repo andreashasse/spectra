@@ -4,7 +4,7 @@
 
 -ignore_xref([find_function/3, new/2]).
 
--export([new/1, new/2]).
+-export([new/2]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
@@ -15,10 +15,6 @@
 -type type_info() :: #type_info{}.
 -type type_key() :: {Name :: atom(), Arity :: arity()}.
 -type function_key() :: {Name :: atom(), Arity :: arity()}.
-
--spec new(module()) -> type_info().
-new(Module) ->
-    #type_info{module = Module}.
 
 -spec new(module(), ImplementsCodec :: boolean()) -> type_info().
 new(Module, ImplementsCodec) ->
