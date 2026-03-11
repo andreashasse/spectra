@@ -469,7 +469,7 @@ resolve_type_ref(TypeInfo, {record, RecordName}) ->
 -spec maybe_codec_schema(type_info(), sp_type_reference()) ->
     spectra_json_schema:json_schema().
 maybe_codec_schema(TypeInfo, TypeRef) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
@@ -497,7 +497,7 @@ maybe_codec_schema(TypeInfo, TypeRef) ->
     Options :: [decode_option()]
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
             case M:decode(Format, TypeRef, Data, #{}) of
                 continue ->
@@ -518,7 +518,7 @@ maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
     Options :: [encode_option()]
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
             case M:encode(Format, TypeRef, Data, #{}) of
                 continue ->
@@ -544,6 +544,14 @@ type_ref_from_meta(SpType) ->
         #{name := TypeRef} -> {ok, TypeRef};
         #{} -> error
     end.
+
+-spec find_codec_for_ref(type_info(), sp_type_reference()) -> {ok, module()} | error.
+find_codec_for_ref(TypeInfo, {type, TypeName, TypeArity}) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    spectra_type_info:find_codec(Mod, TypeName, TypeArity);
+find_codec_for_ref(TypeInfo, {record, RecordName}) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    spectra_type_info:find_codec_for_record(Mod, RecordName).
 
 json_decode(Binary) ->
     try

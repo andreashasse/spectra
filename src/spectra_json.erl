@@ -31,9 +31,11 @@ to_json(TypeInfo, Type, Data) ->
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 do_to_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Data) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Arity = length(Args),
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:encode(json, {type, N, length(Args)}, Data, #{}) of
+            case M:encode(json, {type, N, Arity}, Data, #{}) of
                 continue -> do_to_json_inner(TypeInfo, TypeRef, Data);
                 Result -> Result
             end;
@@ -50,6 +52,17 @@ do_to_json(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef, Data) -
             end;
         error ->
             do_to_json_inner(TypeInfo, TypeRef, Data)
+    end;
+do_to_json(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:encode(json, {record, N}, Data, #{}) of
+                continue -> do_to_json_inner(TypeInfo, RecRef, Data);
+                Result -> Result
+            end;
+        error ->
+            do_to_json_inner(TypeInfo, RecRef, Data)
     end;
 do_to_json(TypeInfo, Type, Data) ->
     do_to_json_inner(TypeInfo, Type, Data).
@@ -453,9 +466,11 @@ from_json(TypeInfo, Type, Json) ->
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 do_from_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef, Json) ->
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Arity = length(Args),
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:decode(json, {type, N, length(Args)}, Json, #{}) of
+            case M:decode(json, {type, N, Arity}, Json, #{}) of
                 continue -> do_from_json_inner(TypeInfo, TypeRef, Json);
                 Result -> Result
             end;
@@ -472,6 +487,17 @@ do_from_json(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef, Json)
             end;
         error ->
             do_from_json_inner(TypeInfo, TypeRef, Json)
+    end;
+do_from_json(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Json) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:decode(json, {record, N}, Json, #{}) of
+                continue -> do_from_json_inner(TypeInfo, RecRef, Json);
+                Result -> Result
+            end;
+        error ->
+            do_from_json_inner(TypeInfo, RecRef, Json)
     end;
 do_from_json(TypeInfo, Type, Json) ->
     do_from_json_inner(TypeInfo, Type, Json).

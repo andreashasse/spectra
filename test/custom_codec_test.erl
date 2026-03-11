@@ -6,6 +6,9 @@
 %% Copied from codec_animal_codec to avoid a shared header file.
 -record(cat, {name :: binary(), indoor :: boolean()}).
 -record(dog, {name :: binary(), breed :: binary()}).
+%% Copied from codec_appenv_rec_module to avoid a shared header file.
+-record(point2d, {x :: number(), y :: number()}).
+-record(shape, {label :: binary(), center :: #point2d{}}).
 
 auto_discovery_encode_test() ->
     ?assertEqual(
@@ -295,3 +298,218 @@ zoo_decode_test() ->
         ]},
         spectra:decode(json, codec_animal_codec, {type, zoo, 0}, Json, [pre_decoded])
     ).
+
+%% When a module has NO -behaviour(spectra_codec) but its type has a codec
+%% registered via application env, encoding/decoding a local #sp_user_type_ref
+%% must use find_codec/3 (which checks app env) rather than find_local_codec/1
+%% (which only checks the behaviour flag). Before the fix, find_local_codec
+%% returned `error` and the opaque tuple fell through to structural encoding,
+%% crashing with {type_not_supported, #sp_tuple{}}.
+app_env_local_type_encode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_type_module, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        Token = {token, <<"abc123">>},
+        ?assertEqual(
+            {ok, <<"abc123">>},
+            spectra:encode(
+                json, codec_appenv_type_module, {type, token, 0}, Token, [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+app_env_local_type_decode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_type_module, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, {token, <<"abc123">>}},
+            spectra:decode(
+                json, codec_appenv_type_module, {type, token, 0}, <<"abc123">>, [pre_decoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+%% A union type like `maybe_token() :: token() | undefined` where the codec for
+%% token() is registered via app env. Without the fix, find_local_codec returns
+%% `error` for the module, so there is no codec dispatch at all - the opaque
+%% tuple type falls through to structural encoding and crashes.
+app_env_local_union_encode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_type_module, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, <<"abc123">>},
+            spectra:encode(
+                json,
+                codec_appenv_type_module,
+                {type, maybe_token, 0},
+                {token, <<"abc123">>},
+                [pre_encoded]
+            )
+        ),
+        ?assertEqual(
+            {ok, <<"undefined">>},
+            spectra:encode(
+                json,
+                codec_appenv_type_module,
+                {type, maybe_token, 0},
+                undefined,
+                [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+app_env_local_union_decode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_type_module, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, {token, <<"abc123">>}},
+            spectra:decode(
+                json,
+                codec_appenv_type_module,
+                {type, maybe_token, 0},
+                <<"abc123">>,
+                [pre_decoded]
+            )
+        ),
+        ?assertEqual(
+            {ok, undefined},
+            spectra:decode(
+                json,
+                codec_appenv_type_module,
+                {type, maybe_token, 0},
+                null,
+                [pre_decoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+%% A module with a record and NO -behaviour(spectra_codec) but whose record
+%% codec is registered via app env. Encoding/decoding {record, point2d} must
+%% use the registered codec.
+app_env_record_encode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, [1.5, 2.5]},
+            spectra:encode(
+                json,
+                codec_appenv_rec_module,
+                {record, point2d},
+                #{x => 1.5, y => 2.5},
+                [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+app_env_record_decode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, #{x => 1.5, y => 2.5}},
+            spectra:decode(
+                json,
+                codec_appenv_rec_module,
+                {record, point2d},
+                [1.5, 2.5],
+                [pre_decoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+app_env_record_schema_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        Schema = iolist_to_binary(
+            spectra:schema(json_schema, codec_appenv_rec_module, {record, point2d})
+        ),
+        Decoded = json:decode(Schema),
+        ?assertMatch(
+            #{
+                <<"type">> := <<"array">>,
+                <<"items">> := #{<<"type">> := <<"number">>},
+                <<"minItems">> := 2,
+                <<"maxItems">> := 2
+            },
+            Decoded
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+%% When encoding a record whose field type is an inline #sp_rec_ref{}, and the
+%% referenced record has a codec registered via app env, the inline ref must
+%% dispatch to the codec rather than fall through to structural encoding.
+app_env_inline_rec_ref_encode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        Shape = #shape{label = <<"circle">>, center = #point2d{x = 3.0, y = 4.0}},
+        ?assertMatch(
+            {ok, #{<<"label">> := <<"circle">>, <<"center">> := [3.0, 4.0]}},
+            spectra:encode(
+                json, codec_appenv_rec_module, {record, shape}, Shape, [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+app_env_inline_rec_ref_decode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        Json = #{<<"label">> => <<"circle">>, <<"center">> => [3.0, 4.0]},
+        ?assertMatch(
+            {ok, #shape{label = <<"circle">>, center = #{x := 3.0, y := 4.0}}},
+            spectra:decode(
+                json, codec_appenv_rec_module, {record, shape}, Json, [pre_decoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.

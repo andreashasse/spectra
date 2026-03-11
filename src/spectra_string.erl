@@ -35,7 +35,8 @@ and converts it to the corresponding Erlang value.
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String) ->
     Arity = length(Args),
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:decode(string, {type, N, Arity}, String, #{}) of
                 continue ->
@@ -49,6 +50,17 @@ from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String
             Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String)
+    end;
+from_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, String) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:decode(string, {record, N}, String, #{}) of
+                continue -> from_string_inner(TypeInfo, RecRef, String);
+                Result -> Result
+            end;
+        error ->
+            from_string_inner(TypeInfo, RecRef, String)
     end;
 from_string(TypeInfo, Type, String) ->
     from_string_inner(TypeInfo, Type, String).
@@ -142,7 +154,8 @@ and converts it to a string representation.
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
     Arity = length(Args),
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:encode(string, {type, N, Arity}, Data, #{}) of
                 continue ->
@@ -156,6 +169,17 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
             Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data)
+    end;
+to_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:encode(string, {record, N}, Data, #{}) of
+                continue -> to_string_inner(TypeInfo, RecRef, Data);
+                Result -> Result
+            end;
+        error ->
+            to_string_inner(TypeInfo, RecRef, Data)
     end;
 to_string(TypeInfo, Type, Data) ->
     to_string_inner(TypeInfo, Type, Data).

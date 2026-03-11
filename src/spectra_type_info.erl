@@ -4,11 +4,11 @@
 
 -ignore_xref([find_function/3, new/2]).
 
--export([new/2]).
+-export([new/2, get_module/1]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([set_implements_codec/2, find_local_codec/1, find_codec/3]).
+-export([set_implements_codec/2, find_codec/3, find_codec_for_record/2]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -19,6 +19,9 @@
 -spec new(module(), ImplementsCodec :: boolean()) -> type_info().
 new(Module, ImplementsCodec) ->
     #type_info{module = Module, implements_codec = ImplementsCodec}.
+
+-spec get_module(type_info()) -> module().
+get_module(#type_info{module = M}) -> M.
 
 -spec add_type(type_info(), atom(), arity(), spectra:sp_type()) -> type_info().
 add_type(#type_info{types = Types} = TypeInfo, Name, Arity, Type) ->
@@ -75,6 +78,17 @@ find_local_codec(#type_info{implements_codec = false}) -> error.
 -spec find_codec(module(), atom(), arity()) -> {ok, module()} | error.
 find_codec(Mod, TypeName, Arity) ->
     Key = {Mod, {type, TypeName, Arity}},
+    GlobalCodecs = application:get_env(spectra, codecs, #{}),
+    case maps:find(Key, GlobalCodecs) of
+        {ok, _} = R ->
+            R;
+        error ->
+            find_local_codec(spectra_module_types:get(Mod))
+    end.
+
+-spec find_codec_for_record(module(), atom()) -> {ok, module()} | error.
+find_codec_for_record(Mod, RecordName) ->
+    Key = {Mod, {record, RecordName}},
     GlobalCodecs = application:get_env(spectra, codecs, #{}),
     case maps:find(Key, GlobalCodecs) of
         {ok, _} = R ->

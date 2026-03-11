@@ -74,7 +74,8 @@ from_binary_string(
     TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, BinaryString, Opts
 ) ->
     Arity = length(Args),
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:decode(binary_string, {type, N, Arity}, BinaryString, Opts) of
                 continue ->
@@ -105,6 +106,17 @@ from_binary_string(
         error ->
             {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
             from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts)
+    end;
+from_binary_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, BinaryString, Opts) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:decode(binary_string, {record, N}, BinaryString, Opts) of
+                continue -> from_binary_string_inner(TypeInfo, RecRef, BinaryString, Opts);
+                Result -> Result
+            end;
+        error ->
+            from_binary_string_inner(TypeInfo, RecRef, BinaryString, Opts)
     end;
 from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
     from_binary_string_inner(TypeInfo, Type, BinaryString, Opts).
@@ -215,7 +227,8 @@ and converts it to a binary string representation.
     {ok, binary()} | {error, [spectra:error()]}.
 to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data, Opts) ->
     Arity = length(Args),
-    case spectra_type_info:find_local_codec(TypeInfo) of
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:encode(binary_string, {type, N, Arity}, Data, Opts) of
                 continue ->
@@ -246,6 +259,17 @@ to_binary_string(
         error ->
             {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
             to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts)
+    end;
+to_binary_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data, Opts) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_type_info:find_codec_for_record(Mod, N) of
+        {ok, M} ->
+            case M:encode(binary_string, {record, N}, Data, Opts) of
+                continue -> to_binary_string_inner(TypeInfo, RecRef, Data, Opts);
+                Result -> Result
+            end;
+        error ->
+            to_binary_string_inner(TypeInfo, RecRef, Data, Opts)
     end;
 to_binary_string(TypeInfo, Type, Data, Opts) ->
     to_binary_string_inner(TypeInfo, Type, Data, Opts).

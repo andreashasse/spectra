@@ -265,7 +265,9 @@ To use a codec for a named type defined in another module (e.g., from a dependen
 ]}
 ```
 
-The key is a `spectra:codec_key()` — a `{Module, {type, TypeName, Arity}}` tuple identifying the type's owning module and type name.
+The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying the type's owning module. `TypeRef` can be:
+- `{type, TypeName, Arity}` for user-defined types (e.g., `{calendar, {type, datetime, 0}}`)
+- `{record, RecordName}` for records (e.g., `{my_module, {record, my_record}}`)
 
 Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra discovers and uses it automatically with no configuration.
 
