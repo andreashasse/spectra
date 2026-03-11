@@ -1147,3 +1147,38 @@ string_codec_continue_encode_test() ->
         {ok, "hello"},
         spectra:encode(string, codec_string_continue_module, name, <<"hello">>)
     ).
+
+%% Problem 1: union members must go through the outer from_string so that
+%% codec dispatch happens for each union branch. Here maybe_token() is
+%% token() | undefined; token() has a codec registered via app env that
+%% converts a string into {token, Binary}. The union branch for
+%% token() must invoke the codec, not fall straight to structural decoding.
+string_union_codec_decode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_string_token_module, {type, token, 0}} => codec_string_token_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, {token, <<"abc">>}},
+            spectra:decode(string, codec_string_token_module, maybe_token, "abc")
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
+string_union_codec_encode_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_string_token_module, {type, token, 0}} => codec_string_token_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, "abc"},
+            spectra:encode(string, codec_string_token_module, maybe_token, {token, <<"abc">>})
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.

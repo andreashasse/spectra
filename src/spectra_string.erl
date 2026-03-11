@@ -62,6 +62,25 @@ from_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, String) ->
         error ->
             from_string_inner(TypeInfo, RecRef, String)
     end;
+from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
+        {ok, M} ->
+            case M:decode(string, {type, TypeName, TypeArity}, String, #{}) of
+                continue ->
+                    RemoteTypeInfo = spectra_module_types:get(Module),
+                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    from_string(RemoteTypeInfo, TypeWithoutVars, String);
+                Result ->
+                    Result
+            end;
+        error ->
+            RemoteTypeInfo = spectra_module_types:get(Module),
+            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            from_string(RemoteTypeInfo, TypeWithoutVars, String)
+    end;
 from_string(TypeInfo, Type, String) ->
     from_string_inner(TypeInfo, Type, String).
 
@@ -100,29 +119,10 @@ from_string_inner(
         {error, Reason} ->
             {error, Reason}
     end;
-from_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
-    TypeArity = length(Args),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            case M:decode(string, {type, TypeName, TypeArity}, String, #{}) of
-                continue ->
-                    TypeInfo = spectra_module_types:get(Module),
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    from_string(TypeInfo, TypeWithoutVars, String);
-                Result ->
-                    Result
-            end;
-        error ->
-            TypeInfo = spectra_module_types:get(Module),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            from_string(TypeInfo, TypeWithoutVars, String)
-    end;
 from_string_inner(_TypeInfo, #sp_literal{value = Literal}, String) ->
     try_convert_string_to_literal(Literal, String);
 from_string_inner(TypeInfo, #sp_union{} = Type, String) ->
-    union(fun from_string_inner/3, TypeInfo, Type, String);
+    union(fun from_string/3, TypeInfo, Type, String);
 from_string_inner(_TypeInfo, #sp_rec{} = T, _String) ->
     erlang:error({type_not_supported, T});
 from_string_inner(_TypeInfo, Type, String) ->
@@ -181,6 +181,25 @@ to_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data) ->
         error ->
             to_string_inner(TypeInfo, RecRef, Data)
     end;
+to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
+    TypeArity = length(Args),
+    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
+        {ok, M} ->
+            case M:encode(string, {type, TypeName, TypeArity}, Data, #{}) of
+                continue ->
+                    RemoteTypeInfo = spectra_module_types:get(Module),
+                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    to_string(RemoteTypeInfo, TypeWithoutVars, Data);
+                Result ->
+                    Result
+            end;
+        error ->
+            RemoteTypeInfo = spectra_module_types:get(Module),
+            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            to_string(RemoteTypeInfo, TypeWithoutVars, Data)
+    end;
 to_string(TypeInfo, Type, Data) ->
     to_string_inner(TypeInfo, Type, Data).
 
@@ -219,29 +238,10 @@ to_string_inner(
         {error, Reason} ->
             {error, Reason}
     end;
-to_string_inner(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    TypeArity = length(Args),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            case M:encode(string, {type, TypeName, TypeArity}, Data, #{}) of
-                continue ->
-                    TypeInfo = spectra_module_types:get(Module),
-                    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    to_string(TypeInfo, TypeWithoutVars, Data);
-                Result ->
-                    Result
-            end;
-        error ->
-            TypeInfo = spectra_module_types:get(Module),
-            Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_string(TypeInfo, TypeWithoutVars, Data)
-    end;
 to_string_inner(_TypeInfo, #sp_literal{value = Literal}, Data) ->
     try_convert_literal_to_string(Literal, Data);
 to_string_inner(TypeInfo, #sp_union{} = Type, Data) ->
-    union_to_string(TypeInfo, Type, Data);
+    union(fun to_string/3, TypeInfo, Type, Data);
 to_string_inner(_TypeInfo, #sp_rec{} = T, _Data) ->
     erlang:error({type_not_supported, T});
 to_string_inner(_TypeInfo, Type, Data) ->
@@ -510,21 +510,3 @@ try_convert_literal_to_string(Literal, Data) ->
             Data
         )
     ]}.
-
-union_to_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
-    case do_first_to_string(TypeInfo, Types, Data, []) of
-        {error, UnionErrors} ->
-            {error, [sp_error:no_match(T, Data, UnionErrors)]};
-        Result ->
-            Result
-    end.
-
-do_first_to_string(_TypeInfo, [], _Data, Errors) ->
-    {error, Errors};
-do_first_to_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
-    case to_string_inner(TypeInfo, Type, Data) of
-        {ok, Result} ->
-            {ok, Result};
-        {error, Errors} ->
-            do_first_to_string(TypeInfo, Rest, Data, [{Type, Errors} | ErrorsAcc])
-    end.
