@@ -83,12 +83,9 @@ no_codec_still_throws_test() ->
         spectra:encode(json, codec_tuple_module, {type, pair, 0}, {1, 2})
     ).
 
-%% The codec returns `continue` for bad data, so spectra falls through to the
-%% structural encoder for the opaque tuple type, which crashes (tuples are not
-%% supported in JSON).
 type_ref_passed_to_codec_test() ->
-    ?assertError(
-        {type_not_supported, _},
+    ?assertMatch(
+        {error, _},
         spectra:encode(json, codec_geo_module, {type, point, 0}, not_a_tuple, [pre_encoded])
     ).
 
@@ -205,6 +202,33 @@ record_ref_codec_dispatch_continue_test() ->
     ?assertEqual(
         {ok, Cat},
         spectra:decode(json, codec_animal_codec, {record, cat}, CatJson, [pre_decoded])
+    ).
+
+%% A union type like `point() | undefined` must dispatch through the codec for
+%% `point()` when trying union alternatives, not fall through to structural
+%% encoding of the opaque tuple, which crashes with {type_not_supported, _}.
+union_with_remote_codec_type_encode_test() ->
+    ?assertEqual(
+        {ok, [1.0, 2.0]},
+        spectra:encode(
+            json, codec_geo_module, {type, maybe_point, 0}, {1.0, 2.0}, [pre_encoded]
+        )
+    ),
+    ?assertEqual(
+        {ok, <<"undefined">>},
+        spectra:encode(json, codec_geo_module, {type, maybe_point, 0}, undefined, [pre_encoded])
+    ).
+
+union_with_remote_codec_type_decode_test() ->
+    ?assertEqual(
+        {ok, {1.0, 2.0}},
+        spectra:decode(
+            json, codec_geo_module, {type, maybe_point, 0}, [1.0, 2.0], [pre_decoded]
+        )
+    ),
+    ?assertEqual(
+        {ok, undefined},
+        spectra:decode(json, codec_geo_module, {type, maybe_point, 0}, null, [pre_decoded])
     ).
 
 schema_type_ref_forms_test() ->

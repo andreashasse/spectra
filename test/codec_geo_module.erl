@@ -5,14 +5,17 @@
 -include("../include/spectra.hrl").
 
 -opaque point() :: {float(), float()}.
+-type maybe_point() :: point() | undefined.
 
--export_type([point/0]).
+-export_type([point/0, maybe_point/0]).
 -export([encode/4, decode/4, schema/3]).
 
 -spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
 encode(_, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
+encode(_, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 encode(_, _, _, _) ->
     continue.
 
@@ -20,6 +23,8 @@ encode(_, _, _, _) ->
     spectra:codec_decode_result().
 decode(_, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
+decode(_, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 decode(_, _, _, _) ->
     continue.
 

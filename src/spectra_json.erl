@@ -109,20 +109,7 @@ do_to_json_inner(_TypeInfo, #sp_literal{value = Value}, Value) when
 ->
     {ok, Value};
 do_to_json_inner(TypeInfo, #sp_union{} = Type, Data) ->
-    %% Union members are tried with do_to_json_inner, not do_to_json.
-    %%
-    %% If we used do_to_json, every #sp_user_type_ref member would re-enter the
-    %% codec dispatch path (find_local_codec → M:encode). For a codec that handles
-    %% only specific types and returns `continue` for others, this means each
-    %% union alternative triggers a codec call before structural matching is tried.
-    %% That is correct for the top-level call, but wrong inside a union: we want to
-    %% test each member structurally as an alternative, not re-dispatch through the
-    %% codec for each one.
-    %%
-    %% Example: type result() :: {ok, point()} | {error, binary()}
-    %% When encoding {ok, {1.0, 2.0}}, trying the {error, binary()} alternative
-    %% should fail structurally — not invoke the geo codec again.
-    union(fun do_to_json_inner/3, TypeInfo, Type, Data);
+    union(fun do_to_json/3, TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_to_json(TypeInfo, Type, Data);
 do_to_json_inner(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
@@ -562,8 +549,7 @@ do_from_json_inner(_TypeInfo, #sp_literal{} = Type, Value) ->
             {error, [sp_error:type_mismatch(Type, Value)]}
     end;
 do_from_json_inner(TypeInfo, #sp_union{} = Type, Json) ->
-    %% Use do_from_json_inner (not do_from_json) for the same reason as do_to_json_inner.
-    union(fun do_from_json_inner/3, TypeInfo, Type, Json);
+    union(fun do_from_json/3, TypeInfo, Type, Json);
 do_from_json_inner(
     _TypeInfo,
     #sp_range{

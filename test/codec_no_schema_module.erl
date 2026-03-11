@@ -14,12 +14,12 @@
     spectra:codec_encode_result().
 encode(_, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_, _, _, _) ->
-    continue.
+encode(_, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.
 
 -spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
 decode(_, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_, _, _, _) ->
-    continue.
+decode(_, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.

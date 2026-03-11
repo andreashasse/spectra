@@ -151,7 +151,7 @@ from_binary_string_inner(
 from_binary_string_inner(_TypeInfo, #sp_literal{value = Literal}, BinaryString, _Opts) ->
     try_convert_binary_string_to_literal(Literal, BinaryString);
 from_binary_string_inner(TypeInfo, #sp_union{} = Type, BinaryString, Opts) ->
-    union(fun from_binary_string_inner/4, TypeInfo, Type, BinaryString, Opts);
+    union(fun from_binary_string/4, TypeInfo, Type, BinaryString, Opts);
 from_binary_string_inner(_TypeInfo, #sp_rec{} = T, _BinaryString, _Opts) ->
     erlang:error({type_not_supported, T});
 from_binary_string_inner(_TypeInfo, Type, BinaryString, _Opts) ->
@@ -581,7 +581,7 @@ union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data, Opts) ->
 do_first_to_binary_string(_TypeInfo, [], _Data, _Opts, Errors) ->
     {error, Errors};
 do_first_to_binary_string(TypeInfo, [Type | Rest], Data, Opts, ErrorsAcc) ->
-    case to_binary_string_inner(TypeInfo, Type, Data, Opts) of
+    case to_binary_string(TypeInfo, Type, Data, Opts) of
         {ok, Result} ->
             {ok, Result};
         {error, Errors} ->

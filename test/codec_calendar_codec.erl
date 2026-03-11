@@ -12,7 +12,9 @@ encode(_, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _Opts) ->
     Bin = iolist_to_binary(
         io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0w", [Y, Mo, D, H, Mi, S])
     ),
-    {ok, Bin}.
+    {ok, Bin};
+encode(_, {type, datetime, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
 -spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
@@ -20,7 +22,9 @@ decode(_, {type, datetime, 0}, Bin, _Opts) when is_binary(Bin) ->
     case parse_datetime(Bin) of
         {ok, DT} -> {ok, DT};
         error -> {error, [sp_error:type_mismatch({type, datetime, 0}, Bin)]}
-    end.
+    end;
+decode(_, {type, datetime, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
 -spec schema(atom(), spectra:sp_type_reference(), map()) -> map().
 schema(json_schema, {type, datetime, 0}, _Opts) ->
