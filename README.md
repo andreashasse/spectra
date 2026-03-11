@@ -206,13 +206,17 @@ Implement the `spectra_codec` behaviour in your module. Codec callbacks receive 
 
 -export([encode/4, decode/4, schema/3]).
 
-encode(json, {type, point, 0}, {X, Y}, _Opts) ->
+encode(json, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
+encode(_Format, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 encode(_Format, _TypeRef, _Data, _Opts) ->
     continue.
 
-decode(json, {type, point, 0}, [X, Y], _Opts) ->
+decode(json, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
+decode(_Format, {type, point, 0}, Data, _Opts) ->
+    {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 decode(_Format, _TypeRef, _Input, _Opts) ->
     continue.
 
@@ -222,7 +226,9 @@ schema(_Format, _TypeRef, _Opts) ->
     continue.
 ```
 
-Return `continue` for any type or format your codec does not handle — spectra falls through to its default structural encoder/decoder.
+For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
+
+Return `continue` for type references your codec does not own at all — spectra falls through to its default structural encoder/decoder.
 
 The `schema/3` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 

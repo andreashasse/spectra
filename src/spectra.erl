@@ -73,7 +73,29 @@
 -type codec_encode_opts() :: map().
 -type codec_decode_opts() :: map().
 -type codec_schema_opts() :: map().
+-doc """
+Return type for codec `encode/4` callbacks.
+
+- `{ok, Encoded}` — encoding succeeded.
+- `{error, Errors}` — the data does not match the type handled by this codec.
+  Return this when the type reference is one your codec owns but the data is invalid.
+  Spectra uses this to correctly handle union alternatives — an `{error, _}` signals
+  a non-match and allows the next union alternative to be tried.
+- `continue` — this type or format is not handled by your codec at all;
+  spectra falls through to its default structural encoder.
+""".
 -type codec_encode_result() :: {ok, term()} | {error, [error()]} | continue.
+-doc """
+Return type for codec `decode/4` callbacks.
+
+- `{ok, Value}` — decoding succeeded.
+- `{error, Errors}` — the input does not match the type handled by this codec.
+  Return this when the type reference is one your codec owns but the input is invalid.
+  Spectra uses this to correctly handle union alternatives — an `{error, _}` signals
+  a non-match and allows the next union alternative to be tried.
+- `continue` — this type or format is not handled by your codec at all;
+  spectra falls through to its default structural decoder.
+""".
 -type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 %% Internal type definitions moved from spectra_internal.hrl
 
