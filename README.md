@@ -198,7 +198,7 @@ Custom codecs let you override how spectra encodes, decodes, and generates schem
 
 #### Implementing a Codec
 
-Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a `{type, Name, Arity}` type reference — only named types (declared with `-type name() :: ...`) are supported as codec targets; records are handled structurally and cannot be intercepted by a codec.
+Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Named types and records can both be intercepted by a codec; returning `continue` for a record causes spectra to fall back to structural record handling.
 
 ```erlang
 -module(my_geo_codec).
