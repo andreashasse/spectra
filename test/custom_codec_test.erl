@@ -299,6 +299,32 @@ zoo_decode_test() ->
         spectra:decode(json, codec_animal_codec, {type, zoo, 0}, Json, [pre_decoded])
     ).
 
+%% A plain type alias `named_point() :: point()` resolves to a local
+%% #sp_user_type_ref{type_name=point}.  When named_point() appears as a field
+%% type inside a containing type (e.g. a map), to_json_inner/3 is invoked for
+%% it.  Before the fix, to_json_inner/3 called itself recursively after
+%% resolving the alias instead of delegating back to to_json/3, bypassing the
+%% codec dispatch and crashing with {type_not_supported, #sp_tuple{}}.
+type_alias_of_codec_type_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"coords">> => [3.0, 4.0]}},
+        spectra:encode(
+            json, codec_geo_module, {type, location, 0}, #{coords => {3.0, 4.0}}, [pre_encoded]
+        )
+    ).
+
+type_alias_of_codec_type_decode_test() ->
+    ?assertEqual(
+        {ok, #{coords => {3.0, 4.0}}},
+        spectra:decode(
+            json,
+            codec_geo_module,
+            {type, location, 0},
+            #{<<"coords">> => [3.0, 4.0]},
+            [pre_decoded]
+        )
+    ).
+
 %% When a module has NO -behaviour(spectra_codec) but its type has a codec
 %% registered via application env, encoding/decoding a local #sp_user_type_ref
 %% must use find_codec/3 (which checks app env) rather than find_local_codec/1
@@ -513,3 +539,102 @@ app_env_inline_rec_ref_decode_test() ->
     after
         application:unset_env(spectra, codecs)
     end.
+
+%% point_with_status(Status) :: #{point := point(), status := Status}
+%% Encoding and decoding with the concrete active_passive_point/0 instantiation,
+%% which fills Status with the literal union `active | passive`.
+active_passive_point_encode_test() ->
+    Data = #{point => {1.0, 2.0}, status => active},
+    ?assertEqual(
+        {ok, #{<<"point">> => [1.0, 2.0], <<"status">> => <<"active">>}},
+        spectra:encode(
+            json, codec_geo_module, {type, active_passive_point, 0}, Data, [pre_encoded]
+        )
+    ).
+
+active_passive_point_decode_test() ->
+    Json = #{<<"point">> => [1.0, 2.0], <<"status">> => <<"active">>},
+    ?assertEqual(
+        {ok, #{point => {1.0, 2.0}, status => active}},
+        spectra:decode(
+            json, codec_geo_module, {type, active_passive_point, 0}, Json, [pre_decoded]
+        )
+    ).
+
+%% waypoint() :: codec_geo_module:point_with_status(binary()) — the type var is
+%% filled from a *different* module (codec_geo_consumer_module), verifying that
+%% remote parameterized type references dispatch through the geo codec for the
+%% embedded point().
+waypoint_encode_test() ->
+    Data = #{point => {3.0, 4.0}, status => <<"arrived">>},
+    ?assertEqual(
+        {ok, #{<<"point">> => [3.0, 4.0], <<"status">> => <<"arrived">>}},
+        spectra:encode(
+            json, codec_geo_consumer_module, {type, waypoint, 0}, Data, [pre_encoded]
+        )
+    ).
+
+waypoint_decode_test() ->
+    Json = #{<<"point">> => [3.0, 4.0], <<"status">> => <<"arrived">>},
+    ?assertEqual(
+        {ok, #{point => {3.0, 4.0}, status => <<"arrived">>}},
+        spectra:decode(
+            json, codec_geo_consumer_module, {type, waypoint, 0}, Json, [pre_decoded]
+        )
+    ).
+
+%% active_passive_point/0 is a map with a codec-dispatched point field and a
+%% literal-union status field.  The point field schema must come from the codec
+%% (array of 2 numbers), and status must be an enum of the two atom literals.
+active_passive_point_schema_test() ->
+    Schema = json:decode(
+        iolist_to_binary(
+            spectra:schema(json_schema, codec_geo_module, {type, active_passive_point, 0})
+        )
+    ),
+    ?assertMatch(
+        #{
+            <<"type">> := <<"object">>,
+            <<"required">> := _,
+            <<"properties">> := #{
+                <<"point">> := #{
+                    <<"type">> := <<"array">>,
+                    <<"items">> := #{<<"type">> := <<"number">>},
+                    <<"minItems">> := 2,
+                    <<"maxItems">> := 2
+                },
+                <<"status">> := #{<<"type">> := <<"string">>, <<"enum">> := _}
+            }
+        },
+        Schema
+    ),
+    #{<<"properties">> := #{<<"status">> := #{<<"enum">> := StatusEnum}}} = Schema,
+    ?assertEqual(lists:sort([<<"active">>, <<"passive">>]), lists:sort(StatusEnum)).
+
+%% waypoint/0 is codec_geo_module:point_with_status(binary()): the Status var is
+%% bound to binary(), so its schema is a plain string (no enum).
+waypoint_schema_test() ->
+    Schema = json:decode(
+        iolist_to_binary(
+            spectra:schema(json_schema, codec_geo_consumer_module, {type, waypoint, 0})
+        )
+    ),
+    ?assertMatch(
+        #{
+            <<"type">> := <<"object">>,
+            <<"required">> := _,
+            <<"properties">> := #{
+                <<"point">> := #{
+                    <<"type">> := <<"array">>,
+                    <<"items">> := #{<<"type">> := <<"number">>},
+                    <<"minItems">> := 2,
+                    <<"maxItems">> := 2
+                },
+                <<"status">> := #{<<"type">> := <<"string">>}
+            }
+        },
+        Schema
+    ),
+    %% status must NOT have an enum — it is a free binary(), not a literal union
+    #{<<"properties">> := #{<<"status">> := StatusSchema}} = Schema,
+    ?assertNot(maps:is_key(<<"enum">>, StatusSchema)).
