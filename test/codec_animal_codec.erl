@@ -10,7 +10,6 @@
 
 -behaviour(spectra_codec).
 
-
 -record(cat, {name :: binary(), indoor :: boolean()}).
 -record(dog, {name :: binary(), breed :: binary()}).
 

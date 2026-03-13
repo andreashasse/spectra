@@ -2,7 +2,6 @@
 
 -behaviour(spectra_codec).
 
-
 -opaque point() :: {float(), float()}.
 -type maybe_point() :: point() | undefined.
 %% A plain type alias for point(). When this type appears as a field inside a
