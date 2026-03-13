@@ -517,11 +517,25 @@ do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) ->
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) when
+    PrimaryType =:= binary orelse
+        PrimaryType =:= nonempty_binary orelse
+        PrimaryType =:= string orelse
+        PrimaryType =:= nonempty_string
+->
     case check_type_from_json(PrimaryType, Json) of
         {true, NewValue} ->
             Params = spectra_type:parameters(Type),
             check_string_params(Type, Params, NewValue);
+        {error, Reason} ->
+            {error, Reason};
+        false ->
+            {error, [sp_error:type_mismatch(Type, Json)]}
+    end;
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) ->
+    case check_type_from_json(PrimaryType, Json) of
+        {true, NewValue} ->
+            {ok, NewValue};
         {error, Reason} ->
             {error, Reason};
         false ->
