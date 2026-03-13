@@ -326,7 +326,7 @@ For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types y
 |---|---|---|---|
 | `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
 | `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
-| `pattern` | `pattern` | yes | POSIX extended regular expression |
+| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
 | `format` | `format` | no | Schema annotation only |
 
 ```erlang
