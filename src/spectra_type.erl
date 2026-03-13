@@ -17,7 +17,7 @@
 -ignore_xref([
     get_meta/1,
     set_meta/2,
-    type_parameters/1,
+    parameters/1,
     add_doc_to_type/2,
     normalize_doc/1,
     normalize_function_doc/1
