@@ -4,7 +4,6 @@
 
 -ignore_xref([{spectra_string, from_string, 3}, {spectra_string, to_string, 3}]).
 
--include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
 %% API

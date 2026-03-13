@@ -9,7 +9,6 @@
     {spectra_binary_string, to_binary_string, 4}
 ]).
 
--include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
 %% API

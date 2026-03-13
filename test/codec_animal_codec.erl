@@ -10,7 +10,6 @@
 
 -behaviour(spectra_codec).
 
--include("../include/spectra.hrl").
 
 -record(cat, {name :: binary(), indoor :: boolean()}).
 -record(dog, {name :: binary(), breed :: binary()}).

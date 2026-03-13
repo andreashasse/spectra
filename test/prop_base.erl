@@ -60,6 +60,8 @@ from_json(TypeInfo, Type, JsonValue) ->
 test_type() ->
     {my_type, sp_type_generators:sp_type()}.
 
-%% @doc Generate valid Erlang data for a given type
+-doc """
+Generate valid Erlang data for a given type
+""".
 gen_data(TypeInfo, Type) ->
     sp_data_generators:gen_data(TypeInfo, Type).
