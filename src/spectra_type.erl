@@ -7,13 +7,21 @@
     type_reference/1,
     get_meta/1,
     set_meta/2,
+    parameters/1,
     add_doc_to_type/2,
     normalize_doc/1,
     normalize_function_doc/1
 ]).
 
 %% Functions meant to be used by external libraries like Spectral
--ignore_xref([get_meta/1, set_meta/2, add_doc_to_type/2, normalize_doc/1, normalize_function_doc/1]).
+-ignore_xref([
+    get_meta/1,
+    set_meta/2,
+    type_parameters/1,
+    add_doc_to_type/2,
+    normalize_doc/1,
+    normalize_function_doc/1
+]).
 
 -spec can_be_missing(
     TypeInfo :: spectra:type_info(), Type :: spectra:sp_type()
@@ -87,6 +95,10 @@ set_meta(#sp_var{} = T, Meta) -> T#sp_var{meta = Meta};
 set_meta(#sp_range{} = T, Meta) -> T#sp_range{meta = Meta};
 set_meta(#sp_list{} = T, Meta) -> T#sp_list{meta = Meta};
 set_meta(#sp_nonempty_list{} = T, Meta) -> T#sp_nonempty_list{meta = Meta}.
+
+-spec parameters(spectra:sp_type()) -> term().
+parameters(Type) ->
+    maps:get(parameters, get_meta(Type), undefined).
 
 -spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
 add_doc_to_type(Type, DocMap) ->

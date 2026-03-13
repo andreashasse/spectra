@@ -84,6 +84,8 @@ ignore_modules = [
     "test_record_examples",
     "todo_test",
     "tuple_test",
+    "string_constraints_module",
+    "string_constraints_test",
     "type_params_codec",
     "type_params_module",
     "type_params_remote_consumer",

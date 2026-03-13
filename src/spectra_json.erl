@@ -17,7 +17,7 @@ to_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) when
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
+    Params = spectra_type:parameters(Type),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:encode(json, {type, N, Arity}, Data, Params) of
@@ -35,7 +35,7 @@ to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
+    Params = spectra_type:parameters(RemoteType),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
             case M:encode(json, {type, TypeName, TypeArity}, Data, Params) of
@@ -60,7 +60,7 @@ to_json(
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
+    Params = spectra_type:parameters(RecordType),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
             case M:encode(json, {record, RecordName}, Record, Params) of
@@ -446,7 +446,7 @@ do_from_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Json)
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
+    Params = spectra_type:parameters(Type),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:decode(json, {type, N, Arity}, Json, Params) of
@@ -464,7 +464,7 @@ do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Json
     RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
+    Params = spectra_type:parameters(RemoteType),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
             case M:decode(json, {type, TypeName, TypeArity}, Json, Params) of
@@ -489,7 +489,7 @@ do_from_json(
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
+    Params = spectra_type:parameters(RecordType),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
             case M:decode(json, {record, RecordName}, Json, Params) of
@@ -522,10 +522,11 @@ do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = T, Json) ->
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType, meta = Meta} = T, Json) ->
     case check_type_from_json(PrimaryType, Json) of
         {true, NewValue} ->
-            {ok, NewValue};
+            Params = maps:get(parameters, Meta, undefined),
+            check_string_params(T, Params, NewValue);
         {error, Reason} ->
             {error, Reason};
         false ->
@@ -710,6 +711,58 @@ do_string_to_json(Type, Json) ->
     catch
         error:badarg ->
             {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Json)]}
+    end.
+
+-spec check_string_params(
+    Type :: #sp_simple_type{},
+    Params :: term(),
+    Value :: dynamic()
+) -> {ok, dynamic()} | {error, [spectra:error()]}.
+check_string_params(_Type, undefined, Value) ->
+    {ok, Value};
+check_string_params(Type, Params, Value) when is_map(Params) ->
+    spectra_util:fold_until_error(
+        fun
+            ({min_length, MinLen}, V) when is_integer(MinLen) ->
+                case string_length(V) >= MinLen of
+                    true -> {ok, V};
+                    false -> {error, [sp_error:type_mismatch(Type, V, #{min_length => MinLen})]}
+                end;
+            ({max_length, MaxLen}, V) when is_integer(MaxLen) ->
+                case string_length(V) =< MaxLen of
+                    true -> {ok, V};
+                    false -> {error, [sp_error:type_mismatch(Type, V, #{max_length => MaxLen})]}
+                end;
+            ({pattern, Pat}, V) when is_binary(Pat) ->
+                case re:run(to_binary_for_pattern(V), Pat, [{capture, none}]) of
+                    match -> {ok, V};
+                    nomatch -> {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
+                end;
+            ({format, _Format}, V) ->
+                %% format is schema-only metadata; no runtime validation
+                {ok, V};
+            ({Key, Val}, _V) ->
+                erlang:error({invalid_string_constraint, Key, Val})
+        end,
+        Value,
+        maps:to_list(Params)
+    );
+check_string_params(_Type, Params, _Value) ->
+    erlang:error({invalid_string_constraints, Params}).
+
+%% Return string length in codepoints. JSON strings are Unicode text, so
+%% min_length/max_length always count codepoints regardless of the Erlang type.
+-spec string_length(dynamic()) -> non_neg_integer().
+string_length(V) when is_binary(V) -> string:length(V);
+string_length(V) when is_list(V) -> string:length(V).
+
+%% Convert decoded value to binary for regex matching.
+-spec to_binary_for_pattern(dynamic()) -> binary().
+to_binary_for_pattern(V) when is_binary(V) -> V;
+to_binary_for_pattern(V) when is_list(V) ->
+    case unicode:characters_to_binary(V) of
+        Bin when is_binary(Bin) -> Bin;
+        _ -> erlang:error({invalid_string_for_pattern, V})
     end.
 
 safe_enumerate(List) ->

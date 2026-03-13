@@ -37,7 +37,7 @@ from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
+    Params = spectra_type:parameters(Type),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:decode(string, {type, N, Arity}, String, Params) of
@@ -54,7 +54,7 @@ from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String
 from_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, String) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
+    Params = spectra_type:parameters(RecordType),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
             case M:decode(string, {record, N}, String, Params) of
@@ -68,7 +68,7 @@ from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Strin
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
+    Params = spectra_type:parameters(RemoteType),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
             case M:decode(string, {type, TypeName, TypeArity}, String, Params) of
@@ -157,7 +157,7 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
+    Params = spectra_type:parameters(Type),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case M:encode(string, {type, N, Arity}, Data, Params) of
@@ -174,7 +174,7 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
 to_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
+    Params = spectra_type:parameters(RecordType),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
             case M:encode(string, {record, N}, Data, Params) of
@@ -188,7 +188,7 @@ to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) -
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
+    Params = spectra_type:parameters(RemoteType),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
             case M:encode(string, {type, TypeName, TypeArity}, Data, Params) of

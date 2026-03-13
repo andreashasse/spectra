@@ -10,6 +10,8 @@
     type => binary(),
     format => binary(),
     minLength => pos_integer(),
+    maxLength => pos_integer(),
+    pattern => binary(),
     minimum => integer(),
     maximum => integer(),
     enum => [null | binary() | integer() | boolean() | []],
@@ -34,6 +36,8 @@
     type => binary(),
     format => binary(),
     minLength => pos_integer(),
+    maxLength => pos_integer(),
+    pattern => binary(),
     minimum => integer(),
     maximum => integer(),
     enum => [null | binary() | integer() | boolean() | []],
@@ -68,7 +72,7 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
+    Params = spectra_type:parameters(Type),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
@@ -87,7 +91,7 @@ do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
     Arity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Mod),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, N, Arity),
-    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
+    Params = spectra_type:parameters(RemoteType),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
@@ -105,7 +109,7 @@ do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecRef) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
+    Params = spectra_type:parameters(RecordType),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
@@ -131,8 +135,8 @@ do_to_schema(TypeInfo, Type) ->
 %% Simple types
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = integer}) ->
     #{type => <<"integer">>};
-do_to_schema_inner(_TypeInfo, #sp_simple_type{type = string}) ->
-    #{type => <<"string">>};
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = string, meta = Meta}) ->
+    apply_string_constraints(#{type => <<"string">>}, Meta);
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = iodata}) ->
     #{type => <<"string">>};
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = iolist}) ->
@@ -145,12 +149,12 @@ do_to_schema_inner(_TypeInfo, #sp_simple_type{type = float}) ->
     #{type => <<"number">>, format => <<"float">>};
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = atom}) ->
     #{type => <<"string">>};
-do_to_schema_inner(_TypeInfo, #sp_simple_type{type = binary}) ->
-    #{type => <<"string">>};
-do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_binary}) ->
-    #{type => <<"string">>, minLength => 1};
-do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_string}) ->
-    #{type => <<"string">>, minLength => 1};
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = binary, meta = Meta}) ->
+    apply_string_constraints(#{type => <<"string">>}, Meta);
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_binary, meta = Meta}) ->
+    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Meta);
+do_to_schema_inner(_TypeInfo, #sp_simple_type{type = nonempty_string, meta = Meta}) ->
+    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Meta);
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
     #{type => <<"integer">>, minimum => 1};
 do_to_schema_inner(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
@@ -589,6 +593,36 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
         #{},
         Doc
     ).
+
+-spec apply_string_constraints(json_schema_object(), spectra:sp_type_meta()) ->
+    json_schema_object().
+apply_string_constraints(Base, Meta) ->
+    Params = maps:get(parameters, Meta, undefined),
+    apply_string_params(Base, Params).
+
+-spec apply_string_params(json_schema_object(), term()) -> json_schema_object().
+apply_string_params(Base, undefined) ->
+    Base;
+apply_string_params(Base, Params) when is_map(Params) ->
+    maps:fold(
+        fun
+            (min_length, V, Acc) when is_integer(V), V >= 0 ->
+                %% min_length from params overrides any baseline minLength
+                Acc#{minLength => V};
+            (max_length, V, Acc) when is_integer(V), V >= 0 ->
+                Acc#{maxLength => V};
+            (pattern, V, Acc) when is_binary(V) ->
+                Acc#{pattern => V};
+            (format, V, Acc) when is_binary(V) ->
+                Acc#{format => V};
+            (Key, Value, _Acc) ->
+                erlang:error({invalid_string_constraint, Key, Value})
+        end,
+        Base,
+        Params
+    );
+apply_string_params(_Base, Params) ->
+    erlang:error({invalid_string_constraints, Params}).
 
 convert_examples(TypeInfo, Type, ExampleTerms) ->
     lists:map(
