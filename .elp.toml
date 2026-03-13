@@ -75,6 +75,7 @@ ignore_modules = [
     "spectra_test_module_empty_spectra",
     "spectra_test_module_partial_spectra",
     "spectra_test_module_with_spectra",
+    "spectra_test_compile",
     "spectra_type_doc_errors_test",
     "spectra_type_info_test",
     "string_test",

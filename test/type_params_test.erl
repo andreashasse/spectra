@@ -193,10 +193,8 @@ unknown_spectra_key_crashes_test() ->
         "-compile([nowarn_unused_type]).\n"
         "-spectra(#{unknown_key => value}).\n"
         "-type my_type() :: integer().\n",
-    {ok, test_unknown_spectra_key, BeamBinary} = compile:forms(
-        parse_module(Code), [binary, return_errors, debug_info]
-    ),
-    TempFile = temp_beam_path("test_unknown_spectra_key"),
+    {ok, test_unknown_spectra_key, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("test_unknown_spectra_key"),
     ok = file:write_file(TempFile, BeamBinary),
     try
         ?assertError(
@@ -218,10 +216,8 @@ type_parameters_on_function_spec_crashes_test() ->
         "-spectra(#{type_parameters => <<\"value\">>}).\n"
         "-spec my_fun(integer()) -> integer().\n"
         "my_fun(X) -> X.\n",
-    {ok, test_type_params_on_func, BeamBinary} = compile:forms(
-        parse_module(Code), [binary, return_errors, debug_info]
-    ),
-    TempFile = temp_beam_path("test_type_params_on_func"),
+    {ok, test_type_params_on_func, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("test_type_params_on_func"),
     ok = file:write_file(TempFile, BeamBinary),
     try
         ?assertError(
@@ -231,31 +227,3 @@ type_parameters_on_function_spec_crashes_test() ->
     after
         file:delete(TempFile)
     end.
-
-%% -----------------------------------------------------------------------
-%% Helpers
-%% -----------------------------------------------------------------------
-
-temp_beam_path(Name) ->
-    TempDir = filename:basedir(user_cache, "spectra_tests"),
-    ok = filelib:ensure_dir(filename:join(TempDir, "dummy")),
-    Unique = integer_to_list(erlang:unique_integer([positive])),
-    filename:join(TempDir, Name ++ "_" ++ Unique ++ ".beam").
-
-parse_module(Code) ->
-    Lines = string:split(Code, "\n", all),
-    {Forms, _} = lists:foldl(
-        fun(Line, {Acc, LineNum}) ->
-            case string:trim(Line) of
-                "" ->
-                    {Acc, LineNum + 1};
-                TrimmedLine ->
-                    {ok, Tokens, _} = erl_scan:string(TrimmedLine ++ "\n", LineNum),
-                    {ok, Form} = erl_parse:parse_form(Tokens),
-                    {[Form | Acc], LineNum + 1}
-            end
-        end,
-        {[], 1},
-        Lines
-    ),
-    lists:reverse(Forms) ++ [{eof, 999}].

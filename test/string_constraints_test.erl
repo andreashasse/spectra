@@ -142,10 +142,8 @@ unknown_constraint_key_crashes_test() ->
         "-compile([nowarn_unused_type]).\n"
         "-spectra(#{type_parameters => #{unknown_key => 1}}).\n"
         "-type my_binary() :: binary().\n",
-    {ok, bad_constraints_module, BeamBinary} = compile:forms(
-        parse_module(Code), [binary, return_errors, debug_info]
-    ),
-    TempFile = temp_beam_path("bad_constraints_module"),
+    {ok, bad_constraints_module, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("bad_constraints_module"),
     ok = file:write_file(TempFile, BeamBinary),
     try
         %% Loading the module succeeds; error occurs at decode/schema time
@@ -163,31 +161,3 @@ unknown_constraint_key_crashes_test() ->
         code:delete(bad_constraints_module),
         file:delete(TempFile)
     end.
-
-%% -----------------------------------------------------------------------
-%% Helpers
-%% -----------------------------------------------------------------------
-
-temp_beam_path(Name) ->
-    TempDir = filename:basedir(user_cache, "spectra_tests"),
-    ok = filelib:ensure_dir(filename:join(TempDir, "dummy")),
-    Unique = integer_to_list(erlang:unique_integer([positive])),
-    filename:join(TempDir, Name ++ "_" ++ Unique ++ ".beam").
-
-parse_module(Code) ->
-    Lines = string:split(Code, "\n", all),
-    {Forms, _} = lists:foldl(
-        fun(Line, {Acc, LineNum}) ->
-            case string:trim(Line) of
-                "" ->
-                    {Acc, LineNum + 1};
-                TrimmedLine ->
-                    {ok, Tokens, _} = erl_scan:string(TrimmedLine ++ "\n", LineNum),
-                    {ok, Form} = erl_parse:parse_form(Tokens),
-                    {[Form | Acc], LineNum + 1}
-            end
-        end,
-        {[], 1},
-        Lines
-    ),
-    lists:reverse(Forms) ++ [{eof, 999}].
