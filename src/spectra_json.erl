@@ -13,40 +13,42 @@
     Data :: dynamic()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-to_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) when is_atom(N) ->
+to_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Data) when
+    is_atom(TypeName)
+->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
         {ok, M} ->
-            case M:encode(json, {type, N, Arity}, Data, #{}) of
+            Params = spectra_type:parameters(Type),
+            case M:encode(json, {type, TypeName, Arity}, Data, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_json(TypeInfo, TypeWithoutVars, Data);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_json(TypeInfo, TypeWithoutVars, Data)
     end;
 to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:encode(json, {type, TypeName, TypeArity}, Data, #{}) of
+            Params = spectra_type:parameters(RemoteType),
+            case M:encode(json, {type, TypeName, TypeArity}, Data, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
                     to_json(RemoteTypeInfo, TypeWithoutVars, Data);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_json(RemoteTypeInfo, TypeWithoutVars, Data)
     end;
 to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
@@ -59,14 +61,16 @@ to_json(
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
-            case M:encode(json, {record, RecordName}, Record, #{}) of
-                continue -> record_to_json(TypeInfo, RecordName, Record, TypeArgs);
+            Params = spectra_type:parameters(RecordType),
+            case M:encode(json, {record, RecordName}, Record, Params) of
+                continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs);
                 Result -> Result
             end;
         error ->
-            record_to_json(TypeInfo, RecordName, Record, TypeArgs)
+            record_to_json(TypeInfo, RecordType, Record, TypeArgs)
     end;
 to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
     NotSupported =:= pid orelse
@@ -354,18 +358,11 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
 
 -spec record_to_json(
     TypeInfo :: spectra:type_info(),
-    RecordName :: atom() | #sp_rec{},
+    RecordType :: #sp_rec{},
     Record :: dynamic(),
     TypeArgs :: [{atom(), spectra:sp_type()}]
 ) ->
     {ok, #{atom() => json:encode_value()}} | {error, [spectra:error()]}.
-record_to_json(TypeInfo, RecordName, Record, TypeArgs) when is_atom(RecordName) ->
-    case spectra_type_info:find_record(TypeInfo, RecordName) of
-        {ok, RecordInfo} ->
-            record_to_json(TypeInfo, RecordInfo, Record, TypeArgs);
-        error ->
-            erlang:error({record_not_found, RecordName})
-    end;
 record_to_json(
     TypeInfo,
     #sp_rec{
@@ -438,42 +435,42 @@ from_json(TypeInfo, Type, Json) ->
     Json :: json:decode_value()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-do_from_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Json) when
-    is_atom(N)
+do_from_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Json) when
+    is_atom(TypeName)
 ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
         {ok, M} ->
-            case M:decode(json, {type, N, Arity}, Json, #{}) of
+            Params = spectra_type:parameters(Type),
+            case M:decode(json, {type, TypeName, Arity}, Json, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     do_from_json(TypeInfo, TypeWithoutVars, Json);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Json)
     end;
 do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Json) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:decode(json, {type, TypeName, TypeArity}, Json, #{}) of
+            Params = spectra_type:parameters(RemoteType),
+            case M:decode(json, {type, TypeName, TypeArity}, Json, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
                     do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             do_from_json(RemoteTypeInfo, TypeWithoutVars, Json)
     end;
 do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
@@ -486,14 +483,16 @@ do_from_json(
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
-            case M:decode(json, {record, RecordName}, Json, #{}) of
-                continue -> record_from_json(TypeInfo, RecordName, Json, TypeArgs);
+            Params = spectra_type:parameters(RecordType),
+            case M:decode(json, {record, RecordName}, Json, Params) of
+                continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
                 Result -> Result
             end;
         error ->
-            record_from_json(TypeInfo, RecordName, Json, TypeArgs)
+            record_from_json(TypeInfo, RecordType, Json, TypeArgs)
     end;
 do_from_json(
     TypeInfo, #sp_map{struct_name = StructName} = Type, Json
@@ -518,14 +517,29 @@ do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = T, Json) ->
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) when
+    PrimaryType =:= binary orelse
+        PrimaryType =:= nonempty_binary orelse
+        PrimaryType =:= string orelse
+        PrimaryType =:= nonempty_string
+->
+    case check_type_from_json(PrimaryType, Json) of
+        {true, NewValue} ->
+            Params = spectra_type:parameters(Type),
+            check_string_params(Type, Params, NewValue);
+        {error, Reason} ->
+            {error, Reason};
+        false ->
+            {error, [sp_error:type_mismatch(Type, Json)]}
+    end;
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) ->
     case check_type_from_json(PrimaryType, Json) of
         {true, NewValue} ->
             {ok, NewValue};
         {error, Reason} ->
             {error, Reason};
         false ->
-            {error, [sp_error:type_mismatch(T, Json)]}
+            {error, [sp_error:type_mismatch(Type, Json)]}
     end;
 do_from_json(_TypeInfo, #sp_literal{value = Literal}, Literal) ->
     {ok, Literal};
@@ -706,6 +720,61 @@ do_string_to_json(Type, Json) ->
     catch
         error:badarg ->
             {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Json)]}
+    end.
+
+-spec check_string_params(
+    Type :: #sp_simple_type{},
+    Params :: term(),
+    Value :: dynamic()
+) -> {ok, dynamic()} | {error, [spectra:error()]}.
+check_string_params(_Type, undefined, Value) ->
+    {ok, Value};
+check_string_params(Type, Params, Value) when is_map(Params) ->
+    spectra_util:fold_until_error(
+        fun
+            ({min_length, MinLen}, V) when is_integer(MinLen), MinLen >= 0 ->
+                case string:length(V) >= MinLen of
+                    true -> {ok, V};
+                    false -> {error, [sp_error:type_mismatch(Type, V, #{min_length => MinLen})]}
+                end;
+            ({max_length, MaxLen}, V) when is_integer(MaxLen), MaxLen >= 0 ->
+                case string:length(V) =< MaxLen of
+                    true -> {ok, V};
+                    false -> {error, [sp_error:type_mismatch(Type, V, #{max_length => MaxLen})]}
+                end;
+            ({pattern, Pat}, V) when is_binary(Pat) ->
+                case to_binary_for_pattern(Type, Pat, V) of
+                    {ok, Bin} ->
+                        case re:run(Bin, Pat, [{capture, none}]) of
+                            match -> {ok, V};
+                            nomatch -> {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
+                        end;
+                    {error, _} = Err ->
+                        Err
+                end;
+            ({format, _Format}, V) ->
+                %% format is schema-only metadata; no runtime validation
+                {ok, V};
+            ({Key, Val}, _V) ->
+                erlang:error({invalid_string_constraint, Key, Val})
+        end,
+        Value,
+        maps:to_list(Params)
+    );
+check_string_params(_Type, Params, _Value) when not is_map(Params) ->
+    erlang:error({invalid_string_constraints, Params}).
+
+-spec to_binary_for_pattern(
+    Type :: #sp_simple_type{},
+    Pat :: binary(),
+    Value :: dynamic()
+) -> {ok, binary()} | {error, [spectra:error()]}.
+to_binary_for_pattern(_Type, _Pat, V) when is_binary(V) ->
+    {ok, V};
+to_binary_for_pattern(Type, Pat, V) when is_list(V) ->
+    case unicode:characters_to_binary(V) of
+        Bin when is_binary(Bin) -> {ok, Bin};
+        _ -> {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
     end.
 
 safe_enumerate(List) ->
@@ -900,18 +969,11 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
 
 -spec record_from_json(
     TypeInfo :: spectra:type_info(),
-    RecordName :: atom() | #sp_rec{},
+    RecordType :: #sp_rec{},
     Json :: json:decode_value(),
     TypeArgs :: [spectra:record_field_arg()]
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-record_from_json(TypeInfo, RecordName, Json, TypeArgs) when is_atom(RecordName) ->
-    case spectra_type_info:find_record(TypeInfo, RecordName) of
-        {ok, Record} ->
-            record_from_json(TypeInfo, Record, Json, TypeArgs);
-        error ->
-            error({record_not_found, RecordName})
-    end;
 record_from_json(
     TypeInfo, #sp_rec{} = ARec, Json, TypeArgs
 ) ->

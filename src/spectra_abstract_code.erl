@@ -95,9 +95,15 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
-    {Key, spectra_type:add_doc_to_type(Type, DocMap)};
+    {Key,
+        apply_type_parameters(
+            spectra_type:add_doc_to_type(Type, maps:remove(type_parameters, DocMap)), DocMap
+        )};
 attach_doc({{record, _Name} = Key, Record}, DocMap) ->
-    {Key, spectra_type:add_doc_to_type(Record, DocMap)};
+    {Key,
+        apply_type_parameters(
+            spectra_type:add_doc_to_type(Record, maps:remove(type_parameters, DocMap)), DocMap
+        )};
 attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     Doc = spectra_type:normalize_function_doc(DocMap),
     Tagged = [
@@ -105,6 +111,13 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
      || FS <- FuncSpecs
     ],
     {Key, Tagged}.
+
+-spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
+apply_type_parameters(Type, #{type_parameters := Params}) ->
+    Meta = spectra_type:get_meta(Type),
+    spectra_type:set_meta(Type, Meta#{parameters => Params});
+apply_type_parameters(Type, #{}) ->
+    Type.
 
 build_type_info(Module, IsBehaviour, NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(Module, IsBehaviour), NamedTypes).

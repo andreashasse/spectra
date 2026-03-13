@@ -4,18 +4,18 @@
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
-    Opts :: spectra:codec_encode_opts()
+    Params :: term()
 ) ->
     spectra:codec_encode_result().
 -callback decode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
-    Opts :: spectra:codec_decode_opts()
+    Params :: term()
 ) ->
     spectra:codec_decode_result().
 -callback schema(
-    Format :: atom(), TypeRef :: spectra:sp_type_reference(), Opts :: spectra:codec_schema_opts()
+    Format :: atom(), TypeRef :: spectra:sp_type_reference(), Params :: term()
 ) ->
     dynamic().
 

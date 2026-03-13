@@ -4,8 +4,6 @@
 %% Any reference to its types should automatically use its encode/decode.
 -behaviour(spectra_codec).
 
--include("../include/spectra.hrl").
-
 -opaque color() :: {non_neg_integer(), non_neg_integer(), non_neg_integer()}.
 
 -export_type([color/0]).

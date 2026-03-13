@@ -252,6 +252,114 @@ spectra:encode(json, my_geo_module, point, {1.0, 2.0}).
 %% => {ok, <<"[1.0,2.0]">>}
 ```
 
+#### Type Parameters
+
+The `-spectra()` attribute accepts a `type_parameters` key whose value is passed directly as the fourth argument to your codec's `encode/4`, `decode/4`, and `schema/3` callbacks. This lets you reuse a single codec implementation across multiple types that differ only by configuration.
+
+For example, a prefixed-ID codec where each type carries its own expected prefix:
+
+```erlang
+%% Codec module
+-module(prefixed_id_codec).
+-behaviour(spectra_codec).
+
+-export([encode/4, decode/4, schema/3]).
+
+%% Strips the prefix on decode, re-attaches it on encode.
+decode(json, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+    PrefixLen = byte_size(Prefix),
+    case Data of
+        <<Prefix:PrefixLen/binary, Rest/binary>> ->
+            {ok, Rest};
+        _ ->
+            {error, [sp_error:type_mismatch(TypeRef, Data)]}
+    end;
+decode(_Format, _TypeRef, _Data, _Params) ->
+    continue.
+
+encode(json, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+    {ok, <<Prefix/binary, Data/binary>>};
+encode(_Format, _TypeRef, _Data, _Params) ->
+    continue.
+
+schema(json_schema, _TypeRef, Prefix) when is_binary(Prefix) ->
+    #{type => <<"string">>, pattern => <<"^", Prefix/binary>>};
+schema(_Format, _TypeRef, _Params) ->
+    continue.
+```
+
+```erlang
+%% Consuming module — one codec, different prefix per type
+-module(my_ids).
+-behaviour(spectra_codec).
+
+-spectra(#{type_parameters => <<"user:">>}).
+-type user_id() :: binary().
+
+-spectra(#{type_parameters => <<"org:">>}).
+-type org_id() :: binary().
+```
+
+```erlang
+spectra:decode(json, my_ids, user_id, <<"user:abc123">>).
+%% => {ok, <<"abc123">>}
+
+spectra:decode(json, my_ids, user_id, <<"org:abc123">>).
+%% => {error, [#sp_error{...}]}
+
+spectra:encode(json, my_ids, user_id, <<"abc123">>).
+%% => {ok, <<"user:abc123">>}
+
+spectra:schema(json_schema, my_ids, org_id).
+%% => #{type => <<"string">>, pattern => <<"^org:">>}
+```
+
+When `type_parameters` is not set on a type, the codec receives `undefined` as the fourth argument.
+
+Parameters belong to the **type definition**, not the usage site. If `A:user_id()` is referenced from module `B`, the parameters come from module `A`'s type definition regardless of where the call originates.
+
+#### String and Binary Constraints
+
+For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types you can apply structural constraints directly via `type_parameters` — **no custom codec required**. The value must be a map with any combination of the following keys:
+
+| Key | JSON Schema keyword | Validated at decode? | Notes |
+|---|---|---|---|
+| `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
+| `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
+| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
+| `format` | `format` | no | Schema annotation only |
+
+```erlang
+-spectra(#{type_parameters => #{min_length => 2, max_length => 64}}).
+-type username() :: binary().
+
+-spectra(#{type_parameters => #{pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}}).
+-type slug() :: binary().
+```
+
+Decoding enforces the constraints and returns a validation error on failure:
+
+```erlang
+spectra:decode(json, my_module, username, <<"x">>).
+%% => {error, [#sp_error{...}]}   %% too short
+
+spectra:decode(json, my_module, username, <<"alice">>).
+%% => {ok, <<"alice">>}
+```
+
+The generated JSON Schema reflects the constraints:
+
+```erlang
+spectra:schema(json_schema, my_module, slug).
+%% => #{type => <<"string">>, pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}
+```
+
+Encoding (`to_json`) does **not** re-validate constraints — only decoding does.
+
+`nonempty_binary()` and `nonempty_string()` already imply `minLength: 1` in the schema; a `min_length` parameter overrides this baseline value.
+
+Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
+
 #### Types from Other Modules (App Environment)
 
 To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
