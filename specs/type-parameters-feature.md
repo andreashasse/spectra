@@ -12,6 +12,9 @@ This makes it impossible to reuse a single codec implementation across types tha
 differ only in a configuration value. A concrete example is a regex-validated string
 type: the codec logic is identical, but each usage site wants a different pattern.
 
+The fourth argument will be repurposed to carry the `type_parameters` value directly
+(not wrapped in a map), so codecs can pattern-match on it cleanly.
+
 The `-spectra(...)` module attribute already lets developers attach documentation
 metadata to types. This feature extends that mechanism with a new key,
 `type_parameters`, whose value is passed through to codec callbacks so that each
@@ -23,12 +26,12 @@ type definition can carry its own codec configuration.
 %% Codec module: regex_string_codec
 -behaviour(spectra_codec).
 
-decode(json, _TypeRef, Data, #{parameters := Pattern}) when is_binary(Data) ->
+decode(json, _TypeRef, Data, Pattern) when is_binary(Data), is_binary(Pattern) ->
     case re:run(Data, Pattern) of
         {match, _} -> {ok, Data};
         nomatch     -> {error, [#sp_error{...}]}
     end;
-decode(json, _TypeRef, Data, #{}) when is_binary(Data) ->
+decode(json, _TypeRef, Data, undefined) when is_binary(Data) ->
     {ok, Data}.
 ```
 
@@ -42,7 +45,7 @@ decode(json, _TypeRef, Data, #{}) when is_binary(Data) ->
 ```
 
 When `spectra:decode(json, my_module, lowercase, <<"hello">>)` is called, the codec
-receives `#{parameters => <<"^[a-z]+$">>}` as opts. When the same type is referenced
+receives `<<"^[a-z]+$">>` as the fourth argument. When the same type is referenced
 from another module (e.g. `my_module:lowercase()`), the parameters still come from
 the defining module `my_module`.
 
@@ -59,9 +62,9 @@ the defining module `my_module`.
 - **Stored in `sp_type_meta()`** as the key `parameters`. This is the canonical
   location; it travels with the resolved `sp_type()` at every dispatch point.
 
-- **Passed as `#{parameters => Value}` in opts** when present. When `type_parameters`
-  is not set the key is absent entirely and codecs receive `#{}`. Codecs that need a
-  default must use `maps:get(parameters, Opts, Default)`.
+- **Passed directly as the fourth argument** to codec callbacks. When `type_parameters`
+  is set, the value is passed as-is. When not set, `undefined` is passed. Codecs
+  pattern-match on the value directly.
 
 ---
 
@@ -99,15 +102,12 @@ meta and included in opts.
 
 ### 5. `src/spectra.erl` — `maybe_codec_decode/6` and `maybe_codec_encode/6`
 
-`SpType` is already a parameter. Read `meta.parameters` and build opts before the
-codec call:
+`SpType` is already a parameter. Read `meta.parameters` and pass it directly as the
+fourth argument to the codec:
 
 ```erlang
-Opts = case spectra_type:get_meta(SpType) of
-    #{parameters := Params} -> #{parameters => Params};
-    _ -> #{}
-end,
-M:decode(Format, TypeRef, Data, Opts)
+Params = maps:get(parameters, spectra_type:get_meta(SpType), undefined),
+M:decode(Format, TypeRef, Data, Params)
 ```
 
 ### 6. `src/spectra_json.erl` — 6 call sites
@@ -115,7 +115,7 @@ M:decode(Format, TypeRef, Data, Opts)
 For each of the three ref-type branches in `to_json/3` and `do_from_json/3`:
 
 - **`#sp_user_type_ref{}`**: resolve the type via `get_type(TypeInfo, N, Arity)` before
-  the codec call; read `meta.parameters` for opts.
+  the codec call; read `meta.parameters` (defaulting to `undefined`) for the fourth arg.
 - **`#sp_remote_type{}`**: `RemoteTypeInfo` is already fetched eagerly at the top of
   the clause; call `get_type(RemoteTypeInfo, TypeName, TypeArity)` before the codec call.
 - **`#sp_rec_ref{}`**: call `get_record(TypeInfo, RecordName)` before the codec call.
@@ -154,19 +154,19 @@ read parameters from the returned `SpType` directly before the codec call.
 
 ## Acceptance Criteria
 
-### AC1 — Parameters flow into decode opts
+### AC1 — Parameters flow into decode
 Given a type with `-spectra(#{type_parameters => Value})` and a codec module, calling
-`spectra:decode/4` invokes `M:decode(Format, TypeRef, Data, #{parameters => Value})`.
+`spectra:decode/4` invokes `M:decode(Format, TypeRef, Data, Value)`.
 
-### AC2 — Parameters flow into encode opts
-Same as AC1 but for `spectra:encode/4` → `M:encode(Format, TypeRef, Data, #{parameters => Value})`.
+### AC2 — Parameters flow into encode
+Same as AC1 but for `spectra:encode/4` → `M:encode(Format, TypeRef, Data, Value)`.
 
-### AC3 — Parameters flow into schema opts
-Same as AC1 but for `spectra:schema/3` → `M:schema(Format, TypeRef, #{parameters => Value})`.
+### AC3 — Parameters flow into schema
+Same as AC1 but for `spectra:schema/3` → `M:schema(Format, TypeRef, Value)`.
 
-### AC4 — No parameters → absent key in opts
-A type without `type_parameters` passes `#{}` to codec callbacks — the `parameters`
-key is absent. Codecs that need a default must use `maps:get(parameters, Opts, Default)`.
+### AC4 — No parameters → `undefined`
+A type without `type_parameters` passes `undefined` as the fourth argument to codec
+callbacks.
 
 ### AC5 — Remote type uses defining module's parameters
 When module `B` has a field of type `A:phone_number()`, and `A` defines `phone_number`
