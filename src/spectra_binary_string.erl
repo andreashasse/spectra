@@ -75,18 +75,18 @@ from_binary_string(
 ) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:decode(binary_string, {type, N, Arity}, BinaryString, Opts) of
+            case M:decode(binary_string, {type, N, Arity}, BinaryString, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
@@ -94,24 +94,26 @@ from_binary_string(
     _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, BinaryString, Opts
 ) ->
     TypeArity = length(Args),
+    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+    Params = maps:get(parameters, spectra_type:get_meta(TypeWithoutVars), undefined),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:decode(binary_string, {type, TypeName, TypeArity}, BinaryString, Opts) of
+            case M:decode(binary_string, {type, TypeName, TypeArity}, BinaryString, Params) of
                 continue ->
-                    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
                     from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts);
                 Result ->
                     Result
             end;
         error ->
-            {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
             from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts)
     end;
 from_binary_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, BinaryString, Opts) ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, N),
+    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
-            case M:decode(binary_string, {record, N}, BinaryString, Opts) of
+            case M:decode(binary_string, {record, N}, BinaryString, Params) of
                 continue -> from_binary_string_inner(TypeInfo, RecRef, BinaryString, Opts);
                 Result -> Result
             end;
@@ -228,18 +230,18 @@ and converts it to a binary string representation.
 to_binary_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data, Opts) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:encode(binary_string, {type, N, Arity}, Data, Opts) of
+            case M:encode(binary_string, {type, N, Arity}, Data, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts)
     end;
@@ -247,24 +249,26 @@ to_binary_string(
     _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts
 ) ->
     TypeArity = length(Args),
+    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
+    Params = maps:get(parameters, spectra_type:get_meta(TypeWithoutVars), undefined),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Opts) of
+            case M:encode(binary_string, {type, TypeName, TypeArity}, Data, Params) of
                 continue ->
-                    {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
                     to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts);
                 Result ->
                     Result
             end;
         error ->
-            {RemoteTypeInfo, TypeWithoutVars} = resolve_remote_type(Module, TypeName, Args),
             to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts)
     end;
 to_binary_string(TypeInfo, #sp_rec_ref{record_name = N} = RecRef, Data, Opts) ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, N),
+    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
-            case M:encode(binary_string, {record, N}, Data, Opts) of
+            case M:encode(binary_string, {record, N}, Data, Params) of
                 continue -> to_binary_string_inner(TypeInfo, RecRef, Data, Opts);
                 Result -> Result
             end;

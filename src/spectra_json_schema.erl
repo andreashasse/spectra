@@ -67,11 +67,13 @@ to_schema_for_sp_type(TypeInfo, Type) ->
 do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = TypeRef) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {type, N, Arity}, #{}) of
+                    case M:schema(json_schema, {type, N, Arity}, Params) of
                         continue -> do_to_schema_inner(TypeInfo, TypeRef);
                         Schema -> Schema
                     end;
@@ -83,11 +85,14 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
     end;
 do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
     Arity = length(Args),
+    RemoteTypeInfo = spectra_module_types:get(Mod),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {type, N, Arity}, #{}) of
+                    case M:schema(json_schema, {type, N, Arity}, Params) of
                         continue -> do_to_schema_inner(TypeInfo, TypeRef);
                         Schema -> Schema
                     end;
@@ -99,11 +104,13 @@ do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
     end;
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecRef) ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, N),
+    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
     case spectra_type_info:find_codec_for_record(Mod, N) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {record, N}, #{}) of
+                    case M:schema(json_schema, {record, N}, Params) of
                         continue -> do_to_schema_inner(TypeInfo, RecRef);
                         Schema -> Schema
                     end;

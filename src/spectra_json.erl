@@ -16,37 +16,37 @@
 to_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) when is_atom(N) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:encode(json, {type, N, Arity}, Data, #{}) of
+            case M:encode(json, {type, N, Arity}, Data, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     to_json(TypeInfo, TypeWithoutVars, Data);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_json(TypeInfo, TypeWithoutVars, Data)
     end;
 to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:encode(json, {type, TypeName, TypeArity}, Data, #{}) of
+            case M:encode(json, {type, TypeName, TypeArity}, Data, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
                     to_json(RemoteTypeInfo, TypeWithoutVars, Data);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_json(RemoteTypeInfo, TypeWithoutVars, Data)
     end;
 to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
@@ -59,9 +59,11 @@ to_json(
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
-            case M:encode(json, {record, RecordName}, Record, #{}) of
+            case M:encode(json, {record, RecordName}, Record, Params) of
                 continue -> record_to_json(TypeInfo, RecordName, Record, TypeArgs);
                 Result -> Result
             end;
@@ -443,37 +445,37 @@ do_from_json(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Json)
 ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Params = maps:get(parameters, spectra_type:get_meta(Type), undefined),
     case spectra_type_info:find_codec(Mod, N, Arity) of
         {ok, M} ->
-            case M:decode(json, {type, N, Arity}, Json, #{}) of
+            case M:decode(json, {type, N, Arity}, Json, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
                     TypeWithoutVars = apply_args(TypeInfo, Type, Args),
                     do_from_json(TypeInfo, TypeWithoutVars, Json);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Json)
     end;
 do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Json) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    Params = maps:get(parameters, spectra_type:get_meta(RemoteType), undefined),
     case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
         {ok, M} ->
-            case M:decode(json, {type, TypeName, TypeArity}, Json, #{}) of
+            case M:decode(json, {type, TypeName, TypeArity}, Json, Params) of
                 continue ->
-                    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
                     do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
                 Result ->
                     Result
             end;
         error ->
-            Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             do_from_json(RemoteTypeInfo, TypeWithoutVars, Json)
     end;
 do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
@@ -486,9 +488,11 @@ do_from_json(
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    Params = maps:get(parameters, spectra_type:get_meta(RecordType), undefined),
     case spectra_type_info:find_codec_for_record(Mod, RecordName) of
         {ok, M} ->
-            case M:decode(json, {record, RecordName}, Json, #{}) of
+            case M:decode(json, {record, RecordName}, Json, Params) of
                 continue -> record_from_json(TypeInfo, RecordName, Json, TypeArgs);
                 Result -> Result
             end;
