@@ -87,21 +87,21 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = Type
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)
     end;
-do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, N, Args}} = TypeRef) ->
+do_to_schema(TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}} = TypeRef) ->
     Arity = length(Args),
-    RemoteTypeInfo = spectra_module_types:get(Mod),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, N, Arity),
-    Params = spectra_type:parameters(RemoteType),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
+    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
-                    case M:schema(json_schema, {type, N, Arity}, Params) of
+                    RemoteTypeInfo = spectra_module_types:get(Mod),
+                    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
+                    Params = spectra_type:parameters(RemoteType),
+                    case M:schema(json_schema, {type, TypeName, Arity}, Params) of
                         continue -> do_to_schema_inner(TypeInfo, TypeRef);
                         Schema -> Schema
                     end;
                 false ->
-                    erlang:error({schema_not_implemented, M, {type, N, Arity}})
+                    erlang:error({schema_not_implemented, M, {type, TypeName, Arity}})
             end;
         error ->
             do_to_schema_inner(TypeInfo, TypeRef)
@@ -607,7 +607,6 @@ apply_string_params(Base, Params) when is_map(Params) ->
     maps:fold(
         fun
             (min_length, V, Acc) when is_integer(V), V >= 0 ->
-                %% min_length from params overrides any baseline minLength
                 Acc#{minLength => V};
             (max_length, V, Acc) when is_integer(V), V >= 0 ->
                 Acc#{maxLength => V};

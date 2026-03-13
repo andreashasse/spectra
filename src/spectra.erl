@@ -471,11 +471,11 @@ resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_json_schema:json_schema().
 maybe_codec_schema(TypeInfo, TypeRef) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
-    Params = spectra_type:parameters(SpType),
     case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
+                    Params = spectra_type:parameters(SpType),
                     case M:schema(json_schema, TypeRef, Params) of
                         continue ->
                             spectra_json_schema:to_schema(TypeInfo, SpType);
@@ -498,9 +498,9 @@ maybe_codec_schema(TypeInfo, TypeRef) ->
     Options :: [decode_option()]
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
-    Params = spectra_type:parameters(SpType),
     case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
+            Params = spectra_type:parameters(SpType),
             case M:decode(Format, TypeRef, Data, Params) of
                 continue ->
                     default_decode(Format, TypeInfo, SpType, Data, Options);
@@ -520,9 +520,9 @@ maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
     Options :: [encode_option()]
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
-    Params = spectra_type:parameters(SpType),
     case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
+            Params = spectra_type:parameters(SpType),
             case M:encode(Format, TypeRef, Data, Params) of
                 continue ->
                     default_encode(Format, TypeInfo, SpType, Data, Options);
