@@ -732,12 +732,12 @@ check_string_params(_Type, undefined, Value) ->
 check_string_params(Type, Params, Value) when is_map(Params) ->
     spectra_util:fold_until_error(
         fun
-            ({min_length, MinLen}, V) when is_integer(MinLen) ->
+            ({min_length, MinLen}, V) when is_integer(MinLen), MinLen >= 0 ->
                 case string:length(V) >= MinLen of
                     true -> {ok, V};
                     false -> {error, [sp_error:type_mismatch(Type, V, #{min_length => MinLen})]}
                 end;
-            ({max_length, MaxLen}, V) when is_integer(MaxLen) ->
+            ({max_length, MaxLen}, V) when is_integer(MaxLen), MaxLen >= 0 ->
                 case string:length(V) =< MaxLen of
                     true -> {ok, V};
                     false -> {error, [sp_error:type_mismatch(Type, V, #{max_length => MaxLen})]}
@@ -760,7 +760,9 @@ check_string_params(Type, Params, Value) when is_map(Params) ->
         end,
         Value,
         maps:to_list(Params)
-    ).
+    );
+check_string_params(_Type, Params, _Value) when not is_map(Params) ->
+    erlang:error({invalid_string_constraints, Params}).
 
 -spec to_binary_for_pattern(
     Type :: #sp_simple_type{},
