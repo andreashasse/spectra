@@ -116,16 +116,11 @@ from_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, BinaryString
         {ok, M} ->
             Params = spectra_type:parameters(RecordType),
             case M:decode(binary_string, {record, RecordName}, BinaryString, Params) of
-                continue ->
-                    %% Structural record decoding is not supported in binary_string format;
-                    %% treat continue the same as having no codec.
-                    {error, [sp_error:type_mismatch(RecordType, BinaryString)]};
-                Result ->
-                    Result
+                continue -> erlang:error({type_not_supported, RecordType});
+                Result -> Result
             end;
         error ->
-            %% No codec and no structural support — records cannot be decoded from binary strings.
-            {error, [sp_error:type_mismatch(RecordType, BinaryString)]}
+            erlang:error({type_not_supported, RecordType})
     end;
 from_binary_string(
     _TypeInfo, #sp_simple_type{type = NotSupported} = T, _BinaryString, _Opts
@@ -269,16 +264,11 @@ to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data, _Opts) -
         {ok, M} ->
             Params = spectra_type:parameters(RecordType),
             case M:encode(binary_string, {record, RecordName}, Data, Params) of
-                continue ->
-                    %% Structural record encoding is not supported in binary_string format;
-                    %% treat continue the same as having no codec.
-                    {error, [sp_error:type_mismatch(RecordType, Data)]};
-                Result ->
-                    Result
+                continue -> erlang:error({type_not_supported, RecordType});
+                Result -> Result
             end;
         error ->
-            %% No codec and no structural support — records cannot be encoded to binary strings.
-            {error, [sp_error:type_mismatch(RecordType, Data)]}
+            erlang:error({type_not_supported, RecordType})
     end;
 to_binary_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data, _Opts) when
     NotSupported =:= pid orelse

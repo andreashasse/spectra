@@ -57,16 +57,11 @@ from_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, String) ->
         {ok, M} ->
             Params = spectra_type:parameters(RecordType),
             case M:decode(string, {record, RecordName}, String, Params) of
-                continue ->
-                    %% Structural record decoding is not supported in string format;
-                    %% treat continue the same as having no codec.
-                    {error, [sp_error:type_mismatch(RecordType, String)]};
-                Result ->
-                    Result
+                continue -> erlang:error({type_not_supported, RecordType});
+                Result -> Result
             end;
         error ->
-            %% No codec and no structural support — records cannot be decoded from strings.
-            {error, [sp_error:type_mismatch(RecordType, String)]}
+            erlang:error({type_not_supported, RecordType})
     end;
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     TypeArity = length(Args),
@@ -173,16 +168,11 @@ to_string(TypeInfo, #sp_rec_ref{record_name = N}, Data) ->
         {ok, M} ->
             Params = spectra_type:parameters(RecordType),
             case M:encode(string, {record, N}, Data, Params) of
-                continue ->
-                    %% Structural record encoding is not supported in string format;
-                    %% treat continue the same as having no codec.
-                    {error, [sp_error:type_mismatch(RecordType, Data)]};
-                Result ->
-                    Result
+                continue -> erlang:error({type_not_supported, RecordType});
+                Result -> Result
             end;
         error ->
-            %% No codec and no structural support — records cannot be encoded to strings.
-            {error, [sp_error:type_mismatch(RecordType, Data)]}
+            erlang:error({type_not_supported, RecordType})
     end;
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),

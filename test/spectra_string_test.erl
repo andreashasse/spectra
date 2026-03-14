@@ -1148,6 +1148,20 @@ string_codec_continue_encode_test() ->
         spectra:encode(string, codec_string_continue_module, name, <<"hello">>)
     ).
 
+%% A codec returning `continue` for a record type must not fall back to
+%% structural record decoding (unsupported) — it must raise type_not_supported.
+string_codec_record_continue_decode_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra:decode(string, codec_animal_codec, {record, cat}, "anything")
+    ).
+
+string_codec_record_continue_encode_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra:encode(string, codec_animal_codec, {record, cat}, any_value)
+    ).
+
 %% Problem 1: union members must go through the outer from_string so that
 %% codec dispatch happens for each union branch. Here maybe_token() is
 %% token() | undefined; token() has a codec registered via app env that

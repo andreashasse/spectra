@@ -1730,3 +1730,31 @@ to_binary_string_invalid_input_test() ->
     ),
 
     ok.
+
+%% Test that a codec returning `continue` for a local type falls back to
+%% structural decoding rather than returning {error, type_mismatch}.
+binary_string_codec_continue_decode_test() ->
+    ?assertEqual(
+        {ok, <<"hello">>},
+        spectra:decode(binary_string, codec_string_continue_module, name, <<"hello">>)
+    ).
+
+binary_string_codec_continue_encode_test() ->
+    ?assertEqual(
+        {ok, <<"hello">>},
+        spectra:encode(binary_string, codec_string_continue_module, name, <<"hello">>)
+    ).
+
+%% A codec returning `continue` for a record type must raise type_not_supported,
+%% not fall back to structural record encoding (which is unsupported).
+binary_string_codec_record_continue_decode_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra:decode(binary_string, codec_animal_codec, {record, cat}, <<"anything">>)
+    ).
+
+binary_string_codec_record_continue_encode_test() ->
+    ?assertError(
+        {type_not_supported, _},
+        spectra:encode(binary_string, codec_animal_codec, {record, cat}, any_value)
+    ).
