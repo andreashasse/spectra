@@ -1,7 +1,6 @@
 -module(custom_codec_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("../include/spectra_internal.hrl").
 
 %% Copied from codec_animal_codec to avoid a shared header file.
 -record(cat, {name :: binary(), indoor :: boolean()}).
