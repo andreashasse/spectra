@@ -194,17 +194,21 @@ SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]),
 
 ### Custom Codecs
 
-Custom codecs let you override how spectra encodes, decodes, and generates schemas for specific types. This is useful for types that cannot be represented structurally (e.g. tagged unions, opaque types, external types).
+Custom codecs let you override how spectra encodes, decodes, and generates schemas for specific types. Eg, the JSON format differ from their Erlang structure (e.g. a `{X, Y}` tuple serialised as a `[X, Y]` array)
 
 #### Implementing a Codec
 
-Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Named types and records can both be intercepted by a codec; returning `continue` for a record causes spectra to fall back to structural record handling.
+Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Return `continue` for any type reference your codec does not own — spectra falls through to structural encoding/decoding (or raises an error for records, since structural record handling always applies).
 
 ```erlang
 -module(my_geo_codec).
 -behaviour(spectra_codec).
 
 -export([encode/4, decode/4, schema/3]).
+
+%% point() is an opaque type: {X, Y} tuple serialised as a JSON [X, Y] array.
+-type point() :: {float(), float()}.
+-export_type([point/0]).
 
 encode(json, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
@@ -236,22 +240,6 @@ The `schema/3` callback is optional. If not exported, calling `spectra:schema/3,
 
 If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no configuration required:
 
-```erlang
--module(my_geo_module).
--behaviour(spectra_codec).
-
--export([encode/4, decode/4, schema/3]).
-
--type point() :: {float(), float()}.
-
-%% encode/4, decode/4, schema/3 implementations here
-```
-
-```erlang
-spectra:encode(json, my_geo_module, point, {1.0, 2.0}).
-%% => {ok, <<"[1.0,2.0]">>}
-```
-
 #### Type Parameters
 
 The `-spectra()` attribute accepts a `type_parameters` key whose value is passed directly as the fourth argument to your codec's `encode/4`, `decode/4`, and `schema/3` callbacks. This lets you reuse a single codec implementation across multiple types that differ only by configuration.
@@ -265,14 +253,17 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 
 -export([encode/4, decode/4, schema/3]).
 
+%% This codec handles any binary type whose type_parameters is a prefix binary.
+%% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
+-type prefixed_id() :: binary().
+-export_type([prefixed_id/0]).
+
 %% Strips the prefix on decode, re-attaches it on encode.
 decode(json, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
     PrefixLen = byte_size(Prefix),
     case Data of
-        <<Prefix:PrefixLen/binary, Rest/binary>> ->
-            {ok, Rest};
-        _ ->
-            {error, [sp_error:type_mismatch(TypeRef, Data)]}
+        <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
+        _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
 decode(_Format, _TypeRef, _Data, _Params) ->
     continue.
@@ -290,11 +281,11 @@ schema(_Format, _TypeRef, _Params) ->
 
 ```erlang
 %% Consuming module — one codec, different prefix per type
+%% Register the codec via the app environment (see "Types from Other Modules" below).
 -module(my_ids).
--behaviour(spectra_codec).
 
 -spectra(#{type_parameters => <<"user:">>}).
--type user_id() :: binary().
+-type user_id() :: prefixed_id:.
 
 -spectra(#{type_parameters => <<"org:">>}).
 -type org_id() :: binary().
@@ -322,7 +313,7 @@ Parameters belong to the **type definition**, not the usage site. If `A:user_id(
 
 For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types you can apply structural constraints directly via `type_parameters` — **no custom codec required**. The value must be a map with any combination of the following keys:
 
-| Key | JSON Schema keyword | Validated at decode? | Notes |
+| Key | JSON Schema keyword | Validated at encode/decode? | Notes |
 |---|---|---|---|
 | `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
 | `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
@@ -354,7 +345,7 @@ spectra:schema(json_schema, my_module, slug).
 %% => #{type => <<"string">>, pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}
 ```
 
-Encoding (`to_json`) does **not** re-validate constraints — only decoding does.
+Encoding (`to_json`) also validates constraints — an error is returned if the Erlang value violates `min_length`, `max_length`, or `pattern`.
 
 `nonempty_binary()` and `nonempty_string()` already imply `minLength: 1` in the schema; a `min_length` parameter overrides this baseline value.
 
@@ -377,7 +368,7 @@ The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying t
 - `{type, TypeName, Arity}` for user-defined types (e.g., `{calendar, {type, datetime, 0}}`)
 - `{record, RecordName}` for records (e.g., `{my_module, {record, my_record}}`)
 
-Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra discovers and uses it automatically with no configuration.
+Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no app environment entry is required. This applies to third-party modules that have adopted the `spectra_codec` behaviour themselves.
 
 ### Adding Documentation and Examples to Schemas
 
@@ -644,7 +635,7 @@ This ensures that when you have an exact literal field like `timeout := 30`, it 
 -type metadata2() :: #{version => <<"1.0">>, atom() => atom()}.
 
 %% If version => <<"1.0">> is encountered first:
-%% JSON: {"version": "1.0"}  
+%% JSON: {"version": "1.0"}
 %% Result: #{version => <<"1.0">>}  (matched by literal field)
 ```
 

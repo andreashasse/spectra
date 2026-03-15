@@ -117,6 +117,14 @@ to_json(_TypeInfo, Type, OtherValue) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
     case check_type_to_json(Type, Value) of
+        {true, NewValue} when
+            Type =:= binary orelse
+                Type =:= nonempty_binary orelse
+                Type =:= string orelse
+                Type =:= nonempty_string
+        ->
+            Params = spectra_type:parameters(T),
+            check_string_params(T, Params, NewValue);
         {true, NewValue} ->
             {ok, NewValue};
         {error, Reason} ->

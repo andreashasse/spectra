@@ -15,5 +15,7 @@ string_test() ->
     ),
     ?assertMatch(
         {error, _},
-        spectra:decode(json, ?MODULE, my_string, <<240, 144, 128, 128, 100, 195, 146, 81>>)
+        spectra:decode(json, ?MODULE, my_string, <<255, 100, 210, 81>>, [
+            pre_decoded
+        ])
     ).

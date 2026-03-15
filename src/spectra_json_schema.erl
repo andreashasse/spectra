@@ -1,8 +1,8 @@
 -module(spectra_json_schema).
 
--export([to_schema/2]).
+-export([to_schema/2, add_schema_version/1]).
 
--ignore_xref([to_schema/2]).
+-ignore_xref([to_schema/2, add_schema_version/1]).
 
 -include("../include/spectra_internal.hrl").
 
@@ -53,15 +53,14 @@
 
 %% API
 
--spec to_schema(spectra:type_info(), spectra:sp_type()) -> json_schema().
+-spec to_schema(spectra:type_info(), spectra:sp_type()) -> json_schema_object().
 to_schema(TypeInfo, Type) ->
     to_schema_for_sp_type(TypeInfo, Type).
 
--spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema().
+-spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema_object().
 to_schema_for_sp_type(TypeInfo, Type) ->
     Schema = do_to_schema(TypeInfo, Type),
-    SchemaWithDoc = merge_type_doc_into_schema(TypeInfo, Type, Schema),
-    add_schema_version(SchemaWithDoc).
+    merge_type_doc_into_schema(TypeInfo, Type, Schema).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
@@ -103,8 +102,8 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = N}) ->
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
     #{type => <<"integer">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = string, meta = Meta}) ->
-    apply_string_constraints(#{type => <<"string">>}, Meta);
+do_to_schema(_TypeInfo, #sp_simple_type{type = string} = Type) ->
+    apply_string_constraints(#{type => <<"string">>}, Type);
 do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}) ->
     #{type => <<"string">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}) ->
@@ -117,12 +116,12 @@ do_to_schema(_TypeInfo, #sp_simple_type{type = float}) ->
     #{type => <<"number">>, format => <<"float">>};
 do_to_schema(_TypeInfo, #sp_simple_type{type = atom}) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = binary, meta = Meta}) ->
-    apply_string_constraints(#{type => <<"string">>}, Meta);
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary, meta = Meta}) ->
-    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Meta);
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string, meta = Meta}) ->
-    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Meta);
+do_to_schema(_TypeInfo, #sp_simple_type{type = binary} = Type) ->
+    apply_string_constraints(#{type => <<"string">>}, Type);
+do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary} = Type) ->
+    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Type);
+do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string} = Type) ->
+    apply_string_constraints(#{type => <<"string">>, minLength => 1}, Type);
 do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
     #{type => <<"integer">>, minimum => 1};
 do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
@@ -544,10 +543,10 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
         Doc
     ).
 
--spec apply_string_constraints(json_schema_object(), spectra:sp_type_meta()) ->
+-spec apply_string_constraints(json_schema_object(), spectra:sp_type()) ->
     json_schema_object().
-apply_string_constraints(Base, Meta) ->
-    Params = maps:get(parameters, Meta, undefined),
+apply_string_constraints(Base, Type) ->
+    Params = spectra_type:parameters(Type),
     apply_string_params(Base, Params).
 
 -spec apply_string_params(json_schema_object(), term()) -> json_schema_object().

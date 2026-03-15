@@ -71,33 +71,17 @@
 -type codec_key() :: {module(), sp_type_reference()}.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
--type codec_encode_opts() :: map().
--type codec_decode_opts() :: map().
--type codec_schema_opts() :: map().
+-type codec_encode_opts() :: term().
+-type codec_decode_opts() :: term().
+-type codec_schema_opts() :: term().
 -doc """
-Return type for codec `encode/4` callbacks.
-
-- `{ok, Encoded}` — encoding succeeded.
-- `{error, Errors}` — the data does not match the type handled by this codec.
-  Return this when the type reference is one your codec owns but the data is invalid.
-  Spectra uses this to correctly handle union alternatives — an `{error, _}` signals
-  a non-match and allows the next union alternative to be tried.
-- `continue` — this type or format is not handled by your codec at all;
-  spectra falls through to its default structural encoder.
+Return type for codec `encode/4` callbacks. See `spectra_codec`.
 """.
--type codec_encode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
+-type codec_encode_result() :: spectra_codec:encode_result().
 -doc """
-Return type for codec `decode/4` callbacks.
-
-- `{ok, Value}` — decoding succeeded.
-- `{error, Errors}` — the input does not match the type handled by this codec.
-  Return this when the type reference is one your codec owns but the input is invalid.
-  Spectra uses this to correctly handle union alternatives — an `{error, _}` signals
-  a non-match and allows the next union alternative to be tried.
-- `continue` — this type or format is not handled by your codec at all;
-  spectra falls through to its default structural decoder.
+Return type for codec `decode/4` callbacks. See `spectra_codec`.
 """.
--type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
+-type codec_decode_result() :: spectra_codec:decode_result().
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -439,20 +423,24 @@ schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
 schema(Format, TypeInfo, TypeAtom, Options) when is_atom(TypeAtom) ->
     TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
     schema(Format, TypeInfo, TypeRef, Options);
-schema(json_schema, TypeInfo, {type, _, _} = TypeRef, Options) ->
-    do_schema_ref(TypeInfo, TypeRef, Options);
-schema(json_schema, TypeInfo, {record, _} = TypeRef, Options) ->
-    do_schema_ref(TypeInfo, TypeRef, Options);
+schema(Format, TypeInfo, {type, _, _} = TypeRef, Options) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options);
+schema(Format, TypeInfo, {record, _} = TypeRef, Options) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options);
 schema(json_schema, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
     SchemaMap =
         case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(TypeInfo, TypeRef);
-            error -> spectra_json_schema:to_schema(TypeInfo, SpType)
+            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef);
+            error -> default_schema(json_schema, TypeInfo, SpType)
         end,
-    case proplists:get_value(pre_encoded, Options, false) of
-        true -> SchemaMap;
-        false -> json:encode(SchemaMap)
-    end.
+    finalize_schema(json_schema, spectra_json_schema:add_schema_version(SchemaMap), Options);
+schema(Format, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef);
+            error -> default_schema(Format, TypeInfo, SpType)
+        end,
+    finalize_schema(Format, SchemaMap, Options).
 
 -spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
 resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
@@ -467,27 +455,44 @@ resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
 resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_type_info:get_record(TypeInfo, RecordName).
 
--spec maybe_codec_schema(type_info(), sp_type_reference()) ->
-    spectra_json_schema:json_schema().
-maybe_codec_schema(TypeInfo, TypeRef) ->
+-spec maybe_codec_schema(atom(), type_info(), sp_type_reference()) ->
+    spectra_json_schema:json_schema_object().
+maybe_codec_schema(Format, TypeInfo, TypeRef) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
     case find_codec_for_ref(TypeInfo, TypeRef) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 3) of
                 true ->
                     Params = spectra_type:parameters(SpType),
-                    case M:schema(json_schema, TypeRef, Params) of
+                    case M:schema(Format, TypeRef, Params) of
                         continue ->
-                            spectra_json_schema:to_schema(TypeInfo, SpType);
+                            default_schema(Format, TypeInfo, SpType);
                         Schema ->
-                            Schema#{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}
+                            Schema
                     end;
                 false ->
                     erlang:error({schema_not_implemented, M, TypeRef})
             end;
         error ->
-            spectra_json_schema:to_schema(TypeInfo, SpType)
+            default_schema(Format, TypeInfo, SpType)
     end.
+
+-spec default_schema(atom(), type_info(), sp_type()) ->
+    spectra_json_schema:json_schema_object().
+default_schema(json_schema, TypeInfo, SpType) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType);
+default_schema(Format, _TypeInfo, _SpType) ->
+    erlang:error({unsupported_format, Format}).
+
+-spec finalize_schema(atom(), spectra_json_schema:json_schema(), [schema_option()]) ->
+    iodata() | dynamic().
+finalize_schema(json_schema, SchemaMap, Options) ->
+    case proplists:get_value(pre_encoded, Options, false) of
+        true -> SchemaMap;
+        false -> json:encode(SchemaMap)
+    end;
+finalize_schema(Format, _SchemaMap, _Options) ->
+    erlang:error({unsupported_format, Format}).
 
 -spec maybe_codec_decode(
     Format :: atom(),
@@ -533,13 +538,16 @@ maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options) ->
             default_encode(Format, TypeInfo, SpType, Data, Options)
     end.
 
--spec do_schema_ref(type_info(), sp_type_reference(), [schema_option()]) -> iodata() | map().
-do_schema_ref(TypeInfo, TypeRef, Options) ->
-    SchemaMap = maybe_codec_schema(TypeInfo, TypeRef),
-    case proplists:get_value(pre_encoded, Options, false) of
-        true -> SchemaMap;
-        false -> json:encode(SchemaMap)
-    end.
+-spec do_schema_ref(atom(), type_info(), sp_type_reference(), [schema_option()]) ->
+    iodata() | map().
+do_schema_ref(json_schema, TypeInfo, TypeRef, Options) ->
+    SchemaMap = spectra_json_schema:add_schema_version(
+        maybe_codec_schema(json_schema, TypeInfo, TypeRef)
+    ),
+    finalize_schema(json_schema, SchemaMap, Options);
+do_schema_ref(Format, TypeInfo, TypeRef, Options) ->
+    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef),
+    finalize_schema(Format, SchemaMap, Options).
 
 -spec type_ref_from_meta(sp_type()) -> {ok, sp_type_reference()} | error.
 type_ref_from_meta(SpType) ->

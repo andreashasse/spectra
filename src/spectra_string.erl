@@ -32,10 +32,10 @@ and converts it to the corresponding Erlang value.
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String) ->
+from_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, String) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
-    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_decode(Mod, string, Type, String) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
@@ -123,10 +123,10 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
+to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Data) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
-    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_encode(Mod, string, Type, Data) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
@@ -134,9 +134,9 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
         Result ->
             Result
     end;
-to_string(TypeInfo, #sp_rec_ref{record_name = N}, Data) ->
+to_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    RecordType = spectra_type_info:get_record(TypeInfo, N),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case spectra_codec:try_codec_encode(Mod, string, RecordType, Data) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result

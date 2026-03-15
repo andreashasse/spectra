@@ -9,45 +9,43 @@
 %% -----------------------------------------------------------------------
 
 schema_pattern_test() ->
-    Schema = spectra:schema(json_schema, string_constraints_module, {type, lowercase_binary, 0}),
-    ?assertMatch(
-        #{<<"type">> := <<"string">>, <<"pattern">> := <<"^[a-z]+$">>},
-        json:decode(iolist_to_binary(Schema))
-    ).
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, lowercase_binary, 0}, [
+        pre_encoded
+    ]),
+    ?assertMatch(#{type := <<"string">>, pattern := <<"^[a-z]+$">>}, Schema).
 
 schema_min_max_length_test() ->
-    Schema = spectra:schema(json_schema, string_constraints_module, {type, bounded_binary, 0}),
-    ?assertMatch(
-        #{<<"type">> := <<"string">>, <<"minLength">> := 2, <<"maxLength">> := 5},
-        json:decode(iolist_to_binary(Schema))
-    ).
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, bounded_binary, 0}, [
+        pre_encoded
+    ]),
+    ?assertMatch(#{type := <<"string">>, minLength := 2, maxLength := 5}, Schema).
 
 schema_format_test() ->
-    Schema = spectra:schema(json_schema, string_constraints_module, {type, date_binary, 0}),
-    ?assertMatch(
-        #{<<"type">> := <<"string">>, <<"format">> := <<"date">>},
-        json:decode(iolist_to_binary(Schema))
-    ).
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, date_binary, 0}, [
+        pre_encoded
+    ]),
+    ?assertMatch(#{type := <<"string">>, format := <<"date">>}, Schema).
 
 schema_nonempty_min_length_overrides_baseline_test() ->
-    Schema = spectra:schema(json_schema, string_constraints_module, {type, long_nonempty, 0}),
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, long_nonempty, 0}, [
+        pre_encoded
+    ]),
     %% min_length => 3 from params overrides the nonempty_binary baseline of 1
-    ?assertMatch(
-        #{<<"type">> := <<"string">>, <<"minLength">> := 3},
-        json:decode(iolist_to_binary(Schema))
-    ).
+    ?assertMatch(#{type := <<"string">>, minLength := 3}, Schema).
 
 schema_all_constraints_test() ->
-    Schema = spectra:schema(json_schema, string_constraints_module, {type, full_constraints, 0}),
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, full_constraints, 0}, [
+        pre_encoded
+    ]),
     ?assertMatch(
         #{
-            <<"type">> := <<"string">>,
-            <<"pattern">> := <<"^[a-z]+$">>,
-            <<"minLength">> := 2,
-            <<"maxLength">> := 10,
-            <<"format">> := <<"identifier">>
+            type := <<"string">>,
+            pattern := <<"^[a-z]+$">>,
+            minLength := 2,
+            maxLength := 10,
+            format := <<"identifier">>
         },
-        json:decode(iolist_to_binary(Schema))
+        Schema
     ).
 
 %% -----------------------------------------------------------------------
@@ -161,3 +159,47 @@ unknown_constraint_key_crashes_test() ->
         code:delete(bad_constraints_module),
         file:delete(TempFile)
     end.
+
+%% -----------------------------------------------------------------------
+%% Encode — constraints are validated on encode, not just decode
+%% -----------------------------------------------------------------------
+
+encode_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"hello">>},
+        spectra:encode(json, string_constraints_module, {type, lowercase_binary, 0}, <<"hello">>, [
+            pre_encoded
+        ])
+    ).
+
+encode_pattern_no_match_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(json, string_constraints_module, {type, lowercase_binary, 0}, <<"Hello">>, [
+            pre_encoded
+        ])
+    ).
+
+encode_too_short_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(json, string_constraints_module, {type, bounded_binary, 0}, <<"a">>, [
+            pre_encoded
+        ])
+    ).
+
+encode_too_long_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(
+            json, string_constraints_module, {type, bounded_binary, 0}, <<"toolong">>, [pre_encoded]
+        )
+    ).
+
+encode_within_bounds_test() ->
+    ?assertEqual(
+        {ok, <<"abc">>},
+        spectra:encode(json, string_constraints_module, {type, bounded_binary, 0}, <<"abc">>, [
+            pre_encoded
+        ])
+    ).
