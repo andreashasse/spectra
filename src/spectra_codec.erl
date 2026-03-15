@@ -21,30 +21,20 @@ static, per-type configuration to your codec instead.
 
 -include("../include/spectra_internal.hrl").
 
-%% Return type for codec encode/4 callbacks:
-%% {ok, Encoded} | {error, Errors} | continue
--type encode_result() :: {ok, dynamic()} | {error, [spectra:error()]} | continue.
-
-%% Return type for codec decode/4 callbacks:
-%% {ok, Value} | {error, Errors} | continue
--type decode_result() :: {ok, dynamic()} | {error, [spectra:error()]} | continue.
-
--export_type([encode_result/0, decode_result/0]).
-
 -callback encode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
     Params :: term()
 ) ->
-    encode_result().
+    spectra:codec_encode_result().
 -callback decode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
     Params :: term()
 ) ->
-    decode_result().
+    spectra:codec_decode_result().
 -callback schema(
     Format :: atom(), TypeRef :: spectra:sp_type_reference(), Params :: term()
 ) ->

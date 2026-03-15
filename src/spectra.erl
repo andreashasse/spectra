@@ -71,9 +71,9 @@
 -type codec_key() :: {module(), sp_type_reference()}.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
--type codec_encode_opts() :: term().
--type codec_decode_opts() :: term().
--type codec_schema_opts() :: term().
+-type codec_encode_opts() :: dynamic().
+-type codec_decode_opts() :: dynamic().
+-type codec_schema_opts() :: dynamic().
 -doc """
 Return type for codec `encode/4` callbacks. See `spectra_codec`.
 """.
