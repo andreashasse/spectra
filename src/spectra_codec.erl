@@ -19,8 +19,6 @@ variable bindings. Use `type_parameters` in the `-spectra` attribute to pass
 static, per-type configuration to your codec instead.
 """.
 
--include("../include/spectra_internal.hrl").
-
 -callback encode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),

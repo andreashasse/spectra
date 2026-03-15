@@ -398,7 +398,7 @@ try_generate_enum_schema(Types, TypeInfo) ->
             ),
             %% Now try to extract literal values from all expanded types
             Enums = spectra_util:map_until_error(
-                fun(Type) -> extract_literal_value(Type) end,
+                fun extract_literal_value/1,
                 ExpandedTypes
             ),
             case Enums of

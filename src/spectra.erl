@@ -77,11 +77,11 @@
 -doc """
 Return type for codec `encode/4` callbacks. See `spectra_codec`.
 """.
--type codec_encode_result() :: spectra_codec:encode_result().
+-type codec_encode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 -doc """
 Return type for codec `decode/4` callbacks. See `spectra_codec`.
 """.
--type codec_decode_result() :: spectra_codec:decode_result().
+-type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
