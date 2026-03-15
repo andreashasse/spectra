@@ -37,7 +37,7 @@ clear(Module) ->
     spectra:type_info().
 cached_type_info(Module, true) ->
     Vsn = module_vsn(Module),
-    TypeInfoFun = fun() -> set_module_meta(Module, apply(Module, ?TYPE_INFO_FUNCTION, [])) end,
+    TypeInfoFun = fun() -> apply(Module, ?TYPE_INFO_FUNCTION, []) end,
     do_cached_type_info(Module, Vsn, TypeInfoFun);
 cached_type_info(Module, false) ->
     Vsn = module_vsn(Module),
@@ -57,7 +57,7 @@ do_cached_type_info(Module, Vsn, TypeInfoFun) ->
 -spec fetch_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
 fetch_type_info(Module, true) ->
-    set_module_meta(Module, apply(Module, ?TYPE_INFO_FUNCTION, []));
+    apply(Module, ?TYPE_INFO_FUNCTION, []);
 fetch_type_info(Module, false) ->
     spectra_abstract_code:types_in_module(Module).
 
@@ -74,15 +74,6 @@ pers_type(Module) ->
     ok.
 pers_types_set(Module, Vsn, TypeInfo) ->
     persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
-
--spec set_module_meta(Module :: module(), TypeInfo :: spectra:type_info()) ->
-    spectra:type_info().
-set_module_meta(Module, TypeInfo) ->
-    Attrs = Module:module_info(attributes),
-    IsBehaviour = lists:member(
-        spectra_codec, lists:flatten(proplists:get_all_values(behaviour, Attrs))
-    ),
-    spectra_type_info:set_implements_codec(TypeInfo, IsBehaviour).
 
 -spec ensure_module(Module :: module()) -> boolean().
 ensure_module(Module) ->

@@ -8,7 +8,7 @@
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([set_implements_codec/2, find_codec/2]).
+-export([find_codec/2]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -66,10 +66,6 @@ add_function(#type_info{functions = Functions} = TypeInfo, Name, Arity, FuncSpec
     {ok, [spectra:sp_function_spec()]} | error.
 find_function(#type_info{functions = Functions}, Name, Arity) ->
     maps:find({Name, Arity}, Functions).
-
--spec set_implements_codec(type_info(), boolean()) -> type_info().
-set_implements_codec(TypeInfo, ImplementsCodec) ->
-    TypeInfo#type_info{implements_codec = ImplementsCodec}.
 
 -spec find_local_codec(type_info()) -> {ok, module()} | error.
 find_local_codec(#type_info{implements_codec = true, module = M}) -> {ok, M};
