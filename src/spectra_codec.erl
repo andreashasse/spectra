@@ -19,6 +19,8 @@ variable bindings. Use `type_parameters` in the `-spectra` attribute to pass
 static, per-type configuration to your codec instead.
 """.
 
+-include("../include/spectra_internal.hrl").
+
 -callback encode(
     Format :: atom(),
     TypeRef :: spectra:sp_type_reference(),
@@ -39,3 +41,58 @@ static, per-type configuration to your codec instead.
     dynamic().
 
 -optional_callbacks([schema/3]).
+
+-export([
+    try_codec_encode/4,
+    try_codec_decode/4,
+    try_codec_schema/3
+]).
+
+-spec try_codec_encode(
+    Mod :: module(),
+    Format :: atom(),
+    Type :: spectra:sp_type(),
+    Data :: dynamic()
+) -> spectra:codec_encode_result().
+try_codec_encode(Mod, Format, Type, Data) ->
+    #{name := TypeReference} = spectra_type:get_meta(Type),
+    case spectra_type_info:find_codec(Mod, TypeReference) of
+        {ok, M} ->
+            M:encode(Format, TypeReference, Data, spectra_type:parameters(Type));
+        error ->
+            continue
+    end.
+
+-spec try_codec_decode(
+    Mod :: module(),
+    Format :: atom(),
+    Type :: spectra:sp_type(),
+    Data :: dynamic()
+) -> spectra:codec_decode_result().
+try_codec_decode(Mod, Format, Type, Data) ->
+    #{name := TypeReference} = spectra_type:get_meta(Type),
+    case spectra_type_info:find_codec(Mod, TypeReference) of
+        {ok, M} ->
+            M:decode(Format, TypeReference, Data, spectra_type:parameters(Type));
+        error ->
+            continue
+    end.
+
+-spec try_codec_schema(
+    Mod :: module(),
+    Format :: atom(),
+    Type :: spectra:sp_type()
+) -> dynamic() | continue.
+try_codec_schema(Mod, Format, Type) ->
+    #{name := TypeReference} = spectra_type:get_meta(Type),
+    case spectra_type_info:find_codec(Mod, TypeReference) of
+        {ok, M} ->
+            case erlang:function_exported(M, schema, 3) of
+                true ->
+                    M:schema(Format, TypeReference, spectra_type:parameters(Type));
+                false ->
+                    erlang:error({schema_not_implemented, M, TypeReference})
+            end;
+        error ->
+            continue
+    end.

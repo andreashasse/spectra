@@ -839,16 +839,15 @@ collect_parameter_refs(Parameters) ->
 filter_typeref(Schema, Module) ->
     TypeInfo = spectra_module_types:get(Module),
     NormalizedSchema = spectra_util:normalize_type_ref(TypeInfo, Schema),
-    case spectra_type:type_reference(NormalizedSchema) of
-        {true, TypeRef} ->
+    case NormalizedSchema of
+        {type, _, _} = TypeRef ->
             {true, {Module, TypeRef}};
-        false ->
-            case NormalizedSchema of
-                #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
-                    {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
-                _ ->
-                    false
-            end
+        {record, _} = TypeRef ->
+            {true, {Module, TypeRef}};
+        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+            {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
+        _ ->
+            false
     end.
 
 -spec generate_components([{module(), spectra:sp_type_reference()}]) ->

@@ -19,37 +19,23 @@ to_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Dat
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(Type),
-            case M:encode(json, {type, TypeName, Arity}, Data, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    to_json(TypeInfo, TypeWithoutVars, Data);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_encode(Mod, json, Type, Data) of
+        continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_json(TypeInfo, TypeWithoutVars, Data)
+            to_json(TypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
     end;
 to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RemoteType),
-            case M:encode(json, {type, TypeName, TypeArity}, Data, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-                    to_json(RemoteTypeInfo, TypeWithoutVars, Data);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_encode(Module, json, RemoteType, Data) of
+        continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            to_json(RemoteTypeInfo, TypeWithoutVars, Data)
+            to_json(RemoteTypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
     end;
 to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
     record_to_json(TypeInfo, RecordInfo, Record, []);
@@ -62,15 +48,9 @@ to_json(
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_type_info:find_codec_for_record(Mod, RecordName) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RecordType),
-            case M:encode(json, {record, RecordName}, Record, Params) of
-                continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs);
-                Result -> Result
-            end;
-        error ->
-            record_to_json(TypeInfo, RecordType, Record, TypeArgs)
+    case spectra_codec:try_codec_encode(Mod, json, RecordType, Record) of
+        continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs);
+        Result -> Result
     end;
 to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
     NotSupported =:= pid orelse
@@ -441,37 +421,23 @@ do_from_json(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(Type),
-            case M:decode(json, {type, TypeName, Arity}, Json, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    do_from_json(TypeInfo, TypeWithoutVars, Json);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_decode(Mod, json, Type, Json) of
+        continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_from_json(TypeInfo, TypeWithoutVars, Json)
+            do_from_json(TypeInfo, TypeWithoutVars, Json);
+        Result ->
+            Result
     end;
 do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Json) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RemoteType),
-            case M:decode(json, {type, TypeName, TypeArity}, Json, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-                    do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_decode(Module, json, RemoteType, Json) of
+        continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            do_from_json(RemoteTypeInfo, TypeWithoutVars, Json)
+            do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
+        Result ->
+            Result
     end;
 do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
     record_from_json(TypeInfo, Rec, Json, []);
@@ -484,15 +450,9 @@ do_from_json(
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_type_info:find_codec_for_record(Mod, RecordName) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RecordType),
-            case M:decode(json, {record, RecordName}, Json, Params) of
-                continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
-                Result -> Result
-            end;
-        error ->
-            record_from_json(TypeInfo, RecordType, Json, TypeArgs)
+    case spectra_codec:try_codec_decode(Mod, json, RecordType, Json) of
+        continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
+        Result -> Result
     end;
 do_from_json(
     TypeInfo, #sp_map{struct_name = StructName} = Type, Json

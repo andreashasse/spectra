@@ -36,50 +36,30 @@ from_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, String
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(Type),
-            case M:decode(string, {type, N, Arity}, String, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    from_string(TypeInfo, TypeWithoutVars, String);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_decode(Mod, string, Type, String) of
+        continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            from_string(TypeInfo, TypeWithoutVars, String)
+            from_string(TypeInfo, TypeWithoutVars, String);
+        Result ->
+            Result
     end;
 from_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, String) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_type_info:find_codec_for_record(Mod, RecordName) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RecordType),
-            case M:decode(string, {record, RecordName}, String, Params) of
-                continue -> erlang:error({type_not_supported, RecordType});
-                Result -> Result
-            end;
-        error ->
-            erlang:error({type_not_supported, RecordType})
+    case spectra_codec:try_codec_decode(Mod, string, RecordType, String) of
+        continue -> erlang:error({type_not_supported, RecordType});
+        Result -> Result
     end;
 from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RemoteType),
-            case M:decode(string, {type, TypeName, TypeArity}, String, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-                    from_string(RemoteTypeInfo, TypeWithoutVars, String);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_decode(Module, string, RemoteType, String) of
+        continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            from_string(RemoteTypeInfo, TypeWithoutVars, String)
+            from_string(RemoteTypeInfo, TypeWithoutVars, String);
+        Result ->
+            Result
     end;
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
@@ -147,50 +127,30 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, Data) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(Type),
-            case M:encode(string, {type, N, Arity}, Data, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                    to_string(TypeInfo, TypeWithoutVars, Data);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_encode(Mod, string, Type, Data) of
+        continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_string(TypeInfo, TypeWithoutVars, Data)
+            to_string(TypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
     end;
 to_string(TypeInfo, #sp_rec_ref{record_name = N}, Data) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    case spectra_type_info:find_codec_for_record(Mod, N) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RecordType),
-            case M:encode(string, {record, N}, Data, Params) of
-                continue -> erlang:error({type_not_supported, RecordType});
-                Result -> Result
-            end;
-        error ->
-            erlang:error({type_not_supported, RecordType})
+    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data) of
+        continue -> erlang:error({type_not_supported, RecordType});
+        Result -> Result
     end;
 to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_type_info:find_codec(Module, TypeName, TypeArity) of
-        {ok, M} ->
-            Params = spectra_type:parameters(RemoteType),
-            case M:encode(string, {type, TypeName, TypeArity}, Data, Params) of
-                continue ->
-                    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-                    to_string(RemoteTypeInfo, TypeWithoutVars, Data);
-                Result ->
-                    Result
-            end;
-        error ->
+    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data) of
+        continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            to_string(RemoteTypeInfo, TypeWithoutVars, Data)
+            to_string(RemoteTypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
     end;
 to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse

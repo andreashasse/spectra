@@ -4,7 +4,6 @@
 
 -export([
     can_be_missing/2,
-    type_reference/1,
     get_meta/1,
     set_meta/2,
     parameters/1,
@@ -49,14 +48,6 @@ can_be_missing(TypeInfo, Type) ->
         _ ->
             false
     end.
-
--spec type_reference(spectra:sp_type_or_ref()) -> {true, spectra:sp_type_reference()} | false.
-type_reference({type, _, _} = Type) ->
-    {true, Type};
-type_reference({record, _} = Type) ->
-    {true, Type};
-type_reference(_) ->
-    false.
 
 -spec get_meta(spectra:sp_type()) -> spectra:sp_type_meta().
 get_meta(#sp_simple_type{meta = Meta}) -> Meta;

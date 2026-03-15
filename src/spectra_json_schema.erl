@@ -72,66 +72,33 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    Params = spectra_type:parameters(Type),
-    case spectra_type_info:find_codec(Mod, N, Arity) of
-        {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
-                true ->
-                    case M:schema(json_schema, {type, N, Arity}, Params) of
-                        continue ->
-                            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-                            do_to_schema(TypeInfo, TypeWithoutVars);
-                        Schema ->
-                            Schema
-                    end;
-                false ->
-                    erlang:error({schema_not_implemented, M, {type, N, Arity}})
-            end;
-        error ->
+    case spectra_codec:try_codec_schema(Mod, json_schema, Type) of
+        continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_to_schema(TypeInfo, TypeWithoutVars)
+            do_to_schema(TypeInfo, TypeWithoutVars);
+        Schema ->
+            Schema
     end;
 do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}}) ->
     Arity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Mod),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-    TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-    case spectra_type_info:find_codec(Mod, TypeName, Arity) of
-        {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
-                true ->
-                    Params = spectra_type:parameters(RemoteType),
-                    case M:schema(json_schema, {type, TypeName, Arity}, Params) of
-                        continue -> do_to_schema(RemoteTypeInfo, TypeWithoutVars);
-                        Schema -> Schema
-                    end;
-                false ->
-                    erlang:error({schema_not_implemented, M, {type, TypeName, Arity}})
-            end;
-        error ->
-            do_to_schema(RemoteTypeInfo, TypeWithoutVars)
+    case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType) of
+        continue ->
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
+            do_to_schema(RemoteTypeInfo, TypeWithoutVars);
+        Schema ->
+            Schema
     end;
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = N}) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    Params = spectra_type:parameters(RecordType),
-    case spectra_type_info:find_codec_for_record(Mod, N) of
-        {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
-                true ->
-                    case M:schema(json_schema, {record, N}, Params) of
-                        continue ->
-                            Schema = record_to_schema_internal(TypeInfo, RecordType),
-                            merge_type_doc_into_schema(TypeInfo, RecordType, Schema);
-                        Schema ->
-                            Schema
-                    end;
-                false ->
-                    erlang:error({schema_not_implemented, M, {record, N}})
-            end;
-        error ->
+    case spectra_codec:try_codec_schema(Mod, json_schema, RecordType) of
+        continue ->
             Schema = record_to_schema_internal(TypeInfo, RecordType),
-            merge_type_doc_into_schema(TypeInfo, RecordType, Schema)
+            merge_type_doc_into_schema(TypeInfo, RecordType, Schema);
+        Schema ->
+            Schema
     end;
 %% Simple types
 do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->

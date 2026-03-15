@@ -85,7 +85,7 @@ Return type for codec `encode/4` callbacks.
 - `continue` — this type or format is not handled by your codec at all;
   spectra falls through to its default structural encoder.
 """.
--type codec_encode_result() :: {ok, term()} | {error, [error()]} | continue.
+-type codec_encode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 -doc """
 Return type for codec `decode/4` callbacks.
 
@@ -549,12 +549,9 @@ type_ref_from_meta(SpType) ->
     end.
 
 -spec find_codec_for_ref(type_info(), sp_type_reference()) -> {ok, module()} | error.
-find_codec_for_ref(TypeInfo, {type, TypeName, TypeArity}) ->
+find_codec_for_ref(TypeInfo, TypeRef) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    spectra_type_info:find_codec(Mod, TypeName, TypeArity);
-find_codec_for_ref(TypeInfo, {record, RecordName}) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
-    spectra_type_info:find_codec_for_record(Mod, RecordName).
+    spectra_type_info:find_codec(Mod, TypeRef).
 
 json_decode(Binary) ->
     try
