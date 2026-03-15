@@ -68,44 +68,56 @@ create_typeinfo_with_known_types(Type) ->
         {my_int_type, 0, #sp_simple_type{type = integer}}
     ],
     Records = [
-        {my_record, #sp_rec{
-            name = my_record,
-            arity = 3,
-            fields = [
-                #sp_rec_field{
-                    name = id,
-                    binary_name = <<"id">>,
-                    type = #sp_simple_type{type = integer}
+        {my_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = my_record,
+                    arity = 3,
+                    fields = [
+                        #sp_rec_field{
+                            name = id,
+                            binary_name = <<"id">>,
+                            type = #sp_simple_type{type = integer}
+                        },
+                        #sp_rec_field{
+                            name = name,
+                            binary_name = <<"name">>,
+                            type = #sp_simple_type{type = string}
+                        }
+                    ]
                 },
-                #sp_rec_field{
-                    name = name,
-                    binary_name = <<"name">>,
-                    type = #sp_simple_type{type = string}
-                }
-            ]
-        }},
-        {user_record, #sp_rec{
-            name = user_record,
-            arity = 2,
-            fields = [
-                #sp_rec_field{
-                    name = value,
-                    binary_name = <<"value">>,
-                    type = #sp_simple_type{type = integer}
-                }
-            ]
-        }},
-        {data_record, #sp_rec{
-            name = data_record,
-            arity = 2,
-            fields = [
-                #sp_rec_field{
-                    name = data,
-                    binary_name = <<"data">>,
-                    type = #sp_simple_type{type = binary}
-                }
-            ]
-        }}
+                #{name => {record, my_record}}
+            )},
+        {user_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = user_record,
+                    arity = 2,
+                    fields = [
+                        #sp_rec_field{
+                            name = value,
+                            binary_name = <<"value">>,
+                            type = #sp_simple_type{type = integer}
+                        }
+                    ]
+                },
+                #{name => {record, user_record}}
+            )},
+        {data_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = data_record,
+                    arity = 2,
+                    fields = [
+                        #sp_rec_field{
+                            name = data,
+                            binary_name = <<"data">>,
+                            type = #sp_simple_type{type = binary}
+                        }
+                    ]
+                },
+                #{name => {record, data_record}}
+            )}
     ],
 
     TypeInfo0 = spectra_type_info:new(?MODULE, false),
