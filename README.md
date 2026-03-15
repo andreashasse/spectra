@@ -247,7 +247,6 @@ The `-spectra()` attribute accepts a `type_parameters` key whose value is passed
 For example, a prefixed-ID codec where each type carries its own expected prefix:
 
 ```erlang
-%% Codec module
 -module(prefixed_id_codec).
 -behaviour(spectra_codec).
 
@@ -255,8 +254,15 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 
 %% This codec handles any binary type whose type_parameters is a prefix binary.
 %% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
--type prefixed_id() :: binary().
--export_type([prefixed_id/0]).
+
+%% Types defined here are automatically covered by this codec (no app env needed).
+-spectra(#{type_parameters => <<"user:">>}).
+-type user_id() :: binary().
+
+-spectra(#{type_parameters => <<"org:">>}).
+-type org_id() :: binary().
+
+-export_type([user_id/0, org_id/0]).
 
 %% Strips the prefix on decode, re-attaches it on encode.
 decode(json, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
@@ -280,28 +286,16 @@ schema(_Format, _TypeRef, _Params) ->
 ```
 
 ```erlang
-%% Consuming module — one codec, different prefix per type
-%% Register the codec via the app environment (see "Types from Other Modules" below).
--module(my_ids).
-
--spectra(#{type_parameters => <<"user:">>}).
--type user_id() :: prefixed_id:.
-
--spectra(#{type_parameters => <<"org:">>}).
--type org_id() :: binary().
-```
-
-```erlang
-spectra:decode(json, my_ids, user_id, <<"user:abc123">>).
+spectra:decode(json, prefixed_id_codec, user_id, <<"user:abc123">>).
 %% => {ok, <<"abc123">>}
 
-spectra:decode(json, my_ids, user_id, <<"org:abc123">>).
+spectra:decode(json, prefixed_id_codec, user_id, <<"org:abc123">>).
 %% => {error, [#sp_error{...}]}
 
-spectra:encode(json, my_ids, user_id, <<"abc123">>).
+spectra:encode(json, prefixed_id_codec, user_id, <<"abc123">>).
 %% => {ok, <<"user:abc123">>}
 
-spectra:schema(json_schema, my_ids, org_id).
+spectra:schema(json_schema, prefixed_id_codec, org_id).
 %% => #{type => <<"string">>, pattern => <<"^org:">>}
 ```
 
