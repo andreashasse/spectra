@@ -41,10 +41,10 @@ types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
         {ok, {Module, [{abstract_code, {_, Forms}}]}} ->
             NamedTypes = process_forms_with_docs(Forms),
-            IsBehaviour = lists:member(
-                spectra_codec,
-                [B || {attribute, _, behaviour, B} <- Forms]
-            ),
+            Behaviours = [B || {attribute, _, behaviour, B} <- Forms],
+            IsBehaviour =
+                lists:member(spectra_codec, Behaviours) orelse
+                    lists:member('Elixir.Spectral.Codec', Behaviours),
             build_type_info(Module, IsBehaviour, NamedTypes);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
