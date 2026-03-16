@@ -71,9 +71,6 @@
 -type codec_key() :: {module(), sp_type_reference()}.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
--type codec_encode_opts() :: dynamic().
--type codec_decode_opts() :: dynamic().
--type codec_schema_opts() :: dynamic().
 -doc """
 Return type for codec `encode/4` callbacks. See `spectra_codec`.
 """.
@@ -131,9 +128,6 @@ Return type for codec `decode/4` callbacks. See `spectra_codec`.
     encode_option/0,
     binary_string_decode_opts/0,
     binary_string_encode_opts/0,
-    codec_encode_opts/0,
-    codec_decode_opts/0,
-    codec_schema_opts/0,
     codec_encode_result/0,
     codec_decode_result/0,
     codec_key/0,
@@ -445,13 +439,7 @@ schema(Format, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
 -spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
 resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    ArgNames =
-        case Type of
-            #sp_type_with_variables{vars = Vars} -> Vars;
-            _ -> []
-        end,
-    NamedTypes = maps:from_list(lists:zip(ArgNames, [])),
-    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes);
+    spectra_util:type_replace_vars(TypeInfo, Type, #{});
 resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_type_info:get_record(TypeInfo, RecordName).
 
