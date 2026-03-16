@@ -447,9 +447,10 @@ spectra_openapi:response_with_header(Response, HeaderName, Module, HeaderSpec) -
 spectra_openapi:add_response(Endpoint, Response) ->
     endpoint_spec().
 
-%% Add request body
+%% Add request body (content type defaults to application/json)
 spectra_openapi:with_request_body(Endpoint, Module, Schema) ->
     endpoint_spec().
+%% Add request body with a custom content type (must be a binary)
 spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType :: binary()) ->
     endpoint_spec().
 
@@ -505,7 +506,12 @@ The `ParameterSpec` map in `with_parameter/3` supports the following fields:
 - `required` — whether the parameter is required (boolean, required)
 - `schema` — type reference or direct type (`spectra:sp_type_or_ref()`, required)
 
-`description` and `deprecated` are sourced automatically from the `-spectra()` annotation on the schema type.
+For both `with_request_body` and `with_parameter`, `description` and `deprecated` are sourced automatically from the `-spectra()` annotation on the schema type. There is no parameter for overriding them at the call site — annotate the type instead:
+
+```erlang
+-spectra(#{description => <<"User to create">>, deprecated => false}).
+-type create_user_request() :: #create_user_request{}.
+```
 
 The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
 - `title` — API title (binary, required)

@@ -392,9 +392,26 @@ response_with_header(Response, HeaderName, Module, HeaderSpec) when
 Adds a request body to an endpoint.
 
 This function sets the request body schema for the endpoint.
-Typically used with POST, PUT, and PATCH endpoints.
+Typically used with POST, PUT, and PATCH endpoints. The content type defaults
+to `application/json`. Use `with_request_body/4` to override it.
 
-Use with_request_body/4 to also set a custom content type.
+The `description` and `deprecated` fields in the generated OpenAPI
+`requestBody` object are sourced automatically from the `-spectra()`
+attribute on the schema type — there is no parameter for overriding them
+on this call.
+
+### Example
+
+```erlang
+-spectra(#{description => <<"User to create">>}).
+-type create_user_request() :: #create_user_request{}.
+
+Endpoint = spectra_openapi:with_request_body(
+    spectra_openapi:endpoint(post, <<"/users">>),
+    my_module,
+    create_user_request
+).
+```
 
 ### Returns
 Updated endpoint map with request body set
@@ -422,7 +439,24 @@ with_request_body(Endpoint, Module, Schema) when
 -doc """
 Adds a request body to an endpoint with a custom content type.
 
-Like with_request_body/3 but overrides the default content type (application/json).
+Like `with_request_body/3` but overrides the default content type
+(`application/json`). `ContentType` must be a binary such as
+`<<"application/xml">>`.
+
+The `description` and `deprecated` fields in the generated OpenAPI
+`requestBody` object are sourced automatically from the `-spectra()`
+attribute on the schema type.
+
+### Example
+
+```erlang
+Endpoint = spectra_openapi:with_request_body(
+    spectra_openapi:endpoint(post, <<"/upload">>),
+    my_module,
+    upload_request,
+    <<"application/octet-stream">>
+).
+```
 
 ### Returns
 Updated endpoint map with request body set
@@ -430,7 +464,9 @@ Updated endpoint map with request body set
 -doc #{
     params =>
         #{
-            "ContentType" => "Content type for the request body (e.g., \"application/xml\")",
+            "ContentType" =>
+                "Content type binary for the request body (e.g., <<\"application/xml\">>). "
+                "Must be a binary — passing a map will cause a function_clause error.",
             "Endpoint" => "Endpoint map to add the request body to",
             "Module" => "Module containing the type definition",
             "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
