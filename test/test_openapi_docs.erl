@@ -107,6 +107,100 @@ openapi_parameter_description_follows_remote_type_test() ->
     Param = path_param_for_schema(#sp_remote_type{mfargs = {?MODULE, user_id, []}}),
     ?assertMatch(#{<<"description">> := <<"A user's unique identifier">>}, Param).
 
+%% When the response body is an sp_remote_type{}, it should be registered as a
+%% component and referenced via $ref, with its full documentation preserved.
+openapi_response_body_remote_type_uses_ref_test() ->
+    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}},
+    Response = spectra_openapi:response(200, <<"User found">>),
+    ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, RemoteType),
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/users/{id}">>), ResponseWithBody
+    ),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    %% Response should use $ref, not inline
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/users/{id}">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{
+                            <<"200">> := #{
+                                <<"content">> := #{
+                                    <<"application/json">> := #{
+                                        <<"schema">> := #{
+                                            '$ref' := <<"#/components/schemas/UserType0">>
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        Spec
+    ),
+    %% Component should include full documentation
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"UserType0">> := #{
+                        title := <<"User">>,
+                        description := <<"A user in the system">>
+                    }
+                }
+            }
+        },
+        Spec
+    ).
+
+%% When the request body is an sp_remote_type{}, it should be registered as a
+%% component and referenced via $ref.
+openapi_request_body_remote_type_uses_ref_test() ->
+    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}},
+    Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
+    Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, RemoteType),
+    Endpoint = spectra_openapi:add_response(
+        Endpoint2, spectra_openapi:response(201, <<"Created">>)
+    ),
+    Metadata = #{title => <<"API">>, version => <<"1.0">>},
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/users">> := #{
+                    <<"post">> := #{
+                        <<"requestBody">> := #{
+                            <<"content">> := #{
+                                <<"application/json">> := #{
+                                    <<"schema">> := #{
+                                        '$ref' := <<"#/components/schemas/UserType0">>
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        Spec
+    ),
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"UserType0">> := #{
+                        title := <<"User">>,
+                        description := <<"A user in the system">>
+                    }
+                }
+            }
+        },
+        Spec
+    ).
+
 openapi_includes_documentation_test() ->
     %% Create a simple endpoint with a user response
     Response = spectra_openapi:response(200, <<"User found">>),

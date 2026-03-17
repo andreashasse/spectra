@@ -715,6 +715,12 @@ generate_response(#{description := Description} = ResponseSpec) when
                                             <<"#/components/schemas/", ItemSchemaName/binary>>
                                     }
                             };
+                        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+                            RemoteArity = length(RemoteArgs),
+                            SchemaName = schema_component_name(
+                                RemoteMod, {type, RemoteName, RemoteArity}
+                            ),
+                            #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -768,6 +774,10 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
                 SchemaName = schema_component_name(Module, {record, Name}),
+                #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
+            #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+                RemoteArity = length(RemoteArgs),
+                SchemaName = schema_component_name(RemoteMod, {type, RemoteName, RemoteArity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -887,6 +897,8 @@ filter_typeref(Schema, Module) ->
             {true, {Module, TypeRef}};
         #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
             {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
+        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+            {true, {RemoteMod, {type, RemoteName, length(RemoteArgs)}}};
         _ ->
             false
     end.
