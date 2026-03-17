@@ -936,6 +936,19 @@ type_doc(TypeInfo, {type, Name, Arity}) ->
     type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity));
 type_doc(TypeInfo, {record, Name}) ->
     type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name));
+type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, variables = Args} = Ref) ->
+    case spectra_type:get_meta(Ref) of
+        #{doc := Doc} -> maps:remove(examples_function, Doc);
+        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, length(Args)))
+    end;
+type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, Args}} = Ref) ->
+    case spectra_type:get_meta(Ref) of
+        #{doc := Doc} ->
+            maps:remove(examples_function, Doc);
+        _ ->
+            RemoteTypeInfo = spectra_module_types:get(Mod),
+            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, length(Args)))
+    end;
 type_doc(_TypeInfo, Type) ->
     case spectra_type:get_meta(Type) of
         #{doc := Doc} -> maps:remove(examples_function, Doc);

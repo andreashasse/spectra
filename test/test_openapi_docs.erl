@@ -1,6 +1,7 @@
 -module(test_openapi_docs).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 -compile([nowarn_unused_type]).
 
@@ -27,36 +28,37 @@
 
 -type undocumented_id() :: pos_integer().
 
+%% Alias with no annotation — description should be inherited from user_id
+-type user_id_alias() :: user_id().
+
+-spectra(#{description => <<"A documented alias">>}).
+-type documented_alias() :: user_id().
+
 user_examples() ->
     [
         #user{id = 1, name = <<"Alice">>},
         #user{id = 2, name = <<"Bob">>}
     ].
 
-openapi_parameter_description_from_type_test() ->
-    Param = #{name => <<"id">>, in => path, required => true, schema => {type, user_id, 0}},
+%% Navigates nested maps by applying maps:get for each key in sequence.
+map_gets(Keys, Map) ->
+    lists:foldl(fun maps:get/2, Map, Keys).
+
+%% Builds a single-parameter GET endpoint, generates the spec, and returns the
+%% rendered parameter map for the given schema.
+path_param_for_schema(Schema) ->
+    Param = #{name => <<"id">>, in => path, required => true, schema => Schema},
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
     Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
     Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
     {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
-    ?assertMatch(
-        #{
-            <<"paths">> := #{
-                <<"/users/{id}">> := #{
-                    <<"get">> := #{
-                        <<"parameters">> := [
-                            #{
-                                <<"name">> := <<"id">>,
-                                <<"description">> := <<"A user's unique identifier">>
-                            }
-                        ]
-                    }
-                }
-            }
-        },
-        Spec
-    ).
+    [RenderedParam] = map_gets([<<"paths">>, <<"/users/{id}">>, <<"get">>, <<"parameters">>], Spec),
+    RenderedParam.
+
+openapi_parameter_description_from_type_test() ->
+    Param = path_param_for_schema({type, user_id, 0}),
+    ?assertMatch(#{<<"description">> := <<"A user's unique identifier">>}, Param).
 
 openapi_request_body_description_from_type_test() ->
     Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
@@ -84,18 +86,26 @@ openapi_request_body_description_from_type_test() ->
     ).
 
 openapi_no_description_when_type_has_none_test() ->
-    %% undocumented_id type has no spectra doc, so no description should appear
-    Param = #{name => <<"id">>, in => path, required => true, schema => {type, undocumented_id, 0}},
-    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
-    Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
-    Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
-    Metadata = #{title => <<"API">>, version => <<"1.0">>},
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
-    [Parameter] = maps:get(
-        <<"parameters">>,
-        maps:get(<<"get">>, maps:get(<<"/users/{id}">>, maps:get(<<"paths">>, Spec)))
-    ),
-    ?assertNot(maps:is_key(<<"description">>, Parameter)).
+    Param = path_param_for_schema({type, undocumented_id, 0}),
+    ?assertNot(maps:is_key(<<"description">>, Param)).
+
+%% When a type alias has no -spectra annotation, type_doc follows the
+%% sp_user_type_ref to the referenced type and returns its description.
+openapi_parameter_description_follows_user_type_ref_test() ->
+    Param = path_param_for_schema({type, user_id_alias, 0}),
+    ?assertMatch(#{<<"description">> := <<"A user's unique identifier">>}, Param).
+
+%% When a type alias has its own -spectra annotation, type_doc uses the local
+%% annotation rather than following the reference.
+openapi_parameter_description_uses_local_alias_doc_test() ->
+    Param = path_param_for_schema({type, documented_alias, 0}),
+    ?assertMatch(#{<<"description">> := <<"A documented alias">>}, Param).
+
+%% When the schema is an sp_remote_type{} with no local meta, type_doc follows
+%% the remote reference and returns the description from the remote module.
+openapi_parameter_description_follows_remote_type_test() ->
+    Param = path_param_for_schema(#sp_remote_type{mfargs = {?MODULE, user_id, []}}),
+    ?assertMatch(#{<<"description">> := <<"A user's unique identifier">>}, Param).
 
 openapi_includes_documentation_test() ->
     %% Create a simple endpoint with a user response
