@@ -181,6 +181,25 @@ endpoint_with_parameter_description_test() ->
         Endpoint
     ).
 
+%% Test that with_parameter errors on unsupported keys like description and deprecated
+with_parameter_unsupported_keys_test() ->
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    ?assertError(
+        {unsupported_parameter_spec_keys, _},
+        spectra_openapi:with_parameter(
+            Endpoint1,
+            ?MODULE,
+            #{
+                name => <<"id">>,
+                in => path,
+                required => true,
+                schema => {type, user_id, 0},
+                description => <<"The user ID">>,
+                deprecated => true
+            }
+        )
+    ).
+
 %% Test that generate_parameter includes description from type doc
 generate_parameter_with_description_test() ->
     PathParam =

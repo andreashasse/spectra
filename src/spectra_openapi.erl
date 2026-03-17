@@ -525,6 +525,11 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
         is_map(ParameterSpec) andalso
         is_binary(Name)
 ->
+    ValidKeys = [name, in, required, schema],
+    case maps:keys(maps:without(ValidKeys, ParameterSpec)) of
+        [] -> ok;
+        UnknownKeys -> error({unsupported_parameter_spec_keys, UnknownKeys})
+    end,
     Parameters = maps:get(parameters, Endpoint, []),
     ParameterWithModule = ParameterSpec#{module => Module},
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
