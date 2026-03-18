@@ -19,33 +19,33 @@
 -export_type([
     point/0, maybe_point/0, named_point/0, location/0, point_with_status/1, active_passive_point/0
 ]).
--export([encode/4, decode/4, schema/3]).
+-export([encode/5, decode/5, schema/4]).
 
--spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
-encode(_, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
+encode(_, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_, {type, point, 0}, Data, _Opts) ->
+encode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_, _, _, _) ->
+encode(_, _, _, _, _) ->
     continue.
 
--spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
-decode(_, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
+decode(_, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_, {type, point, 0}, Data, _Opts) ->
+decode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_, _, _, _) ->
+decode(_, _, _, _, _) ->
     continue.
 
--spec schema(atom(), spectra:sp_type_reference(), map()) -> map().
-schema(json_schema, {type, point, 0}, _Opts) ->
+-spec schema(atom(), module(), spectra:sp_type_reference(), map()) -> map().
+schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
     #{
         type => <<"array">>,
         items => #{type => <<"number">>},
         minItems => 2,
         maxItems => 2
     };
-schema(_, _, _) ->
+schema(_, _, _, _) ->
     continue.

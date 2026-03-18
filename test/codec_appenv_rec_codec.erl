@@ -4,41 +4,41 @@
 
 -include("../include/spectra.hrl").
 
--export([encode/4, decode/4, schema/3]).
+-export([encode/5, decode/5, schema/4]).
 
--spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
-encode(json, {record, point2d}, #{x := X, y := Y}, _Opts) when
+encode(json, codec_appenv_rec_module, {record, point2d}, #{x := X, y := Y}, _Opts) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, [X, Y]};
-encode(json, {record, point2d}, {point2d, X, Y}, _Opts) when
+encode(json, codec_appenv_rec_module, {record, point2d}, {point2d, X, Y}, _Opts) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, [X, Y]};
-encode(json, {record, point2d}, Data, _Opts) ->
+encode(json, codec_appenv_rec_module, {record, point2d}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({record, point2d}, Data)]};
-encode(_, _, _, _) ->
+encode(_, _, _, _, _) ->
     continue.
 
--spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
-decode(json, {record, point2d}, [X, Y], _Opts) when
+decode(json, codec_appenv_rec_module, {record, point2d}, [X, Y], _Opts) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, #{x => X, y => Y}};
-decode(json, {record, point2d}, Data, _Opts) ->
+decode(json, codec_appenv_rec_module, {record, point2d}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({record, point2d}, Data)]};
-decode(_, _, _, _) ->
+decode(_, _, _, _, _) ->
     continue.
 
--spec schema(atom(), spectra:sp_type_reference(), map()) -> map() | continue.
-schema(json_schema, {record, point2d}, _Opts) ->
+-spec schema(atom(), module(), spectra:sp_type_reference(), map()) -> map() | continue.
+schema(json_schema, codec_appenv_rec_module, {record, point2d}, _Opts) ->
     #{
         type => <<"array">>,
         items => #{type => <<"number">>},
         minItems => 2,
         maxItems => 2
     };
-schema(_, _, _) ->
+schema(_, _, _, _) ->
     continue.

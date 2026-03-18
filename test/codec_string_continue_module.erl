@@ -9,14 +9,14 @@
 -type name() :: binary().
 
 -export_type([name/0]).
--export([encode/4, decode/4]).
+-export([encode/5, decode/5]).
 
--spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
-encode(_, _, _, _) ->
+encode(_, _, _, _, _) ->
     continue.
 
--spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
-decode(_, _, _, _) ->
+decode(_, _, _, _, _) ->
     continue.

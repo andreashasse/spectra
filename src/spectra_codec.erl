@@ -21,6 +21,7 @@ static, per-type configuration to your codec instead.
 
 -callback encode(
     Format :: atom(),
+    Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
     Params :: term()
@@ -28,17 +29,21 @@ static, per-type configuration to your codec instead.
     spectra:codec_encode_result().
 -callback decode(
     Format :: atom(),
+    Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
     Params :: term()
 ) ->
     spectra:codec_decode_result().
 -callback schema(
-    Format :: atom(), TypeRef :: spectra:sp_type_reference(), Params :: term()
+    Format :: atom(),
+    Module :: module(),
+    TypeRef :: spectra:sp_type_reference(),
+    Params :: term()
 ) ->
     dynamic().
 
--optional_callbacks([schema/3]).
+-optional_callbacks([schema/4]).
 
 -export([
     try_codec_encode/4,
@@ -56,7 +61,7 @@ try_codec_encode(Mod, Format, Type, Data) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
-            M:encode(Format, TypeReference, Data, spectra_type:parameters(Type));
+            M:encode(Format, Mod, TypeReference, Data, spectra_type:parameters(Type));
         error ->
             continue
     end.
@@ -71,7 +76,7 @@ try_codec_decode(Mod, Format, Type, Data) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
-            M:decode(Format, TypeReference, Data, spectra_type:parameters(Type));
+            M:decode(Format, Mod, TypeReference, Data, spectra_type:parameters(Type));
         error ->
             continue
     end.
@@ -85,9 +90,9 @@ try_codec_schema(Mod, Format, Type) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 3) of
+            case erlang:function_exported(M, schema, 4) of
                 true ->
-                    M:schema(Format, TypeReference, spectra_type:parameters(Type));
+                    M:schema(Format, Mod, TypeReference, spectra_type:parameters(Type));
                 false ->
                     erlang:error({schema_not_implemented, M, TypeReference})
             end;

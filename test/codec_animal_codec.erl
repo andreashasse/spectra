@@ -19,32 +19,32 @@
 -type zoo() :: [codec_animal_codec:animal()].
 
 -export_type([animal/0, cat/0, dog/0, zoo/0]).
--export([encode/4, decode/4]).
+-export([encode/5, decode/5]).
 
--spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
-encode(Format, {type, animal, 0}, #cat{} = Cat, _Opts) ->
+encode(Format, _Mod, {type, animal, 0}, #cat{} = Cat, _Opts) ->
     case spectra:encode(Format, ?MODULE, {type, cat, 0}, Cat, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"cat">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(Format, {type, animal, 0}, #dog{} = Dog, _Opts) ->
+encode(Format, _Mod, {type, animal, 0}, #dog{} = Dog, _Opts) ->
     case spectra:encode(Format, ?MODULE, {type, dog, 0}, Dog, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"dog">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(_, {type, animal, 0}, Data, _Opts) ->
+encode(_, _Mod, {type, animal, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
-encode(_, _, _, _) ->
+encode(_, _, _, _, _) ->
     continue.
 
--spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
-decode(Format, {type, animal, 0}, #{<<"type">> := <<"cat">>} = Json, _Opts) ->
+decode(Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"cat">>} = Json, _Opts) ->
     spectra:decode(Format, ?MODULE, {type, cat, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
-decode(Format, {type, animal, 0}, #{<<"type">> := <<"dog">>} = Json, _Opts) ->
+decode(Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"dog">>} = Json, _Opts) ->
     spectra:decode(Format, ?MODULE, {type, dog, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
-decode(_, {type, animal, 0}, Data, _Opts) ->
+decode(_, _Mod, {type, animal, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
-decode(_, _, _, _) ->
+decode(_, _, _, _, _) ->
     continue.

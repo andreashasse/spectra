@@ -8,18 +8,18 @@
 -opaque point() :: {float(), float()}.
 
 -export_type([point/0]).
--export([encode/4, decode/4]).
+-export([encode/5, decode/5]).
 
--spec encode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_encode_result().
-encode(_, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
+encode(_, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_, {type, point, 0}, Data, _Opts) ->
+encode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.
 
--spec decode(atom(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
     spectra:codec_decode_result().
-decode(_, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
+decode(_, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_, {type, point, 0}, Data, _Opts) ->
+decode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.
