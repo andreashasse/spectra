@@ -204,29 +204,29 @@ Implement the `spectra_codec` behaviour in your module. Codec callbacks receive 
 -module(my_geo_codec).
 -behaviour(spectra_codec).
 
--export([encode/4, decode/4, schema/3]).
+-export([encode/5, decode/5, schema/4]).
 
 %% point() is an opaque type: {X, Y} tuple serialised as a JSON [X, Y] array.
 -type point() :: {float(), float()}.
 -export_type([point/0]).
 
-encode(json, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
+encode(json, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_Format, {type, point, 0}, Data, _Opts) ->
+encode(_Format, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_Format, _TypeRef, _Data, _Opts) ->
+encode(_Format, _Mod, _TypeRef, _Data, _Opts) ->
     continue.
 
-decode(json, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
+decode(json, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_Format, {type, point, 0}, Data, _Opts) ->
+decode(_Format, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_Format, _TypeRef, _Input, _Opts) ->
+decode(_Format, _Mod, _TypeRef, _Input, _Opts) ->
     continue.
 
-schema(json_schema, {type, point, 0}, _Opts) ->
+schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
     #{type => <<"array">>, items => #{type => <<"number">>}, minItems => 2, maxItems => 2};
-schema(_Format, _TypeRef, _Opts) ->
+schema(_Format, _Mod, _TypeRef, _Opts) ->
     continue.
 ```
 
@@ -234,7 +234,7 @@ For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data
 
 Return `continue` for type references your codec does not own at all — spectra falls through to its default structural encoder/decoder.
 
-The `schema/3` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+The `schema/4` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
 #### Types in the Same Module (No Configuration)
 
@@ -242,7 +242,7 @@ If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it 
 
 #### Type Parameters
 
-The `-spectra()` attribute accepts a `type_parameters` key whose value is passed directly as the fourth argument to your codec's `encode/4`, `decode/4`, and `schema/3` callbacks. This lets you reuse a single codec implementation across multiple types that differ only by configuration.
+The `-spectra()` attribute accepts a `type_parameters` key whose value is passed directly as the fifth argument to your codec's `encode/5` and `decode/5` callbacks and the fourth argument to `schema/4`. This lets you reuse a single codec implementation across multiple types that differ only by configuration.
 
 For example, a prefixed-ID codec where each type carries its own expected prefix:
 
@@ -250,7 +250,7 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 -module(prefixed_id_codec).
 -behaviour(spectra_codec).
 
--export([encode/4, decode/4, schema/3]).
+-export([encode/5, decode/5, schema/4]).
 
 %% This codec handles any binary type whose type_parameters is a prefix binary.
 %% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
@@ -265,23 +265,23 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 -export_type([user_id/0, org_id/0]).
 
 %% Strips the prefix on decode, re-attaches it on encode.
-decode(json, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+decode(json, _Mod, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
     PrefixLen = byte_size(Prefix),
     case Data of
         <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
         _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
-decode(_Format, _TypeRef, _Data, _Params) ->
+decode(_Format, _Mod, _TypeRef, _Data, _Params) ->
     continue.
 
-encode(json, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+encode(json, _Mod, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
     {ok, <<Prefix/binary, Data/binary>>};
-encode(_Format, _TypeRef, _Data, _Params) ->
+encode(_Format, _Mod, _TypeRef, _Data, _Params) ->
     continue.
 
-schema(json_schema, _TypeRef, Prefix) when is_binary(Prefix) ->
+schema(json_schema, _Mod, _TypeRef, Prefix) when is_binary(Prefix) ->
     #{type => <<"string">>, pattern => <<"^", Prefix/binary>>};
-schema(_Format, _TypeRef, _Params) ->
+schema(_Format, _Mod, _TypeRef, _Params) ->
     continue.
 ```
 
@@ -299,7 +299,7 @@ spectra:schema(json_schema, prefixed_id_codec, org_id).
 %% => #{type => <<"string">>, pattern => <<"^org:">>}
 ```
 
-When `type_parameters` is not set on a type, the codec receives `undefined` as the fourth argument.
+When `type_parameters` is not set on a type, the codec receives `undefined` as the last argument (`Params`).
 
 Parameters belong to the **type definition**, not the usage site. If `A:user_id()` is referenced from module `B`, the parameters come from module `A`'s type definition regardless of where the call originates.
 
@@ -458,9 +458,9 @@ spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType :: binar
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
     endpoint_spec().
 
-%% Generate complete OpenAPI spec (returns a JSON term / decoded map)
+%% Generate complete OpenAPI spec (returns encoded JSON iodata)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
+    {ok, iodata()} | {error, [spectra:error()]}.
 
 %% Generate complete OpenAPI spec with options
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
@@ -471,16 +471,16 @@ The `Options` list is passed to `spectra:encode/5` and controls the output forma
 
 | Options | Return value on success |
 |---------|------------------------|
-| `[pre_encoded]` or `[{pre_encoded, true}]` | `{ok, json:encode_value()}` — a decoded map, same as `endpoints_to_openapi/2` |
-| `[]` or `[{pre_encoded, false}]` | `{ok, iodata()}` — an encoded JSON binary |
+| `[]` or `[{pre_encoded, false}]` (default) | `{ok, iodata()}` — an encoded JSON binary |
+| `[pre_encoded]` or `[{pre_encoded, true}]` | `{ok, json:encode_value()}` — a decoded map |
 
 ```erlang
-%% Get a decoded map (default, same as /2)
-{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [pre_encoded]),
-
-%% Get an encoded JSON binary, e.g. to write to a file or HTTP response
-{ok, Json} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, []),
+%% Default: get encoded JSON iodata, e.g. to write to a file or HTTP response
+{ok, Json} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints),
 file:write_file("openapi.json", Json).
+
+%% Get a decoded map for inspection or further processing
+{ok, Spec} = spectra_openapi:endpoints_to_openapi(Meta, Endpoints, [pre_encoded]),
 ```
 
 The `Doc` map in `endpoint/3` can contain any of the following OpenAPI operation fields:
