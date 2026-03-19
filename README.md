@@ -198,7 +198,7 @@ Custom codecs let you override how spectra encodes, decodes, and generates schem
 
 #### Implementing a Codec
 
-Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Return `continue` for any type reference your codec does not own — spectra falls through to structural encoding/decoding (or raises an error for records, since structural record handling always applies).
+Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Return `continue` for any type reference your codec does not own — spectra falls through to its default structural encoder/decoder.
 
 ```erlang
 -module(my_geo_codec).
@@ -234,11 +234,11 @@ For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data
 
 Return `continue` for type references your codec does not own at all — spectra falls through to its default structural encoder/decoder.
 
-The `schema/4` callback is optional. If not exported, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+The `schema/4` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
 #### Types in the Same Module (No Configuration)
 
-If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no configuration required:
+If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no application environment configuration required. The `my_geo_codec` example above works this way: `point()` is defined in the same module that implements the behaviour.
 
 #### Type Parameters
 
@@ -301,7 +301,7 @@ spectra:schema(json_schema, prefixed_id_codec, org_id).
 
 When `type_parameters` is not set on a type, the codec receives `undefined` as the last argument (`Params`).
 
-Parameters belong to the **type definition**, not the usage site. If `A:user_id()` is referenced from module `B`, the parameters come from module `A`'s type definition regardless of where the call originates.
+Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
 
 #### String and Binary Constraints
 
@@ -422,8 +422,7 @@ Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0
 
 ### OpenAPI Builder API
 
-The API for building endpoints is very experimental and will probably change a lot.
-It is meant to be used by developers of web servers / web frameworks.
+This API is primarily intended for developers of web servers and web frameworks.
 See [elli_openapi](https://github.com/andreashasse/elli_openapi) for an example of how to use it in a web server.
 
 ```erlang
