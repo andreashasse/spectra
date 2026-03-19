@@ -1,12 +1,38 @@
 -module(spectra_json).
 
+-moduledoc """
+JSON encode and decode traversal for `sp_type()` values.
+
+`to_json/3` walks an Erlang term against an `sp_type()` and produces a
+`json:encode_value()` (a map/list/scalar tree accepted by `json:encode/1`).
+`from_json/3` does the inverse: it walks a decoded JSON value and produces
+the corresponding Erlang term.
+
+Neither function calls `json:encode/1` or `json:decode/1` — that is the
+responsibility of the caller (typically `spectra.erl`).
+
+Codec dispatch is handled mid-traversal at `#sp_user_type_ref{}`,
+`#sp_remote_type{}`, and `#sp_rec_ref{}` nodes via
+`spectra_codec:try_codec_encode/4` and `try_codec_decode/4`.
+""".
+
 -export([to_json/3, from_json/3]).
 
 -ignore_xref([to_json/3, from_json/3]).
 
 -include("../include/spectra_internal.hrl").
 
-%% API
+-doc """
+Encodes `Data` to a JSON-compatible value according to `Type`.
+
+Walks the type tree recursively, converting each node. Records become maps
+with binary keys, lists stay lists, atoms in unions become their binary
+representations. Optional fields whose value equals the missing sentinel
+(`nil` / `undefined`) are omitted from the output.
+
+Returns `{ok, Value}` on success or `{error, Errors}` with a list of
+structured `#sp_error{}` values describing every mismatch found.
+""".
 -spec to_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type(),
@@ -408,6 +434,15 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
             Err
     end.
 
+-doc """
+Decodes `Json` into an Erlang term according to `Type`.
+
+The inverse of `to_json/3`. Binary map keys become atom keys, binary atom
+values are converted via `binary_to_existing_atom/2`, JSON `null` maps to
+`nil` or `undefined` where the type allows it, and JSON arrays become lists.
+
+Returns `{ok, Term}` on success or `{error, Errors}` with structured errors.
+""".
 -spec from_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type(),

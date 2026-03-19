@@ -1,5 +1,14 @@
 -module(sp_error).
 
+-moduledoc """
+Constructor functions for structured validation errors.
+
+Each function builds an `#sp_error{}` record describing why a value failed
+to match an expected type. Errors carry a `location` path (built up by
+`append_location/2` as the traversal unwinds) and a `ctx` map with the
+offending type and value.
+""".
+
 -export([
     type_mismatch/2,
     type_mismatch/3,
@@ -11,6 +20,7 @@
 
 -include("../include/spectra.hrl").
 
+-doc "Creates a type-mismatch error with no extra context.".
 -spec type_mismatch(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic()
@@ -18,6 +28,7 @@
 type_mismatch(Type, Value) ->
     type_mismatch(Type, Value, #{}).
 
+-doc "Creates a type-mismatch error, merging `Ctx` into the context map.".
 -spec type_mismatch(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic(),
@@ -30,6 +41,7 @@ type_mismatch(Type, Value, Ctx) ->
         ctx = Ctx#{type => Type, value => Value}
     }.
 
+-doc "Creates an error for a required field that was absent in the input.".
 -spec missing_data(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic(),
@@ -42,6 +54,7 @@ missing_data(Type, Value, Location) ->
         ctx = #{type => Type, value => Value}
     }.
 
+-doc "Creates an error when an exact typed map field had no matching keys in the data.".
 -spec not_matched_fields(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic()
@@ -53,6 +66,7 @@ not_matched_fields(Type, Value) ->
         ctx = #{type => Type, value => Value}
     }.
 
+-doc "Creates an error when no branch of a union type matched, bundling the per-branch errors.".
 -spec no_match(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic(),
@@ -65,6 +79,12 @@ no_match(Type, Value, Errors) ->
         ctx = #{type => Type, value => Value, errors => Errors}
     }.
 
+-doc """
+Prepends `FieldName` to the error's location path.
+
+Called as the traversal unwinds so the final location reads
+outermost-to-innermost (e.g. `[user, address, street]`).
+""".
 -spec append_location(#sp_error{}, string() | atom()) -> #sp_error{}.
 append_location(Err, FieldName) ->
     Err#sp_error{location = [FieldName | Err#sp_error.location]}.

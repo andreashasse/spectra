@@ -1,5 +1,13 @@
 -module(spectra_type).
 
+-moduledoc """
+Utility functions for inspecting and manipulating `sp_type()` values.
+
+Provides uniform meta-data access across all concrete type records
+(`#sp_simple_type{}`, `#sp_union{}`, `#sp_rec{}`, etc.), optional-value
+detection, and normalisation of `-spectra()` doc annotations.
+""".
+
 -include("../include/spectra_internal.hrl").
 
 -export([
@@ -22,6 +30,15 @@
     normalize_function_doc/1
 ]).
 
+-doc """
+Checks whether `Type` can hold an absent value (`nil` or `undefined`).
+
+Returns `{true, MissingValue}` when the type is, or expands to, a literal
+`nil` or `undefined` (possibly inside a union). The returned `MissingValue`
+is the atom to use when the field is omitted. Returns `false` otherwise.
+Used during encode/decode to skip optional fields whose value matches the
+missing sentinel.
+""".
 -spec can_be_missing(
     TypeInfo :: spectra:type_info(), Type :: spectra:sp_type()
 ) ->
@@ -49,6 +66,7 @@ can_be_missing(TypeInfo, Type) ->
             false
     end.
 
+-doc "Extracts the meta map from any `sp_type()` record.".
 -spec get_meta(spectra:sp_type()) -> spectra:sp_type_meta().
 get_meta(#sp_simple_type{meta = Meta}) -> Meta;
 get_meta(#sp_tuple{meta = Meta}) -> Meta;
@@ -68,6 +86,7 @@ get_meta(#sp_range{meta = Meta}) -> Meta;
 get_meta(#sp_list{meta = Meta}) -> Meta;
 get_meta(#sp_nonempty_list{meta = Meta}) -> Meta.
 
+-doc "Returns a copy of `Type` with its meta map replaced by `Meta`.".
 -spec set_meta(spectra:sp_type(), spectra:sp_type_meta()) -> spectra:sp_type().
 set_meta(#sp_simple_type{} = T, Meta) -> T#sp_simple_type{meta = Meta};
 set_meta(#sp_tuple{} = T, Meta) -> T#sp_tuple{meta = Meta};
@@ -87,16 +106,19 @@ set_meta(#sp_range{} = T, Meta) -> T#sp_range{meta = Meta};
 set_meta(#sp_list{} = T, Meta) -> T#sp_list{meta = Meta};
 set_meta(#sp_nonempty_list{} = T, Meta) -> T#sp_nonempty_list{meta = Meta}.
 
+-doc "Returns the `parameters` entry from the type's meta map, or `undefined` if absent. Used for string constraints such as `min_length`, `max_length`, and `pattern`.".
 -spec parameters(spectra:sp_type()) -> term().
 parameters(Type) ->
     maps:get(parameters, get_meta(Type), undefined).
 
+-doc "Attaches a normalised doc map (from a `-spectra()` attribute) to `Type`.".
 -spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
 add_doc_to_type(Type, DocMap) ->
     Doc = normalize_doc(DocMap),
     Meta = get_meta(Type),
     set_meta(Type, Meta#{doc => Doc}).
 
+-doc "Validates and normalises a raw `-spectra()` annotation map into a `type_doc()`. Raises `{invalid_spectra_field, Key, Value}` on unknown or ill-typed fields.".
 -spec normalize_doc(map()) -> spectra:type_doc().
 normalize_doc(DocMap) ->
     maps:fold(fun add_doc_field/3, #{}, DocMap).
@@ -117,6 +139,7 @@ add_doc_field(examples_function, {Module, Function, Args} = MFA, Acc) when
 add_doc_field(Key, Value, _Acc) ->
     erlang:error({invalid_spectra_field, Key, Value}).
 
+-doc "Like `normalize_doc/1` but for function-level `-spectra()` annotations. Accepts `summary`, `description`, and `deprecated`.".
 -spec normalize_function_doc(map()) -> spectra:function_doc().
 normalize_function_doc(DocMap) ->
     maps:fold(fun add_function_doc_field/3, #{}, DocMap).
