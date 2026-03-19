@@ -75,8 +75,9 @@ find_local_codec(#type_info{implements_codec = false}) -> error.
 find_codec(Mod, TypeRef) ->
     GlobalCodecs = application:get_env(spectra, codecs, #{}),
     case maps:find({Mod, TypeRef}, GlobalCodecs) of
-        {ok, _} = R ->
-            R;
+        {ok, CodecMod} ->
+            code:ensure_loaded(CodecMod),
+            {ok, CodecMod};
         error ->
             find_local_codec(spectra_module_types:get(Mod))
     end.
