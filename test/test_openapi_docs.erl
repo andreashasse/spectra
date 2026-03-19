@@ -52,7 +52,7 @@ path_param_for_schema(Schema) ->
     Endpoint2 = spectra_openapi:with_parameter(Endpoint1, ?MODULE, Param),
     Endpoint = spectra_openapi:add_response(Endpoint2, spectra_openapi:response(200, <<"OK">>)),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint], [pre_encoded]),
     [RenderedParam] = map_gets([<<"paths">>, <<"/users/{id}">>, <<"get">>, <<"parameters">>], Spec),
     RenderedParam.
 
@@ -69,7 +69,7 @@ openapi_request_body_description_from_type_test() ->
         Endpoint2, spectra_openapi:response(201, <<"Created">>)
     ),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint], [pre_encoded]),
     ?assertMatch(
         #{
             <<"paths">> := #{
@@ -117,7 +117,7 @@ openapi_response_body_remote_type_uses_ref_test() ->
         spectra_openapi:endpoint(get, <<"/users/{id}">>), ResponseWithBody
     ),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint], [pre_encoded]),
     %% Response should use $ref, not inline
     ?assertMatch(
         #{
@@ -166,7 +166,7 @@ openapi_request_body_remote_type_uses_ref_test() ->
         Endpoint2, spectra_openapi:response(201, <<"Created">>)
     ),
     Metadata = #{title => <<"API">>, version => <<"1.0">>},
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint], [pre_encoded]),
     ?assertMatch(
         #{
             <<"paths">> := #{
@@ -214,7 +214,7 @@ openapi_includes_documentation_test() ->
         title => <<"Test API">>,
         version => <<"1.0.0">>
     },
-    {ok, OpenAPISpec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint]),
+    {ok, OpenAPISpec} = spectra_openapi:endpoints_to_openapi(Metadata, [Endpoint], [pre_encoded]),
 
     %% Verify that components/schemas contains the user schema with complete documentation
     ?assertMatch(

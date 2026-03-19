@@ -340,7 +340,8 @@ single_endpoint_to_openapi_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(
@@ -399,7 +400,8 @@ multiple_endpoints_to_openapi_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     #{<<"paths">> := #{<<"/users/{id}">> := UsersIdPath}} = OpenAPISpec,
@@ -428,7 +430,8 @@ openapi_with_components_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(#{<<"components">> := #{<<"schemas">> := _}}, OpenAPISpec),
@@ -456,7 +459,8 @@ openapi_without_documentation_test() ->
                 title => <<"Test API">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
@@ -1018,7 +1022,8 @@ list_of_remote_type_response_test() ->
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
             #{title => <<"Test API">>, version => <<"1.0.0">>},
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(

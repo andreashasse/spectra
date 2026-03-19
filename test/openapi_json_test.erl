@@ -93,7 +93,8 @@ openapi_json_serializable_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     %% Validate that all values are JSON-serializable (no atoms except as map keys)
@@ -300,7 +301,8 @@ openapi_spec_completeness_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate required OpenAPI 3.1 fields and structure
@@ -350,7 +352,8 @@ complex_nested_structure_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate the complete structure is JSON-serializable
@@ -439,7 +442,8 @@ final_json_output_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     %% Convert to actual JSON using json.erl
@@ -559,7 +563,8 @@ run_python_openapi_validation() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     %% Convert to JSON-compatible format and write to file
@@ -604,7 +609,8 @@ custom_response_content_type_json_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that the generated spec uses the custom content type
@@ -646,7 +652,8 @@ custom_request_body_content_type_json_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that the generated spec uses the custom content type
@@ -676,7 +683,8 @@ default_content_type_json_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that the generated spec defaults to application/json
@@ -739,7 +747,8 @@ mixed_content_types_json_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that each part has its specified content type
@@ -809,7 +818,8 @@ response_headers_in_json_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that headers appear in the generated spec
@@ -865,7 +875,8 @@ response_without_headers_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that headers field is not present
@@ -916,7 +927,8 @@ headers_on_different_responses_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate that headers appear on correct responses
@@ -990,7 +1002,8 @@ response_builder_json_generation_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Validate the generated JSON structure
@@ -1046,7 +1059,8 @@ response_builder_custom_content_type_json_test() ->
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
             #{title => <<"API">>, version => <<"1.0.0">>},
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     %% Verify custom content type in JSON
@@ -1093,7 +1107,8 @@ response_builder_complete_endpoint_test() ->
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
             #{title => <<"API">>, version => <<"1.0.0">>},
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     #{<<"paths">> := #{<<"/users">> := #{<<"post">> := Operation}}} = OpenAPISpec,
@@ -1170,7 +1185,8 @@ openapi_3_1_validation_test() ->
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
             #{title => <<"User API">>, version => <<"1.0.0">>},
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     %% Verify the OpenAPI version is 3.1.0

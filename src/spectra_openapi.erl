@@ -556,9 +556,9 @@ with paths, operations, and component schemas.
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()]
 ) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints) ->
-    endpoints_to_openapi(MetaData, Endpoints, [pre_encoded]).
+    endpoints_to_openapi(MetaData, Endpoints, []).
 
 -spec endpoints_to_openapi(
     MetaData :: openapi_metadata(),
