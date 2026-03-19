@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-19
+
+### Added
+- **Custom codecs**: New `spectra_codec` behaviour with `encode/4`, `decode/4`, and optional `schema/4` callbacks. Register codecs via the application environment (`{spectra, [{codecs, #{...}}]}`) or by declaring `-behaviour(spectra_codec)` on the type's own module.
+- **Type parameters**: Types can now carry a `type_parameters` field in their `-spectra()` attribute. The value is passed as the 4th argument to codec callbacks, allowing a single codec module to handle multiple parameterised variants.
+- **Auto-populate `description` and `deprecated` from type annotations**: Parameters, request bodies, and response headers that reference a type with a `-spectra()` doc annotation now automatically inherit `description` and `deprecated`. Explicit values on the spec still take precedence.
+- **Plain atom type refs in `spectra_openapi`**: `spectra_openapi` functions now accept plain atoms as type references (e.g. `user` instead of `{type, user, 0}`), matching the behaviour of `spectra.erl`.
+
+### Changed
+- **Breaking**: `with_request_body/4` fourth argument changed from an opts map (`#{content_type => ..., description => ...}`) to a plain `content_type` binary. Pass `description` via the type's `-spectra()` annotation instead.
+
 ### Fixed
 - **`type_doc/2` now follows type references**: `spectra_openapi:type_doc/2` previously returned an empty description whenever the resolved type was an `#sp_user_type_ref{}` or `#sp_remote_type{}`. It now follows the reference to the underlying type to retrieve its description. Local annotations on the alias take precedence — the reference is only followed when the alias itself carries no `-spectra` doc.
 
