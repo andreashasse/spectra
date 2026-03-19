@@ -75,6 +75,7 @@ pers_type(Module) ->
 pers_types_set(Module, Vsn, TypeInfo) ->
     persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
 
+-spec ensure_module(Module :: module()) -> boolean().
 ensure_module(Module) ->
     erlang:module_loaded(Module) orelse code:which(Module) =/= non_existing.
 

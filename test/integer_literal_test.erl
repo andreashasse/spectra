@@ -18,7 +18,7 @@
 bor_t_abstract_code_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     BorTType = spectra_type_info:get_type(TypeInfo, bor_t, 0),
-    ?assertEqual(#sp_literal{value = 2 bor 5, binary_value = <<"7">>}, BorTType).
+    ?assertMatch(#sp_literal{value = 2 bor 5, binary_value = <<"7">>}, BorTType).
 
 bor_t_to_json_test() ->
     ValidBor = 2 bor 5,
@@ -265,37 +265,37 @@ validate_integer_literal_test() ->
 
 -spec to_json_one(one()) -> {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_one(Data) ->
-    spectra_json:to_json(?MODULE, {type, one, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, one, 0}, Data, [pre_encoded]).
 
 -spec to_json_courses(courses()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_courses(Data) ->
-    spectra_json:to_json(?MODULE, {type, courses, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, courses, 0}, Data, [pre_encoded]).
 
 -spec to_json_game(game_state()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_game(Data) ->
-    spectra_json:to_json(?MODULE, {type, game_state, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, game_state, 0}, Data, [pre_encoded]).
 
 -spec to_json_bor_t(bor_t()) -> {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_bor_t(Data) ->
-    spectra_json:to_json(?MODULE, {type, bor_t, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, bor_t, 0}, Data, [pre_encoded]).
 
 -spec from_json_bor_t(json:encode_value()) ->
     {ok, bor_t()} | {error, [spectra:error()]}.
 from_json_bor_t(Json) ->
-    spectra_json:from_json(?MODULE, {type, bor_t, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, bor_t, 0}, Json, [pre_decoded]).
 
 -spec from_json_one(json:encode_value()) -> {ok, one()} | {error, [spectra:error()]}.
 from_json_one(Json) ->
-    spectra_json:from_json(?MODULE, {type, one, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, one, 0}, Json, [pre_decoded]).
 
 -spec from_json_courses(json:encode_value()) ->
     {ok, courses()} | {error, [spectra:error()]}.
 from_json_courses(Json) ->
-    spectra_json:from_json(?MODULE, {type, courses, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, courses, 0}, Json, [pre_decoded]).
 
 -spec from_json_game(json:encode_value()) ->
     {ok, game_state()} | {error, [spectra:error()]}.
 from_json_game(Json) ->
-    spectra_json:from_json(?MODULE, {type, game_state, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, game_state, 0}, Json, [pre_decoded]).

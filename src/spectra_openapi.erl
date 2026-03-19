@@ -392,9 +392,26 @@ response_with_header(Response, HeaderName, Module, HeaderSpec) when
 Adds a request body to an endpoint.
 
 This function sets the request body schema for the endpoint.
-Typically used with POST, PUT, and PATCH endpoints.
+Typically used with POST, PUT, and PATCH endpoints. The content type defaults
+to `application/json`. Use `with_request_body/4` to override it.
 
-Use with_request_body/4 to also set a custom content type.
+The `description` and `deprecated` fields in the generated OpenAPI
+`requestBody` object are sourced automatically from the `-spectra()`
+attribute on the schema type — there is no parameter for overriding them
+on this call.
+
+### Example
+
+```erlang
+-spectra(#{description => <<"User to create">>}).
+-type create_user_request() :: #create_user_request{}.
+
+Endpoint = spectra_openapi:with_request_body(
+    spectra_openapi:endpoint(post, <<"/users">>),
+    my_module,
+    create_user_request
+).
+```
 
 ### Returns
 Updated endpoint map with request body set
@@ -422,7 +439,24 @@ with_request_body(Endpoint, Module, Schema) when
 -doc """
 Adds a request body to an endpoint with a custom content type.
 
-Like with_request_body/3 but overrides the default content type (application/json).
+Like `with_request_body/3` but overrides the default content type
+(`application/json`). `ContentType` must be a binary such as
+`<<"application/xml">>`.
+
+The `description` and `deprecated` fields in the generated OpenAPI
+`requestBody` object are sourced automatically from the `-spectra()`
+attribute on the schema type.
+
+### Example
+
+```erlang
+Endpoint = spectra_openapi:with_request_body(
+    spectra_openapi:endpoint(post, <<"/upload">>),
+    my_module,
+    upload_request,
+    <<"application/octet-stream">>
+).
+```
 
 ### Returns
 Updated endpoint map with request body set
@@ -430,7 +464,9 @@ Updated endpoint map with request body set
 -doc #{
     params =>
         #{
-            "ContentType" => "Content type for the request body (e.g., \"application/xml\")",
+            "ContentType" =>
+                "Content type binary for the request body (e.g., <<\"application/xml\">>). "
+                "Must be a binary — passing a map will cause a function_clause error.",
             "Endpoint" => "Endpoint map to add the request body to",
             "Module" => "Module containing the type definition",
             "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
@@ -489,6 +525,11 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
         is_map(ParameterSpec) andalso
         is_binary(Name)
 ->
+    ValidKeys = [name, in, required, schema],
+    case maps:keys(maps:without(ValidKeys, ParameterSpec)) of
+        [] -> ok;
+        UnknownKeys -> error({unsupported_parameter_spec_keys, UnknownKeys})
+    end,
     Parameters = maps:get(parameters, Endpoint, []),
     ParameterWithModule = ParameterSpec#{module => Module},
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
@@ -515,9 +556,9 @@ with paths, operations, and component schemas.
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()]
 ) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints) ->
-    endpoints_to_openapi(MetaData, Endpoints, [pre_encoded]).
+    endpoints_to_openapi(MetaData, Endpoints, []).
 
 -spec endpoints_to_openapi(
     MetaData :: openapi_metadata(),
@@ -674,6 +715,12 @@ generate_response(#{description := Description} = ResponseSpec) when
                                             <<"#/components/schemas/", ItemSchemaName/binary>>
                                     }
                             };
+                        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+                            RemoteArity = length(RemoteArgs),
+                            SchemaName = schema_component_name(
+                                RemoteMod, {type, RemoteName, RemoteArity}
+                            ),
+                            #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
                             InlineSchema =
                                 spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -710,7 +757,7 @@ copy_if_present(Key, Source, Target) ->
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
     ModuleTypeInfo = spectra_module_types:get(Module),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
     Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
     Base = Doc#{schema => OpenApiSchema},
@@ -727,6 +774,10 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
                 SchemaName = schema_component_name(Module, {record, Name}),
+                #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
+            #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+                RemoteArity = length(RemoteArgs),
+                SchemaName = schema_component_name(RemoteMod, {type, RemoteName, RemoteArity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
@@ -755,7 +806,7 @@ generate_parameter(
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
     Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
@@ -839,16 +890,17 @@ collect_parameter_refs(Parameters) ->
 filter_typeref(Schema, Module) ->
     TypeInfo = spectra_module_types:get(Module),
     NormalizedSchema = spectra_util:normalize_type_ref(TypeInfo, Schema),
-    case spectra_type:type_reference(NormalizedSchema) of
-        {true, TypeRef} ->
+    case NormalizedSchema of
+        {type, _, _} = TypeRef ->
             {true, {Module, TypeRef}};
-        false ->
-            case NormalizedSchema of
-                #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
-                    {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
-                _ ->
-                    false
-            end
+        {record, _} = TypeRef ->
+            {true, {Module, TypeRef}};
+        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+            {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
+        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
+            {true, {RemoteMod, {type, RemoteName, length(RemoteArgs)}}};
+        _ ->
+            false
     end.
 
 -spec generate_components([{module(), spectra:sp_type_reference()}]) ->
@@ -856,10 +908,8 @@ filter_typeref(Schema, Module) ->
 generate_components(SchemaRefs) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
-            Schema = spectra_json_schema:to_schema(
-                spectra_module_types:get(Module),
-                TypeRef
-            ),
+            ModuleTypeInfo = spectra_module_types:get(Module),
+            Schema = to_inline_schema(ModuleTypeInfo, TypeRef),
             SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
@@ -903,6 +953,19 @@ type_doc(TypeInfo, {type, Name, Arity}) ->
     type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity));
 type_doc(TypeInfo, {record, Name}) ->
     type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name));
+type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, variables = Args} = Ref) ->
+    case spectra_type:get_meta(Ref) of
+        #{doc := Doc} -> maps:remove(examples_function, Doc);
+        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, length(Args)))
+    end;
+type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, Args}} = Ref) ->
+    case spectra_type:get_meta(Ref) of
+        #{doc := Doc} ->
+            maps:remove(examples_function, Doc);
+        _ ->
+            RemoteTypeInfo = spectra_module_types:get(Mod),
+            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, length(Args)))
+    end;
 type_doc(_TypeInfo, Type) ->
     case spectra_type:get_meta(Type) of
         #{doc := Doc} -> maps:remove(examples_function, Doc);
@@ -913,3 +976,14 @@ capitalize_word([]) ->
     [];
 capitalize_word([First | Rest]) ->
     [string:to_upper(First) | Rest].
+
+-spec to_inline_schema(spectra:type_info(), spectra:sp_type_or_ref()) ->
+    spectra_json_schema:json_schema().
+to_inline_schema(TypeInfo, {type, Name, Arity}) ->
+    Type = spectra_type_info:get_type(TypeInfo, Name, Arity),
+    spectra_json_schema:to_schema(TypeInfo, Type);
+to_inline_schema(TypeInfo, {record, RecordName}) ->
+    Record = spectra_type_info:get_record(TypeInfo, RecordName),
+    spectra_json_schema:to_schema(TypeInfo, Record);
+to_inline_schema(TypeInfo, SpType) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType).

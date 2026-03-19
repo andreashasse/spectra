@@ -4,7 +4,6 @@
 
 -ignore_xref([{spectra_string, from_string, 3}, {spectra_string, to_string, 3}]).
 
--include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
 
 %% API
@@ -22,22 +21,46 @@ and converts it to the corresponding Erlang value.
     params =>
         #{
             "String" => "The string value to convert to Erlang format",
-            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "Type" => "The type specification (spectra:sp_type())",
             "TypeInfo" => "The type information containing type definitions"
         }
 }.
 
 -spec from_string(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, {type, TypeName, TypeArity}, String) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    from_string(TypeInfo, Type, String);
-from_string(_TypeInfo, {record, RecordName}, _String) when is_atom(RecordName) ->
-    erlang:error({type_not_supported, {record, RecordName}});
+from_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, String) ->
+    Arity = length(Args),
+    Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    case spectra_codec:try_codec_decode(Mod, string, Type, String) of
+        continue ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            from_string(TypeInfo, TypeWithoutVars, String);
+        Result ->
+            Result
+    end;
+from_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, String) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    case spectra_codec:try_codec_decode(Mod, string, RecordType, String) of
+        continue -> erlang:error({type_not_supported, RecordType});
+        Result -> Result
+    end;
+from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
+    TypeArity = length(Args),
+    RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    case spectra_codec:try_codec_decode(Module, string, RemoteType, String) of
+        continue ->
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
+            from_string(RemoteTypeInfo, TypeWithoutVars, String);
+        Result ->
+            Result
+    end;
 from_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _String) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -67,16 +90,12 @@ from_string(
         {error, Reason} ->
             {error, Reason}
     end;
-from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
-    TypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    from_string(TypeInfo, TypeWithoutVars, String);
 from_string(_TypeInfo, #sp_literal{value = Literal}, String) ->
     try_convert_string_to_literal(Literal, String);
 from_string(TypeInfo, #sp_union{} = Type, String) ->
     union(fun from_string/3, TypeInfo, Type, String);
+from_string(_TypeInfo, #sp_rec{} = T, _String) ->
+    erlang:error({type_not_supported, T});
 from_string(_TypeInfo, Type, String) ->
     {error, [sp_error:type_mismatch(Type, String)]}.
 
@@ -93,22 +112,46 @@ and converts it to a string representation.
     params =>
         #{
             "Data" => "The Erlang value to convert to string format",
-            "Type" => "The type specification (spectra:sp_type_or_ref())",
+            "Type" => "The type specification (spectra:sp_type())",
             "TypeInfo" => "The type information containing type definitions"
         }
 }.
 
 -spec to_string(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type_or_ref(),
+    Type :: spectra:sp_type(),
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, {type, TypeName, TypeArity}, Data) when is_atom(TypeName) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    to_string(TypeInfo, Type, Data);
-to_string(_TypeInfo, {record, RecordName}, _Data) when is_atom(RecordName) ->
-    erlang:error({type_not_supported, {record, RecordName}});
+to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Data) ->
+    Arity = length(Args),
+    Mod = spectra_type_info:get_module(TypeInfo),
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    case spectra_codec:try_codec_encode(Mod, string, Type, Data) of
+        continue ->
+            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            to_string(TypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
+    end;
+to_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data) of
+        continue -> erlang:error({type_not_supported, RecordType});
+        Result -> Result
+    end;
+to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
+    TypeArity = length(Args),
+    RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data) of
+        continue ->
+            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
+            to_string(RemoteTypeInfo, TypeWithoutVars, Data);
+        Result ->
+            Result
+    end;
 to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
@@ -138,16 +181,12 @@ to_string(
         {error, Reason} ->
             {error, Reason}
     end;
-to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
-    TypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-    to_string(TypeInfo, TypeWithoutVars, Data);
 to_string(_TypeInfo, #sp_literal{value = Literal}, Data) ->
     try_convert_literal_to_string(Literal, Data);
 to_string(TypeInfo, #sp_union{} = Type, Data) ->
-    union_to_string(TypeInfo, Type, Data);
+    union(fun to_string/3, TypeInfo, Type, Data);
+to_string(_TypeInfo, #sp_rec{} = T, _Data) ->
+    erlang:error({type_not_supported, T});
 to_string(_TypeInfo, Type, Data) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
@@ -414,21 +453,3 @@ try_convert_literal_to_string(Literal, Data) ->
             Data
         )
     ]}.
-
-union_to_string(TypeInfo, #sp_union{types = Types} = T, Data) ->
-    case do_first_to_string(TypeInfo, Types, Data, []) of
-        {error, UnionErrors} ->
-            {error, [sp_error:no_match(T, Data, UnionErrors)]};
-        Result ->
-            Result
-    end.
-
-do_first_to_string(_TypeInfo, [], _Data, Errors) ->
-    {error, Errors};
-do_first_to_string(TypeInfo, [Type | Rest], Data, ErrorsAcc) ->
-    case to_string(TypeInfo, Type, Data) of
-        {ok, Result} ->
-            {ok, Result};
-        {error, Errors} ->
-            do_first_to_string(TypeInfo, Rest, Data, [{Type, Errors} | ErrorsAcc])
-    end.

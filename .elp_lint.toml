@@ -1,1 +1,1 @@
-disabled_lints = ['W0012', 'W0046']
+disabled_lints = ['W0012', 'W0046', 'W0051', 'W0066']

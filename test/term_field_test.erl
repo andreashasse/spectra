@@ -55,9 +55,9 @@ validate_term_field_test() ->
 -spec to_json(#data_with_term{}) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(Data) ->
-    spectra_json:to_json(?MODULE, {record, data_with_term}, Data).
+    spectra:encode(json, ?MODULE, {record, data_with_term}, Data, [pre_encoded]).
 
 -spec from_json(json:encode_value()) ->
     {ok, #data_with_term{}} | {error, [spectra:error()]}.
 from_json(Json) ->
-    spectra_json:from_json(?MODULE, {record, data_with_term}, Json).
+    spectra:decode(json, ?MODULE, {record, data_with_term}, Json, [pre_decoded]).

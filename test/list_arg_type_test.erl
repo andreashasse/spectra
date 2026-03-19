@@ -24,7 +24,7 @@ invalid_int_result_from_json_test() ->
     ?assertMatch({error, [_ | _]}, Result).
 
 list_to_json_schema_test() ->
-    Schema = spectra_json_schema:to_schema(?MODULE, {type, int_result, 0}),
+    Schema = spectra:schema(json_schema, ?MODULE, {type, int_result, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
@@ -38,9 +38,9 @@ list_to_json_schema_test() ->
 -spec to_json_int_result(int_result()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_int_result(Result) ->
-    spectra_json:to_json(?MODULE, {type, int_result, 0}, Result).
+    spectra:encode(json, ?MODULE, {type, int_result, 0}, Result, [pre_encoded]).
 
 -spec from_json_int_result(json:encode_value()) ->
     {ok, int_result()} | {error, [spectra:error()]}.
 from_json_int_result(Json) ->
-    spectra_json:from_json(?MODULE, {type, int_result, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, int_result, 0}, Json, [pre_decoded]).

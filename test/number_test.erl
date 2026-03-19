@@ -67,9 +67,9 @@ validate_number_test() ->
 
 -spec to_json(number_data()) -> {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(Data) ->
-    spectra_json:to_json(?MODULE, {type, number_data, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, number_data, 0}, Data, [pre_encoded]).
 
 -spec from_json(json:encode_value()) ->
     {ok, number_data()} | {error, [spectra:error()]}.
 from_json(Json) ->
-    spectra_json:from_json(?MODULE, {type, number_data, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, number_data, 0}, Json, [pre_decoded]).

@@ -181,6 +181,25 @@ endpoint_with_parameter_description_test() ->
         Endpoint
     ).
 
+%% Test that with_parameter errors on unsupported keys like description and deprecated
+with_parameter_unsupported_keys_test() ->
+    Endpoint1 = spectra_openapi:endpoint(get, <<"/users/{id}">>),
+    ?assertError(
+        {unsupported_parameter_spec_keys, _},
+        spectra_openapi:with_parameter(
+            Endpoint1,
+            ?MODULE,
+            #{
+                name => <<"id">>,
+                in => path,
+                required => true,
+                schema => {type, user_id, 0},
+                description => <<"The user ID">>,
+                deprecated => true
+            }
+        )
+    ).
+
 %% Test that generate_parameter includes description from type doc
 generate_parameter_with_description_test() ->
     PathParam =
@@ -321,7 +340,8 @@ single_endpoint_to_openapi_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(
@@ -380,7 +400,8 @@ multiple_endpoints_to_openapi_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            Endpoints
+            Endpoints,
+            [pre_encoded]
         ),
 
     #{<<"paths">> := #{<<"/users/{id}">> := UsersIdPath}} = OpenAPISpec,
@@ -409,7 +430,8 @@ openapi_with_components_test() ->
                 title => <<"API Documentation">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(#{<<"components">> := #{<<"schemas">> := _}}, OpenAPISpec),
@@ -437,7 +459,8 @@ openapi_without_documentation_test() ->
                 title => <<"Test API">>,
                 version => <<"1.0.0">>
             },
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
@@ -999,7 +1022,8 @@ list_of_remote_type_response_test() ->
     {ok, OpenAPISpec} =
         spectra_openapi:endpoints_to_openapi(
             #{title => <<"Test API">>, version => <<"1.0.0">>},
-            [Endpoint]
+            [Endpoint],
+            [pre_encoded]
         ),
 
     ?assertMatch(

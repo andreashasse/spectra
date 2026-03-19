@@ -9,7 +9,9 @@ prop_hej() ->
         {{TypeName, Type}, JsonValue},
         {test_type(), json_generator:json_value()},
         begin
-            TypeInfo = spectra_type_info:add_type(spectra_type_info:new(), TypeName, 0, Type),
+            TypeInfo = spectra_type_info:add_type(
+                spectra_type_info:new(?MODULE, false), TypeName, 0, Type
+            ),
             case from_json(TypeInfo, Type, JsonValue) of
                 {ok, Data} ->
                     case spectra_json:to_json(TypeInfo, Type, Data) of
@@ -58,6 +60,8 @@ from_json(TypeInfo, Type, JsonValue) ->
 test_type() ->
     {my_type, sp_type_generators:sp_type()}.
 
-%% @doc Generate valid Erlang data for a given type
+-doc """
+Generate valid Erlang data for a given type
+""".
 gen_data(TypeInfo, Type) ->
     sp_data_generators:gen_data(TypeInfo, Type).

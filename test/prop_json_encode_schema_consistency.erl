@@ -68,47 +68,59 @@ create_typeinfo_with_known_types(Type) ->
         {my_int_type, 0, #sp_simple_type{type = integer}}
     ],
     Records = [
-        {my_record, #sp_rec{
-            name = my_record,
-            arity = 3,
-            fields = [
-                #sp_rec_field{
-                    name = id,
-                    binary_name = <<"id">>,
-                    type = #sp_simple_type{type = integer}
+        {my_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = my_record,
+                    arity = 3,
+                    fields = [
+                        #sp_rec_field{
+                            name = id,
+                            binary_name = <<"id">>,
+                            type = #sp_simple_type{type = integer}
+                        },
+                        #sp_rec_field{
+                            name = name,
+                            binary_name = <<"name">>,
+                            type = #sp_simple_type{type = string}
+                        }
+                    ]
                 },
-                #sp_rec_field{
-                    name = name,
-                    binary_name = <<"name">>,
-                    type = #sp_simple_type{type = string}
-                }
-            ]
-        }},
-        {user_record, #sp_rec{
-            name = user_record,
-            arity = 2,
-            fields = [
-                #sp_rec_field{
-                    name = value,
-                    binary_name = <<"value">>,
-                    type = #sp_simple_type{type = integer}
-                }
-            ]
-        }},
-        {data_record, #sp_rec{
-            name = data_record,
-            arity = 2,
-            fields = [
-                #sp_rec_field{
-                    name = data,
-                    binary_name = <<"data">>,
-                    type = #sp_simple_type{type = binary}
-                }
-            ]
-        }}
+                #{name => {record, my_record}}
+            )},
+        {user_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = user_record,
+                    arity = 2,
+                    fields = [
+                        #sp_rec_field{
+                            name = value,
+                            binary_name = <<"value">>,
+                            type = #sp_simple_type{type = integer}
+                        }
+                    ]
+                },
+                #{name => {record, user_record}}
+            )},
+        {data_record,
+            spectra_type:set_meta(
+                #sp_rec{
+                    name = data_record,
+                    arity = 2,
+                    fields = [
+                        #sp_rec_field{
+                            name = data,
+                            binary_name = <<"data">>,
+                            type = #sp_simple_type{type = binary}
+                        }
+                    ]
+                },
+                #{name => {record, data_record}}
+            )}
     ],
 
-    TypeInfo0 = spectra_type_info:new(),
+    TypeInfo0 = spectra_type_info:new(?MODULE, false),
     TypeInfo1 = lists:foldl(
         fun({Name, Arity, T}, Acc) ->
             spectra_type_info:add_type(Acc, Name, Arity, T)
@@ -161,19 +173,8 @@ check_success_consistency(TypeInfo, Type, OriginalData, JsonValue, ToSchemaResul
             FromJsonResult = safe_from_json(TypeInfo, Type, JsonValue),
             case FromJsonResult of
                 {ok, _DecodedData} ->
-                    % Success! All three operations succeeded
-                    % Note: We don't check roundtrip equality because
-                    % the type system may allow lossy conversions
-                    ?WHENFAIL(
-                        io:format(
-                            "~nSuccess case (all operations succeeded):~n"
-                            "  Type: ~p~n"
-                            "  Original Data: ~p~n"
-                            "  JSON: ~p~n",
-                            [Type, OriginalData, JsonValue]
-                        ),
-                        collect({success, type_category(Type)}, true)
-                    );
+                    % Success! All three operations succeeded.
+                    collect({success, type_category(Type)}, true);
                 {error, FromJsonError} ->
                     ?WHENFAIL(
                         io:format(
@@ -284,8 +285,11 @@ exception_type(Other) ->
 is_problematic_type(#sp_var{}) ->
     % Type variables are not supported
     true;
+is_problematic_type(#sp_remote_type{mfargs = {codec_geo_module, _, _}}) ->
+    % Codec remote types are supported — data generator and codec are both available
+    false;
 is_problematic_type(#sp_remote_type{}) ->
-    % Remote types require module type info which is complex to set up in tests
+    % Plain remote types require module type info which is complex to set up in tests
     true;
 is_problematic_type(_) ->
     false.

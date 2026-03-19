@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, decode/5, encode/4, encode/5, schema/3]).
+-export([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
 
--ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3]).
+-ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -26,7 +26,9 @@
 }.
 
 -type sp_type_meta() :: #{
-    doc => type_doc()
+    doc => type_doc(),
+    name => sp_type_reference(),
+    parameters => term()
 }.
 
 -type sp_function_spec_meta() :: #{
@@ -65,6 +67,18 @@
 -type record_field() :: #sp_rec_field{}.
 -type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
+-type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
+-type codec_key() :: {module(), sp_type_reference()}.
+-type binary_string_decode_opts() :: map().
+-type binary_string_encode_opts() :: map().
+-doc """
+Return type for codec `encode/4` callbacks. See `spectra_codec`.
+""".
+-type codec_encode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
+-doc """
+Return type for codec `decode/4` callbacks. See `spectra_codec`.
+""".
+-type codec_decode_result() :: {ok, dynamic()} | {error, [error()]} | continue.
 %% Internal type definitions moved from spectra_internal.hrl
 
 -type simple_types() ::
@@ -111,7 +125,13 @@
     literal_value/0,
     record_field/0,
     decode_option/0,
-    encode_option/0
+    encode_option/0,
+    binary_string_decode_opts/0,
+    binary_string_encode_opts/0,
+    codec_encode_result/0,
+    codec_decode_result/0,
+    codec_key/0,
+    schema_option/0
 ]).
 
 -doc """
@@ -180,7 +200,31 @@ decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
 decode(Format, TypeInfo, RefAtom, Data, Options) when is_atom(RefAtom) ->
     TypeRef = spectra_util:normalize_type_ref(TypeInfo, RefAtom),
     decode(Format, TypeInfo, TypeRef, Data, Options);
-decode(json, Typeinfo, TypeOrRef, Data, Options) ->
+decode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    maybe_codec_decode(Format, TypeInfo, SpType, Data, Options);
+decode(Format, TypeInfo, {record, _} = TypeRef, Data, Options) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    maybe_codec_decode(Format, TypeInfo, SpType, Data, Options);
+decode(Format, TypeInfo, SpType, Data, Options) when is_record(TypeInfo, type_info) ->
+    case type_ref_from_meta(SpType) of
+        {ok, _TypeRef} ->
+            maybe_codec_decode(Format, TypeInfo, SpType, Data, Options);
+        error ->
+            default_decode(Format, TypeInfo, SpType, Data, Options)
+    end;
+decode(Format, TypeInfo, SpType, Data, Options) ->
+    default_decode(Format, TypeInfo, SpType, Data, Options).
+
+-spec default_decode(
+    Format :: atom(),
+    TypeInfo :: type_info(),
+    SpType :: sp_type(),
+    Data :: dynamic(),
+    Options :: [decode_option()]
+) ->
+    {ok, dynamic()} | {error, [error()]}.
+default_decode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case proplists:get_value(pre_decoded, Options, false) of
         false when is_binary(Data) ->
             case json_decode(Data) of
@@ -203,9 +247,9 @@ decode(json, Typeinfo, TypeOrRef, Data, Options) ->
         true ->
             spectra_json:from_json(Typeinfo, TypeOrRef, Data)
     end;
-decode(binary_string, Typeinfo, TypeOrRef, Binary, _Options) when is_binary(Binary) ->
+default_decode(binary_string, Typeinfo, TypeOrRef, Binary, _Options) when is_binary(Binary) ->
     spectra_binary_string:from_binary_string(Typeinfo, TypeOrRef, Binary);
-decode(string, Typeinfo, TypeOrRef, String, _Options) when is_list(String) ->
+default_decode(string, Typeinfo, TypeOrRef, String, _Options) when is_list(String) ->
     spectra_string:from_string(Typeinfo, TypeOrRef, String).
 
 -doc """
@@ -271,7 +315,31 @@ encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
 encode(Format, TypeInfo, TypeAtom, Data, Options) when is_atom(TypeAtom) ->
     TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
     encode(Format, TypeInfo, TypeRef, Data, Options);
-encode(json, Typeinfo, TypeOrRef, Data, Options) ->
+encode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    maybe_codec_encode(Format, TypeInfo, SpType, Data, Options);
+encode(Format, TypeInfo, {record, _} = TypeRef, Data, Options) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    maybe_codec_encode(Format, TypeInfo, SpType, Data, Options);
+encode(Format, TypeInfo, SpType, Data, Options) when is_record(TypeInfo, type_info) ->
+    case type_ref_from_meta(SpType) of
+        {ok, _TypeRef} ->
+            maybe_codec_encode(Format, TypeInfo, SpType, Data, Options);
+        error ->
+            default_encode(Format, TypeInfo, SpType, Data, Options)
+    end;
+encode(Format, TypeInfo, SpType, Data, Options) ->
+    default_encode(Format, TypeInfo, SpType, Data, Options).
+
+-spec default_encode(
+    Format :: atom(),
+    TypeInfo :: type_info(),
+    SpType :: sp_type(),
+    Data :: dynamic(),
+    Options :: [encode_option()]
+) ->
+    {ok, dynamic()} | {error, [error()]}.
+default_encode(json, Typeinfo, TypeOrRef, Data, Options) ->
     case spectra_json:to_json(Typeinfo, TypeOrRef, Data) of
         {ok, Json} ->
             case proplists:get_value(pre_encoded, Options, false) of
@@ -281,13 +349,15 @@ encode(json, Typeinfo, TypeOrRef, Data, Options) ->
         {error, _} = Err ->
             Err
     end;
-encode(binary_string, Typeinfo, TypeOrRef, Data, _Options) ->
+default_encode(binary_string, Typeinfo, TypeOrRef, Data, _Options) ->
     spectra_binary_string:to_binary_string(Typeinfo, TypeOrRef, Data);
-encode(string, Typeinfo, TypeOrRef, Data, _Options) ->
+default_encode(string, Typeinfo, TypeOrRef, Data, _Options) ->
     spectra_string:to_string(Typeinfo, TypeOrRef, Data).
 
 -doc """
 Generates a schema for the specified type in the given format.
+
+Equivalent to calling schema/4 with an empty options list.
 
 ### Example:
 
@@ -307,21 +377,144 @@ Generates a schema for the specified type in the given format.
 <<"{\"type\":\"integer\",\"minimum\":1}">>
 ```
 """.
+-doc #{
+    equiv => schema(Format, ModuleOrTypeinfo, TypeOrRef, [])
+}.
 -spec schema(
     Format :: atom(),
     ModuleOrTypeinfo :: module() | type_info(),
     TypeOrRef :: atom() | sp_type_or_ref()
 ) ->
-    iodata().
-schema(Format, Module, TypeOrRef) when is_atom(Module) ->
+    iodata() | dynamic().
+schema(Format, ModuleOrTypeinfo, TypeOrRef) ->
+    schema(Format, ModuleOrTypeinfo, TypeOrRef, []).
+
+-doc """
+Generates a schema for the specified type in the given format.
+
+Accepts an options list. Supported options:
+- `pre_encoded`: Skip the final JSON encoding step and return the raw schema map
+  instead of encoded `iodata()`. Useful for inspecting or manipulating the schema
+  before serialisation.
+
+### Example:
+
+```
+1> spectra:schema(json_schema, my_module, user, [pre_encoded]).
+#{<<"type">> => <<"object">>, <<"properties">> => #{...}}
+```
+""".
+-spec schema(
+    Format :: atom(),
+    ModuleOrTypeinfo :: module() | type_info(),
+    TypeOrRef :: atom() | sp_type_or_ref(),
+    Options :: [schema_option()]
+) ->
+    iodata() | dynamic().
+schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
     TypeInfo = spectra_module_types:get(Module),
-    schema(Format, TypeInfo, TypeOrRef);
-schema(Format, TypeInfo, TypeAtom) when is_atom(TypeAtom) ->
+    schema(Format, TypeInfo, TypeOrRef, Options);
+schema(Format, TypeInfo, TypeAtom, Options) when is_atom(TypeAtom) ->
     TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
-    schema(Format, TypeInfo, TypeRef);
-schema(json_schema, TypeInfo, TypeOrRef) ->
-    SchemaMap = spectra_json_schema:to_schema(TypeInfo, TypeOrRef),
-    json:encode(SchemaMap).
+    schema(Format, TypeInfo, TypeRef, Options);
+schema(Format, TypeInfo, {type, _, _} = TypeRef, Options) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options);
+schema(Format, TypeInfo, {record, _} = TypeRef, Options) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options);
+schema(json_schema, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef);
+            error -> default_schema(json_schema, TypeInfo, SpType)
+        end,
+    finalize_schema(json_schema, spectra_json_schema:add_schema_version(SchemaMap), Options);
+schema(Format, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef);
+            error -> default_schema(Format, TypeInfo, SpType)
+        end,
+    finalize_schema(Format, SchemaMap, Options).
+
+-spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
+resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
+    Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
+    spectra_util:type_replace_vars(TypeInfo, Type, #{});
+resolve_type_ref(TypeInfo, {record, RecordName}) ->
+    spectra_type_info:get_record(TypeInfo, RecordName).
+
+-spec maybe_codec_schema(atom(), type_info(), sp_type_reference()) ->
+    spectra_json_schema:json_schema_object().
+maybe_codec_schema(Format, TypeInfo, TypeRef) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_schema(Mod, Format, SpType) of
+        continue -> default_schema(Format, TypeInfo, SpType);
+        Schema -> Schema
+    end.
+
+-spec default_schema(atom(), type_info(), sp_type()) ->
+    spectra_json_schema:json_schema_object().
+default_schema(json_schema, TypeInfo, SpType) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType);
+default_schema(Format, _TypeInfo, _SpType) ->
+    erlang:error({unsupported_format, Format}).
+
+-spec finalize_schema(atom(), spectra_json_schema:json_schema(), [schema_option()]) ->
+    iodata() | dynamic().
+finalize_schema(json_schema, SchemaMap, Options) ->
+    case proplists:get_value(pre_encoded, Options, false) of
+        true -> SchemaMap;
+        false -> json:encode(SchemaMap)
+    end;
+finalize_schema(Format, _SchemaMap, _Options) ->
+    erlang:error({unsupported_format, Format}).
+
+-spec maybe_codec_decode(
+    Format :: atom(),
+    TypeInfo :: type_info(),
+    SpType :: sp_type(),
+    Data :: dynamic(),
+    Options :: [decode_option()]
+) -> {ok, dynamic()} | {error, [error()]}.
+maybe_codec_decode(Format, TypeInfo, SpType, Data, Options) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_decode(Mod, Format, SpType, Data) of
+        continue -> default_decode(Format, TypeInfo, SpType, Data, Options);
+        Result -> Result
+    end.
+
+-spec maybe_codec_encode(
+    Format :: atom(),
+    TypeInfo :: type_info(),
+    SpType :: sp_type(),
+    Data :: dynamic(),
+    Options :: [encode_option()]
+) -> {ok, dynamic()} | {error, [error()]}.
+maybe_codec_encode(Format, TypeInfo, SpType, Data, Options) ->
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_encode(Mod, Format, SpType, Data) of
+        continue -> default_encode(Format, TypeInfo, SpType, Data, Options);
+        Result -> Result
+    end.
+
+-spec do_schema_ref(atom(), type_info(), sp_type_reference(), [schema_option()]) ->
+    iodata() | map().
+do_schema_ref(json_schema, TypeInfo, TypeRef, Options) ->
+    SchemaMap = spectra_json_schema:add_schema_version(
+        maybe_codec_schema(json_schema, TypeInfo, TypeRef)
+    ),
+    finalize_schema(json_schema, SchemaMap, Options);
+do_schema_ref(Format, TypeInfo, TypeRef, Options) ->
+    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef),
+    finalize_schema(Format, SchemaMap, Options).
+
+-spec type_ref_from_meta(sp_type()) -> {ok, sp_type_reference()} | error.
+type_ref_from_meta(SpType) ->
+    case spectra_type:get_meta(SpType) of
+        #{name := TypeRef} -> {ok, TypeRef};
+        #{} -> error
+    end.
 
 json_decode(Binary) ->
     try

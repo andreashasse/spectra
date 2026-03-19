@@ -91,6 +91,8 @@ gen_data(TypeInfo, #sp_type_with_variables{type = Type, vars = _Vars}) ->
     gen_data(TypeInfo, Type);
 gen_data(_TypeInfo, #sp_function{args = _Args, return = _Return}) ->
     ?LET(_, integer(), fun() -> ok end);
+gen_data(_TypeInfo, #sp_remote_type{mfargs = {codec_geo_module, point, []}}) ->
+    ?LET({X, Y}, {float(), float()}, {X, Y});
 gen_data(_TypeInfo, #sp_remote_type{mfargs = {_Module, _Function, _Args}}) ->
     %% For remote types, we'd need to resolve them - for now, generate term()
     term();

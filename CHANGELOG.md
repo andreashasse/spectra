@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **`type_doc/2` now follows type references**: `spectra_openapi:type_doc/2` previously returned an empty description whenever the resolved type was an `#sp_user_type_ref{}` or `#sp_remote_type{}`. It now follows the reference to the underlying type to retrieve its description. Local annotations on the alias take precedence — the reference is only followed when the alias itself carries no `-spectra` doc.
+
 ## [0.7.0] - 2026-03-04
 
 ### Added

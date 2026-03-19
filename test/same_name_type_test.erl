@@ -11,7 +11,7 @@
 type_in_form_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     ResultType = spectra_type_info:get_type(TypeInfo, result, 1),
-    ?assertEqual(
+    ?assertMatch(
         #sp_type_with_variables{
             type =
                 #sp_map{
@@ -74,8 +74,8 @@ result_0_from_json_test() ->
 
 -spec from_json_result_0(term()) -> result().
 from_json_result_0(Data) ->
-    spectra_json:from_json(?MODULE, {type, result, 0}, Data).
+    spectra:decode(json, ?MODULE, {type, result, 0}, Data, [pre_decoded]).
 
 -spec to_json_result_0(result()) -> json:encode_value().
 to_json_result_0(Data) ->
-    spectra_json:to_json(?MODULE, {type, result, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, result, 0}, Data, [pre_encoded]).

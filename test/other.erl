@@ -12,8 +12,8 @@
 
 -spec account_to_json(account()) -> json:encode_value().
 account_to_json(Account) ->
-    spectra_json:to_json(?MODULE, {type, account, 0}, Account).
+    spectra:encode(json, ?MODULE, {type, account, 0}, Account, [pre_encoded]).
 
 -spec account_from_json(json:decode_value()) -> account().
 account_from_json(Json) ->
-    spectra_json:from_json(?MODULE, {type, account, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, account, 0}, Json, [pre_decoded]).

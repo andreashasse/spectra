@@ -21,7 +21,7 @@ validate_with_python(Schema) ->
 %% Issue 1: "format => <<\"binary\">>" - This can't be right?
 %% Location: src/spectra_json_schema.erl:76
 binary_format_issue_test() ->
-    BinarySchema = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
+    BinarySchema = spectra:schema(json_schema, ?MODULE, {type, my_binary, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
@@ -40,7 +40,7 @@ binary_format_issue_test() ->
 %% Location: src/spectra_json_schema.erl:80
 binary_format_with_minlength_issue_test() ->
     NonEmptyBinarySchema =
-        spectra_json_schema:to_schema(?MODULE, {type, my_nonempty_binary, 0}),
+        spectra:schema(json_schema, ?MODULE, {type, my_nonempty_binary, 0}, [pre_encoded]),
     Expected = #{
         '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
         type => <<"string">>,
@@ -57,7 +57,7 @@ binary_format_with_minlength_issue_test() ->
 %% Issue 3: "Is this valid json schema?" (empty object for term type)
 %% Location: src/spectra_json_schema.erl:103
 empty_schema_for_term_test() ->
-    TermSchema = spectra_json_schema:to_schema(?MODULE, {type, my_term, 0}),
+    TermSchema = spectra:schema(json_schema, ?MODULE, {type, my_term, 0}, [pre_encoded]),
     ?assertEqual(
         #{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}, TermSchema
     ),
@@ -72,7 +72,7 @@ empty_schema_for_term_test() ->
 %% Location: src/spectra_json_schema.erl:105
 literal_values_translation_issue_test() ->
     AtomLiteralSchema =
-        spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
+        spectra:schema(json_schema, ?MODULE, {type, my_atom_literal, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
@@ -105,8 +105,8 @@ correct_schemas_test() ->
     },
 
     %% Current implementation now matches these correct schemas
-    CurrentBinary = spectra_json_schema:to_schema(?MODULE, {type, my_binary, 0}),
-    CurrentAtom = spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
+    CurrentBinary = spectra:schema(json_schema, ?MODULE, {type, my_binary, 0}, [pre_encoded]),
+    CurrentAtom = spectra:schema(json_schema, ?MODULE, {type, my_atom_literal, 0}, [pre_encoded]),
 
     ?assertEqual(CorrectBinarySchema, CurrentBinary),
     validate_with_python(CurrentBinary),
@@ -118,7 +118,7 @@ correct_schemas_test() ->
 %% Test with actual JSON Schema validator (Jesse) to show validation problems
 json_schema_validator_issues_test() ->
     %% Test atom literal with Jesse
-    AtomSchema = spectra_json_schema:to_schema(?MODULE, {type, my_atom_literal, 0}),
+    AtomSchema = spectra:schema(json_schema, ?MODULE, {type, my_atom_literal, 0}, [pre_encoded]),
 
     %% Validate with Python first
     validate_with_python(AtomSchema),

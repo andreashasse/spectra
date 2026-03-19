@@ -3,12 +3,6 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/spectra_internal.hrl").
 
-temp_beam_path(Name) ->
-    TempDir = filename:basedir(user_cache, "spectra_tests"),
-    ok = filelib:ensure_dir(filename:join(TempDir, "dummy")),
-    Unique = integer_to_list(erlang:unique_integer([positive])),
-    filename:join(TempDir, Name ++ "_" ++ Unique ++ ".beam").
-
 interleaved_attrs_test() ->
     Code =
         "-module(test_interleaved).\n"
@@ -20,12 +14,9 @@ interleaved_attrs_test() ->
         "-doc \"Record documentation\".\n"
         "-record(my_record, {field :: integer()}).\n",
 
-    {ok, test_interleaved, BeamBinary} = compile:forms(
-        parse_module(Code),
-        [binary, return_errors, debug_info]
-    ),
+    {ok, test_interleaved, BeamBinary} = spectra_test_compile:compile_module(Code),
 
-    TempFile = temp_beam_path("test_interleaved"),
+    TempFile = spectra_test_compile:temp_beam_path("test_interleaved"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -47,12 +38,9 @@ only_doc_no_spectra_test() ->
         "-doc \"Just erlang doc\".\n"
         "-type my_type() :: integer().\n",
 
-    {ok, test_only_doc, BeamBinary} = compile:forms(
-        parse_module(Code),
-        [binary, return_errors, debug_info]
-    ),
+    {ok, test_only_doc, BeamBinary} = spectra_test_compile:compile_module(Code),
 
-    TempFile = temp_beam_path("test_only_doc"),
+    TempFile = spectra_test_compile:temp_beam_path("test_only_doc"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -71,12 +59,9 @@ spectra_before_wrong_type_test() ->
         "-type first() :: integer().\n"
         "-type second() :: binary().\n",
 
-    {ok, test_wrong_type, BeamBinary} = compile:forms(
-        parse_module(Code),
-        [binary, return_errors, debug_info]
-    ),
+    {ok, test_wrong_type, BeamBinary} = spectra_test_compile:compile_module(Code),
 
-    TempFile = temp_beam_path("test_wrong_type"),
+    TempFile = spectra_test_compile:temp_beam_path("test_wrong_type"),
     ok = file:write_file(TempFile, BeamBinary),
 
     TypeInfo = spectra_abstract_code:types_in_module_path(TempFile),
@@ -90,21 +75,3 @@ spectra_before_wrong_type_test() ->
     #{} = SecondType#sp_simple_type.meta,
 
     file:delete(TempFile).
-
-parse_module(Code) ->
-    Lines = string:split(Code, "\n", all),
-    {Forms, _} = lists:foldl(
-        fun(Line, {Acc, LineNum}) ->
-            case string:trim(Line) of
-                "" ->
-                    {Acc, LineNum + 1};
-                TrimmedLine ->
-                    {ok, Tokens, _} = erl_scan:string(TrimmedLine ++ "\n", LineNum),
-                    {ok, Form} = erl_parse:parse_form(Tokens),
-                    {[Form | Acc], LineNum + 1}
-            end
-        end,
-        {[], 1},
-        Lines
-    ),
-    lists:reverse(Forms) ++ [{eof, 999}].

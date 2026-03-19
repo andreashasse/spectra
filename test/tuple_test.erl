@@ -15,17 +15,18 @@
 erl_abstract_code_parses_tuple_types_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     EmptyTupleType = spectra_type_info:get_type(TypeInfo, empty_tuple, 0),
-    ?assertEqual(#sp_tuple{fields = []}, EmptyTupleType),
+    ?assertEqual(#sp_tuple{fields = [], meta = #{name => {type, empty_tuple, 0}}}, EmptyTupleType),
     Tuple2Type = spectra_type_info:get_type(TypeInfo, tuple2, 0),
     ?assertEqual(
         #sp_tuple{
             fields =
-                [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}]
+                [#sp_simple_type{type = integer}, #sp_simple_type{type = atom}],
+            meta = #{name => {type, tuple2, 0}}
         },
         Tuple2Type
     ),
     Tuple3Type = spectra_type_info:get_type(TypeInfo, tuple3, 0),
-    ?assertEqual(#sp_tuple{fields = any}, Tuple3Type),
+    ?assertEqual(#sp_tuple{fields = any, meta = #{name => {type, tuple3, 0}}}, Tuple3Type),
     {ok, WithTupleRecord} = spectra_type_info:find_record(TypeInfo, with_tuple),
     ?assertEqual(
         #sp_rec{
@@ -39,7 +40,8 @@ erl_abstract_code_parses_tuple_types_test() ->
                         name = data, binary_name = <<"data">>, type = #sp_tuple{fields = any}
                     }
                 ],
-            arity = 3
+            arity = 3,
+            meta = #{name => {record, with_tuple}}
         },
         WithTupleRecord
     ).
@@ -50,35 +52,35 @@ spectra_json_handles_tuple_data_test() ->
     Tuple3 = {a},
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, empty_tuple, 0}, Tuple1)
+        spectra:encode(json, ?MODULE, {type, empty_tuple, 0}, Tuple1, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, tuple2, 0}, Tuple2)
+        spectra:encode(json, ?MODULE, {type, tuple2, 0}, Tuple2, [pre_encoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {type, tuple3, 0}, Tuple3)
+        spectra:encode(json, ?MODULE, {type, tuple3, 0}, Tuple3, [pre_encoded])
     ).
 
 spectra_json_handles_tuple_data_from_json_test() ->
     Data = <<"[]">>,
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, empty_tuple, 0}, Data)
+        spectra:decode(json, ?MODULE, {type, empty_tuple, 0}, Data, [pre_decoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, tuple2, 0}, Data)
+        spectra:decode(json, ?MODULE, {type, tuple2, 0}, Data, [pre_decoded])
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_json:from_json(?MODULE, {type, tuple3, 0}, Data)
+        spectra:decode(json, ?MODULE, {type, tuple3, 0}, Data, [pre_decoded])
     ).
 
 spectra_json_error_on_record_with_tuple_field_test() ->
     Record = #with_tuple{id = 1, data = {}},
     ?assertError(
         {type_not_supported, _},
-        spectra_json:to_json(?MODULE, {record, with_tuple}, Record)
+        spectra:encode(json, ?MODULE, {record, with_tuple}, Record, [pre_encoded])
     ).

@@ -78,9 +78,9 @@ validate_weird_union_test() ->
 -spec to_json_weird_union(weird_union()) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json_weird_union(Data) ->
-    spectra_json:to_json(?MODULE, {type, weird_union, 0}, Data).
+    spectra:encode(json, ?MODULE, {type, weird_union, 0}, Data, [pre_encoded]).
 
 -spec from_json_weird_union(json:encode_value()) ->
     {ok, weird_union()} | {error, [spectra:error()]}.
 from_json_weird_union(Json) ->
-    spectra_json:from_json(?MODULE, {type, weird_union, 0}, Json).
+    spectra:decode(json, ?MODULE, {type, weird_union, 0}, Json, [pre_decoded]).
