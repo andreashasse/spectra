@@ -538,11 +538,15 @@ BadSourceJson = <<"[{\"number\":\"+1-555-123-4567\",\"verified\":{\"source\":\"a
 {error, [#sp_error{...}]} = json_to_contacts(BadSourceJson).
 ```
 
-`#error{}` contains:
+`#sp_error{}` contains:
 
-- `location` - List showing the path to where the error occurred
-- `type` - Error type: `type_mismatch`, `no_match`, `missing_data`, `missing_type`, `type_not_supported`, `not_matched_fields`, `not_implemented`
-- `ctx` - Context information about the error
+- `location` — list of field names / list indices tracing the path from the root to the failing value, e.g. `[contacts, 0, verified, source]`
+- `type` — one of:
+  - `type_mismatch` — value did not match the expected type
+  - `missing_data` — a required field was absent
+  - `not_matched_fields` — an exact typed-map field had no matching keys in the data
+  - `no_match` — no branch of a union type matched (sub-errors per branch are in `ctx`)
+- `ctx` — map with at least `#{type => ExpectedType, value => ActualValue}`; for `no_match` also includes `#{errors => [{BranchType, [#sp_error{}]}]}`
 
 ### Raised Exceptions
 
