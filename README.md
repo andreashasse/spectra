@@ -84,67 +84,49 @@ spectra:decode(Format, Module, Type, JsonBinary) ->
 ```
 
 Where:
-- `Format` is json, binary_string or string
-- `Module` is the module where the type/record is defined (or a `type_info()` for advanced usage)
+- `Format` is `json`, `binary_string`, or `string`
+- `Module` is the module where the type/record is defined
 - `Type` is either:
   - an atom: spectra will look for a type of arity 0 or a record with that name
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
   - `{record, RecordName}` for records (e.g., `{record, user}`)
-  - An actual `sp_type()` structure (for advanced usage)
 
-Both functions accept an optional `Options` list as a fifth argument:
-
-```erlang
-spectra:encode(Format, Module, Type, Value, Options) ->
-    {ok, iodata() | json:encode_value()} | {error, [spectra:error()]}.
-spectra:decode(Format, Module, Type, Data, Options) ->
-    {ok, Value} | {error, [spectra:error()]}.
-```
-
-Two options control whether the serialization layer is applied:
-
-| Option | Effect |
-|--------|--------|
-| `pre_decoded` (for `decode`) | `Data` is already a decoded term — skips deserialization (e.g. `json:decode/1`) |
-| `pre_encoded` (for `encode`) | Returns the intermediate term instead of bytes — skips serialization (e.g. `json:encode/1`) |
-
-Each option can be given as a bare atom (`[pre_decoded]`) or as a tuple (`[{pre_decoded, true}]`). The default for both is `false`.
-
-This is useful when you have already decoded the wire format (e.g., from a web framework) or when you want to inspect or manipulate the term before serializing it:
+The `binary_string` and `string` formats decode a single value from a binary or string — useful for query parameters and path variables:
 
 ```erlang
-%% Decode from a pre-decoded JSON term (e.g., from cowboy or plug)
-DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
-{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
+-type role() :: admin | member.
+-type page() :: 1..100.
 
-%% Encode to a JSON term instead of a binary
-{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
+spectra:decode(binary_string, ?MODULE, role, <<"admin">>).
+%% => {ok, admin}
+
+spectra:decode(binary_string, ?MODULE, page, <<"5">>).
+%% => {ok, 5}
 ```
-
 
 ### Schema API
 
 ```erlang
 spectra:schema(Format, Module, Type) -> Schema :: iodata().
-spectra:schema(Format, Module, Type, Options) -> Schema :: iodata() | map().
 ```
 
-Where:
-- `Format` is `json_schema` (for now)
+Where `Format` is `json_schema`. The `Module` and `Type` arguments are the same as above.
 
-And the rest of the arguments are the same as for the data serialization API.
+### Options
 
-The optional `Options` list supports:
+All three functions accept an optional `Options` list as the last argument. Two options skip the outer serialization layer — useful when integrating with a web framework that handles JSON encoding/decoding:
 
-| Option | Effect |
-|--------|--------|
-| `pre_encoded` | Returns the raw schema map instead of encoded `iodata()` — useful for inspection or merging before serialisation |
+| Option | Function | Effect |
+|--------|----------|--------|
+| `pre_decoded` | `decode` | Input is already a parsed term — skips `json:decode/1` |
+| `pre_encoded` | `encode`, `schema` | Returns a term instead of `iodata()` — skips `json:encode/1` |
 
 ```erlang
-%% Get encoded JSON binary (default)
-IoData = spectra:schema(json_schema, my_module, user),
+%% Input already decoded by a web framework
+{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
 
-%% Get the raw map for inspection or merging
+%% Get a term instead of iodata
+{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
 SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]),
 ```
 
@@ -187,8 +169,6 @@ schema(_Format, _Mod, _TypeRef, _Opts) ->
 ```
 
 For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
-
-Return `continue` for type references your codec does not own at all — spectra falls through to its default structural encoder/decoder.
 
 The `schema/4` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
@@ -372,12 +352,11 @@ The function specified in `examples_function` must be exported.
 
 ## OpenAPI Spec
 
-Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
+Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications from your type definitions.
+
+**Most users should not use this API directly.** Instead, use a web server integration library that wraps it — for example [elli_openapi](https://github.com/andreashasse/elli_openapi) for Elli. The builder API below is intended for authors of such libraries.
 
 ### OpenAPI Builder API
-
-This API is primarily intended for developers of web servers and web frameworks.
-See [elli_openapi](https://github.com/andreashasse/elli_openapi) for an example of how to use it in a web server.
 
 ```erlang
 %% Create a base endpoint
@@ -524,11 +503,7 @@ Json = <<"{\"name\":\"Alice\",\"age\":30,\"extra\":\"ignored\"}">>,
 {ok, #{name := <<"Alice">>, age := 30}} = spectra:decode(json, ?MODULE, user, Json).
 ```
 
-This behavior was introduced in version 0.2.0. Previously, extra fields during deserialization would cause a `not_matched_fields` error.
-
 **Note:** The `not_matched_fields` error is still raised during **serialization** (Erlang → JSON) when encoding data with exact typed map fields that don't match the provided data structure.
-
-**Future changes:** This default behavior may change in future versions of spectra when decode/encode options are introduced, allowing users to configure whether extra fields should be ignored or cause errors.
 
 ## Special Handling
 
@@ -566,37 +541,7 @@ The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
 
 ### Maps with Typed and Literal Fields
 
-When a map type contains both typed fields (e.g., `binary() => integer()`) and literal fields (e.g., `status := active`), the following precedence rules apply during JSON deserialization:
-
-**Exact literal fields** (`:=`) are processed first and take precedence for their specific keys:
-
-```erlang
--type config() :: #{binary() := integer(), timeout := 30}.
-
-%% JSON: {"timeout": 30, "retries": 5}
-%% Result: #{timeout => 30, <<"retries">> => 5}
-%% The key "timeout" matches the exact literal field, "retries" matches the typed field
-```
-
-This ensures that when you have an exact literal field like `timeout := 30`, it will correctly match the JSON key `"timeout"` even if there's a broader typed field like `binary() := integer()` that could also match that key.
-
-**Assoc literal fields** (`=>`) do not have special precedence - they are processed in the order they appear in the type definition alongside typed fields. This means typed fields can shadow assoc literal fields depending on the order:
-
-```erlang
--type metadata() :: #{atom() => atom(), version => <<"1.0">>}.
-
-%% If atom() => atom() is encountered first during processing:
-%% JSON: {"version": "1.0"}
-%% Result: #{version => '1.0'}  (matched by typed field as an atom)
-
--type metadata2() :: #{version => <<"1.0">>, atom() => atom()}.
-
-%% If version => <<"1.0">> is encountered first:
-%% JSON: {"version": "1.0"}
-%% Result: #{version => <<"1.0">>}  (matched by literal field)
-```
-
-**Note:** The order in which fields appear in your type definition can affect behavior for assoc fields. For predictable behavior, use exact fields (`:=`) for literal values that should always match their specific keys.
+When a map has both typed fields (e.g., `binary() => integer()`) and exact literal fields (`:=`), the literal fields take precedence for their specific keys. For predictable behavior, use exact fields (`:=`) for literal values.
 
 ### `term()` | `any()`
 
@@ -633,9 +578,7 @@ You can configure spectra behavior using application environment variables:
 #### `check_unicode`
 - **Type**: `boolean()`
 - **Default**: `false`
-- **Description**: When set to `true`, enables additional Unicode validation for string data. This validates that list-type string data contains valid Unicode characters. When disabled, string conversion still works correctly but skips the additional validation step for better performance.
-- **Note**: Required type conversions (e.g., binary to list, list to binary) always use Unicode functions regardless of this setting.
-- **Recommendation**: Enable this if you need strict Unicode validation, or keep disabled for better performance when Unicode validity is guaranteed by other means.
+- **Description**: When set to `true`, enables additional Unicode validation for list-type string data. Disable for better performance when Unicode validity is guaranteed by other means.
 
 Example configuration in `sys.config`:
 
