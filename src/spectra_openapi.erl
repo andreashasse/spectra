@@ -30,6 +30,17 @@
 
 -compile(nowarn_unused_type).
 
+-export_type([
+    endpoint_spec/0,
+    endpoint_doc/0,
+    response_spec/0,
+    parameter_spec/0,
+    parameter_input_spec/0,
+    http_method/0,
+    http_status_code/0,
+    openapi_metadata/0
+]).
+
 -define(DEFAULT_CONTENT_TYPE, <<"application/json">>).
 
 -type http_method() :: get | put | post | delete | options | head | patch | trace.
@@ -78,6 +89,14 @@
         required := boolean(),
         schema := spectra:sp_type_or_ref(),
         module := module()
+    }.
+%% The map passed by the caller to with_parameter/3 — module is added by the function.
+-type parameter_input_spec() ::
+    #{
+        name := binary(),
+        in := parameter_location(),
+        required := boolean(),
+        schema := spectra:sp_type_or_ref()
     }.
 -type openapi_server() :: #{url := binary(), description => binary()}.
 -type openapi_contact() :: #{name => binary(), url => binary(), email => binary()}.
@@ -516,7 +535,7 @@ Updated endpoint map with the new parameter added
 -spec with_parameter(
     Endpoint :: endpoint_spec(),
     Module :: module(),
-    ParameterSpec :: parameter_spec()
+    ParameterSpec :: parameter_input_spec()
 ) ->
     endpoint_spec().
 with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when

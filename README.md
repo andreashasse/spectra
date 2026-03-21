@@ -23,96 +23,52 @@ Add spectra to your rebar.config dependencies:
 
 Your modules must be compiled with `debug_info` for spectra to extract type information.
 
-## Data (de)serialization
+## Data (de)serialization and schemas
 
 Here's how to use spectra for JSON serialization and deserialization:
 
-
 ```erlang
--module(demo).
+-module(user).
 
--export([json_to_contacts/1, contacts_to_json/1, json_schema/0, binary_to_quality/1]).
+-export([from_json/1, to_json/1, json_schema/0]).
 
--record(email_contact, {address, verified, domain}).
--record(phone_contact, {number, verified, sms_capable}).
+-record(user, {name, age, role}).
 
--type quality() :: 1..5.
--type verified() ::
-    #{source := one_time_code | gut_feeling,
-      quality => quality(),
-      binary() => binary()} | undefined.
--type email_contact() ::
-    #email_contact{address :: nonempty_binary(),
-                   verified :: verified(),
-                   domain :: nonempty_binary()}.
--type phone_contact() ::
-    #phone_contact{number :: binary(),
-                   verified :: verified(),
-                   sms_capable :: boolean()}.
--type contacts() :: [email_contact() | phone_contact()].
+-type role() :: admin | member.
+-type user() :: #user{
+    name :: binary(),
+    age :: non_neg_integer(),
+    role :: role()
+}.
 
-%% Some helper functions
+-spec from_json(binary()) -> {ok, user()} | {error, [spectra:error()]}.
+from_json(Json) ->
+    spectra:decode(json, ?MODULE, user, Json).
 
--spec json_to_contacts(binary()) -> {ok, contacts()} | {error, [spectra:error()]}.
-json_to_contacts(Json) ->
-    spectra:decode(json, ?MODULE, contacts, Json).
+-spec to_json(user()) -> {ok, iodata()} | {error, [spectra:error()]}.
+to_json(User) ->
+    spectra:encode(json, ?MODULE, user, User).
 
--spec contacts_to_json(contacts()) -> {ok, binary()} | {error, [spectra:error()]}.
-contacts_to_json(Contacts) ->
-    case spectra:encode(json, ?MODULE, contacts, Contacts) of
-        {ok, JsonIoList} -> {ok, iolist_to_binary(JsonIoList)};
-        {error, _} = Error -> Error
-    end.
-
--spec binary_to_quality(binary()) -> {ok, quality()} | {error, [spectra:error()]}.
-binary_to_quality(Bin) ->
-    spectra:decode(binary_string, ?MODULE, quality, Bin).
-
+-spec json_schema() -> iodata().
 json_schema() ->
-    spectra:schema(json_schema, ?MODULE, contacts).
-
+    spectra:schema(json_schema, ?MODULE, user).
 ```
 
-### Using the demo module in the shell
-
+### Using the user module in the shell
 
 ```erlang
-%% Compile the demo module (note: You need debug info)
-c("demo.erl", [debug_info]).
+%% Compile the user module (note: You need debug info)
+c("user.erl", [debug_info]).
 
 %% Load the record defs into the shell.
-rr(demo).
+rr(user).
 
-%% Create some data
-Contacts = [
-    #email_contact{
-        address = <<"john.doe@example.com">>,
-        verified = #{source => one_time_code, quality => 2, <<"code">> => <<"123456">>},
-        domain = <<"example.com">>
-    },
-    #phone_contact{
-        number = <<"+1-555-123-4567">>,
-        verified = #{source => gut_feeling, <<"confidence">> => <<"high">>},
-        sms_capable = true
-    },
-    #email_contact{
-        address = <<"alice@company.org">>,
-        domain = <<"company.org">>
-    }
-].
+User = #user{name = <<"Alice">>, age = 30, role = admin}.
 
-%% Convert to JSON
-{ok, Json} = demo:contacts_to_json(Contacts).
-
-%% Convert back from JSON
-demo:json_to_contacts(Json).
-
-%% If you get quality as a query parameter, you can do:
-demo:binary_to_quality(<<"4">>).
-
-%% Generate the json schema
-demo:json_schema().
-
+{ok, JsonIO} = user:to_json(User).
+Json = iolist_to_binary(JsonIO).
+{ok, User} = user:from_json(Json).
+iolist_to_binary(user:json_schema()).
 ```
 
 ### Data Serialization API
@@ -128,43 +84,25 @@ spectra:decode(Format, Module, Type, JsonBinary) ->
 ```
 
 Where:
-- `Format` is json, binary_string or string
+- `Format` is `json`, `binary_string`, or `string`
 - `Module` is the module where the type/record is defined (or a `type_info()` for advanced usage)
 - `Type` is either:
   - an atom: spectra will look for a type of arity 0 or a record with that name
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
   - `{record, RecordName}` for records (e.g., `{record, user}`)
-  - An actual `sp_type()` structure (for advanced usage)
 
-Both functions accept an optional `Options` list as a fifth argument:
-
-```erlang
-spectra:encode(Format, Module, Type, Value, Options) ->
-    {ok, iodata() | json:encode_value()} | {error, [spectra:error()]}.
-spectra:decode(Format, Module, Type, Data, Options) ->
-    {ok, Value} | {error, [spectra:error()]}.
-```
-
-Two options control whether the serialization layer is applied:
-
-| Option | Effect |
-|--------|--------|
-| `pre_decoded` (for `decode`) | `Data` is already a decoded term — skips deserialization (e.g. `json:decode/1`) |
-| `pre_encoded` (for `encode`) | Returns the intermediate term instead of bytes — skips serialization (e.g. `json:encode/1`) |
-
-Each option can be given as a bare atom (`[pre_decoded]`) or as a tuple (`[{pre_decoded, true}]`). The default for both is `false`.
-
-This is useful when you have already decoded the wire format (e.g., from a web framework) or when you want to inspect or manipulate the term before serializing it:
+The `binary_string` and `string` formats decode a single value from a binary or string — useful for query parameters and path variables:
 
 ```erlang
-%% Decode from a pre-decoded JSON term (e.g., from cowboy or plug)
-DecodedJson = #{<<"id">> => 42, <<"name">> => <<"Alice">>},
-{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
+-type role() :: admin | member.
+-type page() :: 1..100.
 
-%% Encode to a JSON term instead of a binary
-{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
+spectra:decode(binary_string, ?MODULE, role, <<"admin">>).
+%% => {ok, admin}
+
+spectra:decode(binary_string, ?MODULE, page, <<"5">>).
+%% => {ok, 5}
 ```
-
 
 ### Schema API
 
@@ -173,23 +111,24 @@ spectra:schema(Format, Module, Type) -> Schema :: iodata().
 spectra:schema(Format, Module, Type, Options) -> Schema :: iodata() | map().
 ```
 
-Where:
-- `Format` is `json_schema` (for now)
+Where `Format` is `json_schema`. The `Module` and `Type` arguments are the same as above.
 
-And the rest of the arguments are the same as for the data serialization API.
+### Options
 
-The optional `Options` list supports:
+All three functions accept an optional `Options` list as the last argument. Two options skip the outer serialization layer — useful when integrating with a web framework that handles JSON encoding/decoding:
 
-| Option | Effect |
-|--------|--------|
-| `pre_encoded` | Returns the raw schema map instead of encoded `iodata()` — useful for inspection or merging before serialisation |
+| Option | Function | Effect |
+|--------|----------|--------|
+| `pre_decoded` | `decode` | Input is already a parsed term — skips `json:decode/1` |
+| `pre_encoded` | `encode`, `schema` | Returns a term instead of `iodata()` — skips `json:encode/1` |
 
 ```erlang
-%% Get encoded JSON binary (default)
-IoData = spectra:schema(json_schema, my_module, user),
+%% Input already decoded by a web framework
+{ok, User} = spectra:decode(json, my_module, user, DecodedJson, [pre_decoded]),
 
-%% Get the raw map for inspection or merging
-SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]),
+%% Get a term instead of iodata
+{ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
+SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]).
 ```
 
 ### Custom Codecs
@@ -232,13 +171,30 @@ schema(_Format, _Mod, _TypeRef, _Opts) ->
 
 For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
 
-Return `continue` for type references your codec does not own at all — spectra falls through to its default structural encoder/decoder.
-
 The `schema/4` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
 #### Types in the Same Module (No Configuration)
 
 If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no application environment configuration required. The `my_geo_codec` example above works this way: `point()` is defined in the same module that implements the behaviour.
+
+#### Types from Other Modules (App Environment)
+
+To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
+
+```erlang
+%% sys.config
+{spectra, [
+    {codecs, #{
+        {calendar, {type, datetime, 0}} => my_datetime_codec
+    }}
+]}
+```
+
+The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying the type's owning module. `TypeRef` can be:
+- `{type, TypeName, Arity}` for user-defined types (e.g., `{calendar, {type, datetime, 0}}`)
+- `{record, RecordName}` for records (e.g., `{my_module, {record, my_record}}`)
+
+Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no app environment entry is required. This applies to third-party modules that have adopted the `spectra_codec` behaviour themselves.
 
 #### Type Parameters
 
@@ -252,10 +208,10 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 
 -export([encode/5, decode/5, schema/4]).
 
-%% This codec handles any binary type whose type_parameters is a prefix binary.
+%% Only user_id() and org_id() are defined in this module, so spectra will only
+%% ever call this codec for those two types — no continue clause needed.
 %% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
 
-%% Types defined here are automatically covered by this codec (no app env needed).
 -spectra(#{type_parameters => <<"user:">>}).
 -type user_id() :: binary().
 
@@ -265,24 +221,22 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 -export_type([user_id/0, org_id/0]).
 
 %% Strips the prefix on decode, re-attaches it on encode.
-decode(json, _Mod, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+decode(json, ?MODULE, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
     PrefixLen = byte_size(Prefix),
     case Data of
         <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
         _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
-decode(_Format, _Mod, _TypeRef, _Data, _Params) ->
-    continue.
+decode(json, ?MODULE, TypeRef, Data, _Prefix) ->
+    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
-encode(json, _Mod, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
+encode(json, ?MODULE, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
     {ok, <<Prefix/binary, Data/binary>>};
-encode(_Format, _Mod, _TypeRef, _Data, _Params) ->
-    continue.
+encode(json, ?MODULE, TypeRef, Data, _Prefix) ->
+    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
-schema(json_schema, _Mod, _TypeRef, Prefix) when is_binary(Prefix) ->
-    #{type => <<"string">>, pattern => <<"^", Prefix/binary>>};
-schema(_Format, _Mod, _TypeRef, _Params) ->
-    continue.
+schema(json_schema, ?MODULE, _TypeRef, Prefix) when is_binary(Prefix) ->
+    #{type => <<"string">>, pattern => <<"^", Prefix/binary>>}.
 ```
 
 ```erlang
@@ -345,26 +299,7 @@ Encoding (`to_json`) also validates constraints — an error is returned if the 
 
 Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
 
-#### Types from Other Modules (App Environment)
-
-To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
-
-```erlang
-%% sys.config
-{spectra, [
-    {codecs, #{
-        {calendar, {type, datetime, 0}} => my_datetime_codec
-    }}
-]}
-```
-
-The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying the type's owning module. `TypeRef` can be:
-- `{type, TypeName, Arity}` for user-defined types (e.g., `{calendar, {type, datetime, 0}}`)
-- `{record, RecordName}` for records (e.g., `{my_module, {record, my_record}}`)
-
-Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no app environment entry is required. This applies to third-party modules that have adopted the `spectra_codec` behaviour themselves.
-
-### Adding Documentation and Examples to Schemas
+## Adding Documentation and Examples to Schemas
 
 You can enhance your generated schemas with documentation and examples using the `-spectra()` attribute. This metadata is included in the JSON Schema output and OpenAPI specifications.
 
@@ -392,7 +327,7 @@ You can enhance your generated schemas with documentation and examples using the
 ```
 
 **Note:** When using examples with records, you must use tuple syntax (e.g., `{user, 1, <<"Alice">>, active}`), which can be error-prone.
-For better maintainability, especially with records, use the `examples_function` field to generate examples dynamically:
+For better maintainability, especially with records, use the `examples_function` field to be able to use record syntax and programmatically generate examples:
 
 ```erlang
 -record(person, {
@@ -418,12 +353,11 @@ The function specified in `examples_function` must be exported.
 
 ## OpenAPI Spec
 
-Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications for your REST APIs. This provides interactive documentation, client generation, and API testing tools.
+Spectra can generate complete [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) specifications from your type definitions.
+
+**Most users should not use this API directly.** Instead, use a web server integration library that wraps it — for example [elli_openapi](https://github.com/andreashasse/elli_openapi) for Elli. The builder API below is intended for authors of such libraries.
 
 ### OpenAPI Builder API
-
-This API is primarily intended for developers of web servers and web frameworks.
-See [elli_openapi](https://github.com/andreashasse/elli_openapi) for an example of how to use it in a web server.
 
 ```erlang
 %% Create a base endpoint
@@ -570,11 +504,7 @@ Json = <<"{\"name\":\"Alice\",\"age\":30,\"extra\":\"ignored\"}">>,
 {ok, #{name := <<"Alice">>, age := 30}} = spectra:decode(json, ?MODULE, user, Json).
 ```
 
-This behavior was introduced in version 0.2.0. Previously, extra fields during deserialization would cause a `not_matched_fields` error.
-
 **Note:** The `not_matched_fields` error is still raised during **serialization** (Erlang → JSON) when encoding data with exact typed map fields that don't match the provided data structure.
-
-**Future changes:** This default behavior may change in future versions of spectra when decode/encode options are introduced, allowing users to configure whether extra fields should be ignored or cause errors.
 
 ## Special Handling
 
@@ -612,37 +542,7 @@ The behavior depends on whether fields are mandatory (`:=`) or optional (`=>`):
 
 ### Maps with Typed and Literal Fields
 
-When a map type contains both typed fields (e.g., `binary() => integer()`) and literal fields (e.g., `status := active`), the following precedence rules apply during JSON deserialization:
-
-**Exact literal fields** (`:=`) are processed first and take precedence for their specific keys:
-
-```erlang
--type config() :: #{binary() := integer(), timeout := 30}.
-
-%% JSON: {"timeout": 30, "retries": 5}
-%% Result: #{timeout => 30, <<"retries">> => 5}
-%% The key "timeout" matches the exact literal field, "retries" matches the typed field
-```
-
-This ensures that when you have an exact literal field like `timeout := 30`, it will correctly match the JSON key `"timeout"` even if there's a broader typed field like `binary() := integer()` that could also match that key.
-
-**Assoc literal fields** (`=>`) do not have special precedence - they are processed in the order they appear in the type definition alongside typed fields. This means typed fields can shadow assoc literal fields depending on the order:
-
-```erlang
--type metadata() :: #{atom() => atom(), version => <<"1.0">>}.
-
-%% If atom() => atom() is encountered first during processing:
-%% JSON: {"version": "1.0"}
-%% Result: #{version => '1.0'}  (matched by typed field as an atom)
-
--type metadata2() :: #{version => <<"1.0">>, atom() => atom()}.
-
-%% If version => <<"1.0">> is encountered first:
-%% JSON: {"version": "1.0"}
-%% Result: #{version => <<"1.0">>}  (matched by literal field)
-```
-
-**Note:** The order in which fields appear in your type definition can affect behavior for assoc fields. For predictable behavior, use exact fields (`:=`) for literal values that should always match their specific keys.
+When a map has both typed fields (e.g., `binary() => integer()`) and exact literal fields (`:=`), the literal fields take precedence for their specific keys. For predictable behavior, use exact fields (`:=`) for literal values.
 
 ### `term()` | `any()`
 
@@ -679,9 +579,7 @@ You can configure spectra behavior using application environment variables:
 #### `check_unicode`
 - **Type**: `boolean()`
 - **Default**: `false`
-- **Description**: When set to `true`, enables additional Unicode validation for string data. This validates that list-type string data contains valid Unicode characters. When disabled, string conversion still works correctly but skips the additional validation step for better performance.
-- **Note**: Required type conversions (e.g., binary to list, list to binary) always use Unicode functions regardless of this setting.
-- **Recommendation**: Enable this if you need strict Unicode validation, or keep disabled for better performance when Unicode validity is guaranteed by other means.
+- **Description**: When set to `true`, enables additional Unicode validation for list-type string data. Disable for better performance when Unicode validity is guaranteed by other means.
 
 Example configuration in `sys.config`:
 
