@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-03-21
+
+### Added
+- **Exported OpenAPI types**: `spectra_openapi` now exports `endpoint_spec/0`, `endpoint_doc/0`, `response_spec/0`, `parameter_spec/0`, `parameter_input_spec/0`, `http_method/0`, `http_status_code/0`, and `openapi_metadata/0`.
+- **`parameter_input_spec/0`**: New type for the map passed to `with_parameter/3`. Distinct from the internal `parameter_spec/0` (which includes `module`) — the function merges `module` in automatically.
+
+### Changed
+- README overhauled: simpler introductory example, cleaner API reference, restructured Custom Codecs section, added `binary_string`/`string` format example.
+
 ## [0.8.0] - 2026-03-19
 
 ### Added
