@@ -127,7 +127,7 @@ All three functions accept an optional `Options` list as the last argument. Two 
 
 %% Get a term instead of iodata
 {ok, JsonTerm} = spectra:encode(json, my_module, user, User, [pre_encoded]),
-SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]),
+SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]).
 ```
 
 ### Custom Codecs
@@ -326,7 +326,7 @@ You can enhance your generated schemas with documentation and examples using the
 ```
 
 **Note:** When using examples with records, you must use tuple syntax (e.g., `{user, 1, <<"Alice">>, active}`), which can be error-prone.
-For better maintainability, especially with records, use the `examples_function` field to be able to record syntax and programmatically generate examples:
+For better maintainability, especially with records, use the `examples_function` field to be able to use record syntax and programmatically generate examples:
 
 ```erlang
 -record(person, {
