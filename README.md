@@ -85,7 +85,7 @@ spectra:decode(Format, Module, Type, JsonBinary) ->
 
 Where:
 - `Format` is `json`, `binary_string`, or `string`
-- `Module` is the module where the type/record is defined
+- `Module` is the module where the type/record is defined (or a `type_info()` for advanced usage)
 - `Type` is either:
   - an atom: spectra will look for a type of arity 0 or a record with that name
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
@@ -108,6 +108,7 @@ spectra:decode(binary_string, ?MODULE, page, <<"5">>).
 
 ```erlang
 spectra:schema(Format, Module, Type) -> Schema :: iodata().
+spectra:schema(Format, Module, Type, Options) -> Schema :: iodata() | map().
 ```
 
 Where `Format` is `json_schema`. The `Module` and `Type` arguments are the same as above.
