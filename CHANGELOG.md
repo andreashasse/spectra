@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-03-21
+
+### Changed
+- README: added reference tables documenting all valid `-spectra()` attribute keys for types/records and function specs, including the `title` vs `summary` distinction.
+
 ## [0.8.1] - 2026-03-21
 
 ### Added

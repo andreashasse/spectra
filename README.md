@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.8.1"}
+    {spectra, "~> 0.8.2"}
 ]}.
 ```
 
@@ -301,7 +301,28 @@ Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint
 
 ## Adding Documentation and Examples to Schemas
 
-You can enhance your generated schemas with documentation and examples using the `-spectra()` attribute. This metadata is included in the JSON Schema output and OpenAPI specifications.
+The `-spectra()` attribute annotates types, records, and function specs with metadata. The valid keys differ depending on what follows the attribute.
+
+**Before a type or record:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `title` | `binary()` | Short display name |
+| `description` | `binary()` | Longer description |
+| `deprecated` | `boolean()` | Marks the type as deprecated |
+| `examples` | `[term()]` | Example values (use tuple syntax for records) |
+| `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
+| `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see above) |
+
+**Before a `-spec` declaration:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `summary` | `binary()` | Short one-line summary |
+| `description` | `binary()` | Longer description |
+| `deprecated` | `boolean()` | Marks the function as deprecated |
+
+Note that types use `title` while function specs use `summary` — there is no `title` for functions, and no `summary` for types.
 
 ```erlang
 -spectra(#{
