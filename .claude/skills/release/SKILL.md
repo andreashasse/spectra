@@ -80,26 +80,29 @@ After the user selects a version bump, update these files:
 
 ## Step 6: Create Release Branch and PR
 
-After updating the files:
+Use the AskUserQuestion tool to ask whether to create a new release branch or commit to the current branch:
+- **New branch** (`release/X.Y.Z`): creates a clean branch for the release PR
+- **Current branch**: commits directly to whatever branch is currently checked out
 
+Then proceed based on the answer:
+
+**If new branch:**
 1. Create and switch to a release branch:
    ```bash
    git checkout -b release/X.Y.Z
    ```
 
+**Either way:**
 2. Stage and commit the updated files:
    ```bash
    git add CHANGELOG.md README.md
    git commit -m "Prepare release X.Y.Z"
    ```
 
-3. Push the branch:
+**If new branch:**
+3. Push and create a PR:
    ```bash
    git push -u origin release/X.Y.Z
-   ```
-
-4. Create a PR using the GitHub CLI:
-   ```bash
    gh pr create --title "Release X.Y.Z" --body "$(cat <<'EOF'
    ## Release X.Y.Z
 
@@ -108,8 +111,14 @@ After updating the files:
    EOF
    )"
    ```
+   Return the PR URL to the user.
 
-Return the PR URL to the user.
+**If current branch:**
+3. Push only — no PR needed since the release commit will be included in the branch's existing PR:
+   ```bash
+   git push
+   ```
+   Tell the user the release commit has been pushed to the current branch.
 
 ## Important Notes
 
