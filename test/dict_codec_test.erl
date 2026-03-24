@@ -7,7 +7,7 @@
 %% Register the dict codec for dict:dict/2 before each test.
 set_codec() ->
     application:set_env(spectra, codecs, #{
-        {dict, {type, dict, 2}} => dict_codec
+        {dict, {type, dict, 2}} => spectra_dict_codec
     }).
 
 unset_codec() ->

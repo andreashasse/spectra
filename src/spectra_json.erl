@@ -69,14 +69,14 @@ to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
     record_to_json(TypeInfo, RecordInfo, Record, []);
 to_json(
     TypeInfo,
-    #sp_rec_ref{record_name = RecordName, field_types = TypeArgs},
+    #sp_rec_ref{record_name = RecordName, field_types = TypeArgs} = RecordRef,
     Record
 ) when
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, json, RecordType, Record, RecordType) of
+    case spectra_codec:try_codec_encode(Mod, json, RecordType, Record, RecordRef) of
         continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs);
         Result -> Result
     end;
@@ -490,14 +490,14 @@ do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
     record_from_json(TypeInfo, Rec, Json, []);
 do_from_json(
     TypeInfo,
-    #sp_rec_ref{record_name = RecordName, field_types = TypeArgs},
+    #sp_rec_ref{record_name = RecordName, field_types = TypeArgs} = RecordRef,
     Json
 ) when
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, json, RecordType, Json, RecordType) of
+    case spectra_codec:try_codec_decode(Mod, json, RecordType, Json, RecordRef) of
         continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
         Result -> Result
     end;

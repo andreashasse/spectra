@@ -89,10 +89,10 @@ do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}} = Remote
         Schema ->
             Schema
     end;
-do_to_schema(TypeInfo, #sp_rec_ref{record_name = N}) ->
+do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    case spectra_codec:try_codec_schema(Mod, json_schema, RecordType, RecordType) of
+    case spectra_codec:try_codec_schema(Mod, json_schema, RecordType, RecordRef) of
         continue ->
             Schema = record_to_schema_internal(TypeInfo, RecordType),
             merge_type_doc_into_schema(TypeInfo, RecordType, Schema);

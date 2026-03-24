@@ -97,10 +97,12 @@ from_binary_string(
         Result ->
             Result
     end;
-from_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, BinaryString, _Opts) ->
+from_binary_string(
+    TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, BinaryString, _Opts
+) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, binary_string, RecordType, BinaryString, RecordType) of
+    case spectra_codec:try_codec_decode(Mod, binary_string, RecordType, BinaryString, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
@@ -227,10 +229,10 @@ to_binary_string(
         Result ->
             Result
     end;
-to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data, _Opts) ->
+to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, _Opts) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, binary_string, RecordType, Data, RecordType) of
+    case spectra_codec:try_codec_encode(Mod, binary_string, RecordType, Data, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;

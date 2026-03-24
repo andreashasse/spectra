@@ -45,10 +45,10 @@ from_string(
         Result ->
             Result
     end;
-from_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, String) ->
+from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, string, RecordType, String, RecordType) of
+    case spectra_codec:try_codec_decode(Mod, string, RecordType, String, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
@@ -136,10 +136,10 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = 
         Result ->
             Result
     end;
-to_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data) ->
+to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data, RecordType) of
+    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;

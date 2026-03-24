@@ -200,6 +200,30 @@ Alternatively, if the other module itself implements `-behaviour(spectra_codec)`
 
 The `SpType` argument (5th position) is the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
 
+## Built-in Codecs
+
+Spectra ships with a codec for `dict:dict/2`. It is not active by default — register it in the application environment to use it:
+
+```erlang
+{spectra, [
+    {codecs, #{
+        {dict, {type, dict, 2}} => spectra_dict_codec
+    }}
+]}
+```
+
+`spectra_dict_codec` encodes a dict as a JSON object and decodes a JSON object back into a dict. The concrete `Key` and `Value` types are resolved from the type-variable bindings at each usage site, so `dict:dict(binary(), integer())` and `dict:dict(binary(), dict:dict(binary(), float()))` are both handled without any extra configuration. Keys must encode to binary strings (as required by JSON).
+
+```erlang
+-type word_counts() :: dict:dict(binary(), non_neg_integer()).
+
+D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
+{ok, Json} = spectra:encode(json, my_module, word_counts, D).
+%% => {ok, <<"{\"hello\":3,\"world\":1}">>}
+
+{ok, D2} = spectra:decode(json, my_module, word_counts, Json).
+```
+
 ## Type Parameters
 
 The `-spectra()` attribute accepts a `type_parameters` key that serves two purposes: it is passed as `Params` to codec callbacks, and for built-in string/binary types it enables structural constraints — no custom codec required.
