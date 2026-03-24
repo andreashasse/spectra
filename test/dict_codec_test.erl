@@ -17,6 +17,7 @@ dict_codec_test_() ->
             fun(_) -> fun decode_word_counts/0 end,
             fun(_) -> fun decode_empty_dict/0 end,
             fun(_) -> fun decode_type_error/0 end,
+            fun(_) -> fun decode_non_map_input/0 end,
             fun(_) -> fun schema_word_counts/0 end,
             fun(_) -> fun roundtrip_word_counts/0 end,
             fun(_) -> fun nested_encode/0 end,
@@ -58,6 +59,12 @@ decode_type_error() ->
     ?assertMatch(
         {error, _},
         spectra:decode(json, dict_codec_module, word_counts, Json, [pre_decoded])
+    ).
+
+decode_non_map_input() ->
+    ?assertMatch(
+        {error, _},
+        spectra:decode(json, dict_codec_module, word_counts, [1, 2, 3], [pre_decoded])
     ).
 
 %% -----------------------------------------------------------------------
