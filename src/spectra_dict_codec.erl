@@ -43,7 +43,7 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 
 -spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_encode_result().
-encode(json, Mod, TypeRef, Data, SpType, _Params) ->
+encode(json, Mod, {type, dict, 2} = TypeRef, Data, SpType, _Params) ->
     try dict:to_list(Data) of
         Pairs ->
             TypeInfo = spectra_module_types:get(Mod),
@@ -56,16 +56,16 @@ encode(json, Mod, TypeRef, Data, SpType, _Params) ->
 
 -spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_decode_result().
-decode(json, Mod, _TypeRef, Data, SpType, _Params) when is_map(Data) ->
+decode(json, Mod, {type, dict, 2}, Data, SpType, _Params) when is_map(Data) ->
     TypeInfo = spectra_module_types:get(Mod),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
     decode_pairs(TypeInfo, KeyType, ValueType, maps:to_list(Data), []);
-decode(json, _Mod, TypeRef, Data, _SpType, _Params) ->
+decode(json, _Mod, {type, dict, 2} = TypeRef, Data, _SpType, _Params) ->
     {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
 -spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term()) ->
     dynamic().
-schema(json_schema, Mod, _TypeRef, SpType, _Params) ->
+schema(json_schema, Mod, {type, dict, 2}, SpType, _Params) ->
     TypeInfo = spectra_module_types:get(Mod),
     [_KeyType, ValueType] = spectra_type:type_args(SpType),
     ValueSchema = spectra_json_schema:to_schema(TypeInfo, ValueType),
