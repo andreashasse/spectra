@@ -19,33 +19,33 @@
 -export_type([
     point/0, maybe_point/0, named_point/0, location/0, point_with_status/1, active_passive_point/0
 ]).
--export([encode/5, decode/5, schema/4]).
+-export([encode/6, decode/6, schema/5]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_encode_result().
-encode(_, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
+encode(_, _Mod, {type, point, 0}, {X, Y}, _SpType, _Params) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_, _Mod, {type, point, 0}, Data, _Opts) ->
+encode(_, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_, _, _, _, _) ->
+encode(_, _, _, _, _, _) ->
     continue.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_decode_result().
-decode(_, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
+decode(_, _Mod, {type, point, 0}, [X, Y], _SpType, _Params) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_, _Mod, {type, point, 0}, Data, _Opts) ->
+decode(_, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_, _, _, _, _) ->
+decode(_, _, _, _, _, _) ->
     continue.
 
--spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type()) -> map().
-schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
+-spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term()) -> map().
+schema(json_schema, _Mod, {type, point, 0}, _SpType, _Params) ->
     #{
         type => <<"array">>,
         items => #{type => <<"number">>},
         minItems => 2,
         maxItems => 2
     };
-schema(_, _, _, _) ->
+schema(_, _, _, _, _) ->
     continue.

@@ -12,34 +12,34 @@
 
 -include("../include/spectra.hrl").
 
--export([encode/5, decode/5, schema/4]).
+-export([encode/6, decode/6, schema/5]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_encode_result().
-encode(json, Mod, _TypeRef, Data, SpType) ->
+encode(json, Mod, _TypeRef, Data, SpType, _Params) ->
     TypeInfo = spectra_module_types:get(Mod),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
     encode_pairs(TypeInfo, KeyType, ValueType, dict:to_list(Data), #{});
-encode(_Format, _Mod, _TypeRef, _Data, _SpType) ->
+encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params) ->
     continue.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
     spectra:codec_decode_result().
-decode(json, Mod, _TypeRef, Data, SpType) when is_map(Data) ->
+decode(json, Mod, _TypeRef, Data, SpType, _Params) when is_map(Data) ->
     TypeInfo = spectra_module_types:get(Mod),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
     decode_pairs(TypeInfo, KeyType, ValueType, maps:to_list(Data), dict:new());
-decode(_Format, _Mod, _TypeRef, _Data, _SpType) ->
+decode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params) ->
     continue.
 
--spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type()) ->
+-spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term()) ->
     dynamic().
-schema(json_schema, Mod, _TypeRef, SpType) ->
+schema(json_schema, Mod, _TypeRef, SpType, _Params) ->
     TypeInfo = spectra_module_types:get(Mod),
     [_KeyType, ValueType] = spectra_type:type_args(SpType),
     ValueSchema = spectra_json_schema:to_schema(TypeInfo, ValueType),
     #{type => <<"object">>, additionalProperties => ValueSchema};
-schema(_Format, _Mod, _TypeRef, _SpType) ->
+schema(_Format, _Mod, _TypeRef, _SpType, _Params) ->
     continue.
 
 %% Internal helpers

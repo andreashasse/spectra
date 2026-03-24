@@ -38,8 +38,7 @@ from_string(
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_decode(Mod, string, Type, String, SpType) of
+    case spectra_codec:try_codec_decode(Mod, string, Type, String, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String);
@@ -57,8 +56,7 @@ from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = Remo
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_decode(Module, string, RemoteType, String, SpType) of
+    case spectra_codec:try_codec_decode(Module, string, RemoteType, String, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             from_string(RemoteTypeInfo, TypeWithoutVars, String);
@@ -131,8 +129,7 @@ to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = 
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_encode(Mod, string, Type, Data, SpType) of
+    case spectra_codec:try_codec_encode(Mod, string, Type, Data, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data);
@@ -150,8 +147,7 @@ to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = Remote
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data, SpType) of
+    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_string(RemoteTypeInfo, TypeWithoutVars, Data);

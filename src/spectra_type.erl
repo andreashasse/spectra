@@ -16,7 +16,6 @@ detection, and normalisation of `-spectra()` doc annotations.
     set_meta/2,
     parameters/1,
     type_args/1,
-    enrich_ref/2,
     add_doc_to_type/2,
     normalize_doc/1,
     normalize_function_doc/1
@@ -28,7 +27,6 @@ detection, and normalisation of `-spectra()` doc annotations.
     set_meta/2,
     parameters/1,
     type_args/1,
-    enrich_ref/2,
     add_doc_to_type/2,
     normalize_doc/1,
     normalize_function_doc/1
@@ -120,15 +118,6 @@ parameters(Type) ->
 type_args(#sp_user_type_ref{variables = Vars}) -> Vars;
 type_args(#sp_remote_type{mfargs = {_, _, Args}}) -> Args;
 type_args(_) -> [].
-
--doc "Returns a copy of `Ref` with the `parameters` value from `ResolvedType` merged into its meta. Call this before passing a type reference node as the `SpType` argument to a codec callback, so that `spectra_type:parameters/1` returns the same value on the reference as it does on the resolved type.".
--spec enrich_ref(Ref :: spectra:sp_type(), ResolvedType :: spectra:sp_type()) ->
-    spectra:sp_type().
-enrich_ref(Ref, ResolvedType) ->
-    case parameters(ResolvedType) of
-        undefined -> Ref;
-        Params -> set_meta(Ref, (get_meta(Ref))#{parameters => Params})
-    end.
 
 -doc "Attaches a normalised doc map (from a `-spectra()` attribute) to `Type`.".
 -spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().

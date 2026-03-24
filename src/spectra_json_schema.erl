@@ -71,8 +71,7 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = User
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_schema(Mod, json_schema, Type, SpType) of
+    case spectra_codec:try_codec_schema(Mod, json_schema, Type, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_to_schema(TypeInfo, TypeWithoutVars);
@@ -83,8 +82,7 @@ do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}} = Remote
     Arity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Mod),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType, SpType) of
+    case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             do_to_schema(RemoteTypeInfo, TypeWithoutVars);

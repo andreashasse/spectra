@@ -75,8 +75,7 @@ from_binary_string(
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_decode(Mod, binary_string, Type, BinaryString, SpType) of
+    case spectra_codec:try_codec_decode(Mod, binary_string, Type, BinaryString, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
@@ -89,8 +88,9 @@ from_binary_string(
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_decode(Module, binary_string, RemoteType, BinaryString, SpType) of
+    case
+        spectra_codec:try_codec_decode(Module, binary_string, RemoteType, BinaryString, RemoteRef)
+    of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts);
@@ -207,8 +207,7 @@ to_binary_string(
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_encode(Mod, binary_string, Type, Data, SpType) of
+    case spectra_codec:try_codec_encode(Mod, binary_string, Type, Data, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
@@ -221,8 +220,7 @@ to_binary_string(
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_encode(Module, binary_string, RemoteType, Data, SpType) of
+    case spectra_codec:try_codec_encode(Module, binary_string, RemoteType, Data, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts);

@@ -47,8 +47,7 @@ to_json(
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_encode(Mod, json, Type, Data, SpType) of
+    case spectra_codec:try_codec_encode(Mod, json, Type, Data, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_json(TypeInfo, TypeWithoutVars, Data);
@@ -59,8 +58,7 @@ to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRe
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_encode(Module, json, RemoteType, Data, SpType) of
+    case spectra_codec:try_codec_encode(Module, json, RemoteType, Data, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_json(RemoteTypeInfo, TypeWithoutVars, Data);
@@ -470,8 +468,7 @@ do_from_json(
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
-    case spectra_codec:try_codec_decode(Mod, json, Type, Json, SpType) of
+    case spectra_codec:try_codec_decode(Mod, json, Type, Json, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Json);
@@ -482,8 +479,7 @@ do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = Rem
     RemoteTypeInfo = spectra_module_types:get(Module),
     TypeArity = length(Args),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
-    case spectra_codec:try_codec_decode(Module, json, RemoteType, Json, SpType) of
+    case spectra_codec:try_codec_decode(Module, json, RemoteType, Json, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
