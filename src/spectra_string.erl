@@ -32,29 +32,31 @@ and converts it to the corresponding Erlang value.
     String :: list()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, String) ->
+from_string(
+    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, String
+) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_decode(Mod, string, Type, String) of
+    case spectra_codec:try_codec_decode(Mod, string, Type, String, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String);
         Result ->
             Result
     end;
-from_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, String) ->
+from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, string, RecordType, String) of
+    case spectra_codec:try_codec_decode(Mod, string, RecordType, String, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
-from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, String) ->
+from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, String) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_decode(Module, string, RemoteType, String) of
+    case spectra_codec:try_codec_decode(Module, string, RemoteType, String, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             from_string(RemoteTypeInfo, TypeWithoutVars, String);
@@ -123,29 +125,29 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Data) ->
+to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Data) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_encode(Mod, string, Type, Data) of
+    case spectra_codec:try_codec_encode(Mod, string, Type, Data, UserTypeRef) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data);
         Result ->
             Result
     end;
-to_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data) ->
+to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data) of
+    case spectra_codec:try_codec_encode(Mod, string, RecordType, Data, RecordRef) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
-to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data) ->
+to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Data) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data) of
+    case spectra_codec:try_codec_encode(Module, string, RemoteType, Data, RemoteRef) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_string(RemoteTypeInfo, TypeWithoutVars, Data);

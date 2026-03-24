@@ -131,11 +131,11 @@ All three functions accept an optional `Options` list as the last argument. Two 
 SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]).
 ```
 
-### Custom Codecs
+## Custom Codecs
 
 Custom codecs let you override how spectra encodes, decodes, and generates schemas for specific types. Eg, the JSON format differ from their Erlang structure (e.g. a `{X, Y}` tuple serialised as a `[X, Y]` array)
 
-#### Implementing a Codec
+### Implementing a Codec
 
 Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Return `continue` for any type reference your codec does not own — spectra falls through to its default structural encoder/decoder.
 
@@ -143,41 +143,41 @@ Implement the `spectra_codec` behaviour in your module. Codec callbacks receive 
 -module(my_geo_codec).
 -behaviour(spectra_codec).
 
--export([encode/5, decode/5, schema/4]).
+-export([encode/6, decode/6, schema/5]).
 
 %% point() is an opaque type: {X, Y} tuple serialised as a JSON [X, Y] array.
 -type point() :: {float(), float()}.
 -export_type([point/0]).
 
-encode(json, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
+encode(json, _Mod, {type, point, 0}, {X, Y}, _SpType, _Params) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_Format, _Mod, {type, point, 0}, Data, _Opts) ->
+encode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_Format, _Mod, _TypeRef, _Data, _Opts) ->
+encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params) ->
     continue.
 
-decode(json, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
+decode(json, _Mod, {type, point, 0}, [X, Y], _SpType, _Params) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_Format, _Mod, {type, point, 0}, Data, _Opts) ->
+decode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_Format, _Mod, _TypeRef, _Input, _Opts) ->
+decode(_Format, _Mod, _TypeRef, _Input, _SpType, _Params) ->
     continue.
 
-schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
+schema(json_schema, _Mod, {type, point, 0}, _SpType, _Params) ->
     #{type => <<"array">>, items => #{type => <<"number">>}, minItems => 2, maxItems => 2};
-schema(_Format, _Mod, _TypeRef, _Opts) ->
+schema(_Format, _Mod, _TypeRef, _SpType, _Params) ->
     continue.
 ```
 
 For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
 
-The `schema/4` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+The `schema/5` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
-#### Types in the Same Module (No Configuration)
+### Types in the Same Module (No Configuration)
 
 If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no application environment configuration required. The `my_geo_codec` example above works this way: `point()` is defined in the same module that implements the behaviour.
 
-#### Types from Other Modules (App Environment)
+### Types from Other Modules (App Environment)
 
 To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
 
@@ -196,68 +196,39 @@ The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying t
 
 Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no app environment entry is required. This applies to third-party modules that have adopted the `spectra_codec` behaviour themselves.
 
-#### Type Parameters
+### The SpType Argument
 
-The `-spectra()` attribute accepts a `type_parameters` key whose value is passed directly as the fifth argument to your codec's `encode/5` and `decode/5` callbacks and the fourth argument to `schema/4`. This lets you reuse a single codec implementation across multiple types that differ only by configuration.
+The `SpType` argument (5th position) is the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
 
-For example, a prefixed-ID codec where each type carries its own expected prefix:
+## Built-in Codecs
 
-```erlang
--module(prefixed_id_codec).
--behaviour(spectra_codec).
-
--export([encode/5, decode/5, schema/4]).
-
-%% Only user_id() and org_id() are defined in this module, so spectra will only
-%% ever call this codec for those two types — no continue clause needed.
-%% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
-
--spectra(#{type_parameters => <<"user:">>}).
--type user_id() :: binary().
-
--spectra(#{type_parameters => <<"org:">>}).
--type org_id() :: binary().
-
--export_type([user_id/0, org_id/0]).
-
-%% Strips the prefix on decode, re-attaches it on encode.
-decode(json, ?MODULE, TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
-    PrefixLen = byte_size(Prefix),
-    case Data of
-        <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
-        _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
-    end;
-decode(json, ?MODULE, TypeRef, Data, _Prefix) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
-
-encode(json, ?MODULE, _TypeRef, Data, Prefix) when is_binary(Data), is_binary(Prefix) ->
-    {ok, <<Prefix/binary, Data/binary>>};
-encode(json, ?MODULE, TypeRef, Data, _Prefix) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
-
-schema(json_schema, ?MODULE, _TypeRef, Prefix) when is_binary(Prefix) ->
-    #{type => <<"string">>, pattern => <<"^", Prefix/binary>>}.
-```
+Spectra ships with a codec for `dict:dict/2`. It is not active by default — register it in the application environment to use it:
 
 ```erlang
-spectra:decode(json, prefixed_id_codec, user_id, <<"user:abc123">>).
-%% => {ok, <<"abc123">>}
-
-spectra:decode(json, prefixed_id_codec, user_id, <<"org:abc123">>).
-%% => {error, [#sp_error{...}]}
-
-spectra:encode(json, prefixed_id_codec, user_id, <<"abc123">>).
-%% => {ok, <<"user:abc123">>}
-
-spectra:schema(json_schema, prefixed_id_codec, org_id).
-%% => #{type => <<"string">>, pattern => <<"^org:">>}
+{spectra, [
+    {codecs, #{
+        {dict, {type, dict, 2}} => spectra_dict_codec
+    }}
+]}
 ```
 
-When `type_parameters` is not set on a type, the codec receives `undefined` as the last argument (`Params`).
+`spectra_dict_codec` encodes a dict as a JSON object and decodes a JSON object back into a dict. The concrete `Key` and `Value` types are resolved from the type-variable bindings at each usage site, so `dict:dict(binary(), integer())` and `dict:dict(binary(), dict:dict(binary(), float()))` are both handled without any extra configuration. Keys must encode to binary strings (as required by JSON).
 
-Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
+```erlang
+-type word_counts() :: dict:dict(binary(), non_neg_integer()).
 
-#### String and Binary Constraints
+D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
+{ok, Json} = spectra:encode(json, my_module, word_counts, D).
+%% => {ok, <<"{\"hello\":3,\"world\":1}">>}
+
+{ok, D2} = spectra:decode(json, my_module, word_counts, Json).
+```
+
+## Type Parameters
+
+The `-spectra()` attribute accepts a `type_parameters` key that serves two purposes: it is passed as `Params` to codec callbacks, and for built-in string/binary types it enables structural constraints — no custom codec required.
+
+### String and Binary Constraints
 
 For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types you can apply structural constraints directly via `type_parameters` — **no custom codec required**. The value must be a map with any combination of the following keys:
 
@@ -299,6 +270,67 @@ Encoding (`to_json`) also validates constraints — an error is returned if the 
 
 Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
 
+### Codec Configuration
+
+The `type_parameters` value is passed as `Params` (the 6th argument) to `encode/6`, `decode/6`, and `schema/5`. This lets you reuse a single codec across multiple types that differ only by configuration.
+
+For example, a prefixed-ID codec where each type carries its own expected prefix:
+
+```erlang
+-module(prefixed_id_codec).
+-behaviour(spectra_codec).
+
+-export([encode/6, decode/6, schema/5]).
+
+%% Only user_id() and org_id() are defined in this module, so spectra will only
+%% ever call this codec for those two types — no continue clause needed.
+%% The Erlang value is the raw ID (without prefix); the wire format includes the prefix.
+
+-spectra(#{type_parameters => <<"user:">>}).
+-type user_id() :: binary().
+
+-spectra(#{type_parameters => <<"org:">>}).
+-type org_id() :: binary().
+
+-export_type([user_id/0, org_id/0]).
+
+%% Strips the prefix on decode, re-attaches it on encode.
+decode(json, ?MODULE, TypeRef, Data, _SpType, Prefix) when is_binary(Data), is_binary(Prefix) ->
+    PrefixLen = byte_size(Prefix),
+    case Data of
+        <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
+        _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
+    end;
+decode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix) ->
+    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
+
+encode(json, ?MODULE, _TypeRef, Data, _SpType, Prefix) when is_binary(Data), is_binary(Prefix) ->
+    {ok, <<Prefix/binary, Data/binary>>};
+encode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix) ->
+    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
+
+schema(json_schema, ?MODULE, _TypeRef, _SpType, Prefix) when is_binary(Prefix) ->
+    #{type => <<"string">>, pattern => <<"^", Prefix/binary>>}.
+```
+
+```erlang
+spectra:decode(json, prefixed_id_codec, user_id, <<"user:abc123">>).
+%% => {ok, <<"abc123">>}
+
+spectra:decode(json, prefixed_id_codec, user_id, <<"org:abc123">>).
+%% => {error, [#sp_error{...}]}
+
+spectra:encode(json, prefixed_id_codec, user_id, <<"abc123">>).
+%% => {ok, <<"user:abc123">>}
+
+spectra:schema(json_schema, prefixed_id_codec, org_id).
+%% => #{type => <<"string">>, pattern => <<"^org:">>}
+```
+
+When `type_parameters` is not set on a type, the codec receives `undefined` as `Params`.
+
+Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
+
 ## Adding Documentation and Examples to Schemas
 
 The `-spectra()` attribute annotates types, records, and function specs with metadata. The valid keys differ depending on what follows the attribute.
@@ -312,7 +344,7 @@ The `-spectra()` attribute annotates types, records, and function specs with met
 | `deprecated` | `boolean()` | Marks the type as deprecated |
 | `examples` | `[term()]` | Example values (use tuple syntax for records) |
 | `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
-| `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see above) |
+| `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see [Type Parameters](#type-parameters)) |
 
 **Before a `-spec` declaration:**
 

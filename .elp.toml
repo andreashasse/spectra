@@ -98,6 +98,8 @@ ignore_modules = [
     "tuple_test",
     "string_constraints_module",
     "string_constraints_test",
+    "dict_codec_module",
+    "dict_codec_test",
     "prefixed_id_codec",
     "prefixed_id_codec_test",
     "type_params_codec",
