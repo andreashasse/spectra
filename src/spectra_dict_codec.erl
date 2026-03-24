@@ -59,7 +59,9 @@ encode(json, Mod, TypeRef, Data, SpType, _Params) ->
 decode(json, Mod, _TypeRef, Data, SpType, _Params) when is_map(Data) ->
     TypeInfo = spectra_module_types:get(Mod),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
-    decode_pairs(TypeInfo, KeyType, ValueType, maps:to_list(Data), []).
+    decode_pairs(TypeInfo, KeyType, ValueType, maps:to_list(Data), []);
+decode(json, _Mod, TypeRef, Data, _SpType, _Params) ->
+    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
 -spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term()) ->
     dynamic().
