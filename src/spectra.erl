@@ -448,7 +448,7 @@ resolve_type_ref(TypeInfo, {record, RecordName}) ->
 maybe_codec_schema(Format, TypeInfo, TypeRef) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_schema(Mod, Format, SpType) of
+    case spectra_codec:try_codec_schema(Mod, Format, SpType, SpType) of
         continue -> default_schema(Format, TypeInfo, SpType);
         Schema -> Schema
     end.
@@ -479,7 +479,7 @@ finalize_schema(Format, _SchemaMap, _Options) ->
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_decode(Format, TypeInfo, SpType, Data, Options) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_decode(Mod, Format, SpType, Data) of
+    case spectra_codec:try_codec_decode(Mod, Format, SpType, Data, SpType) of
         continue -> default_decode(Format, TypeInfo, SpType, Data, Options);
         Result -> Result
     end.
@@ -493,7 +493,7 @@ maybe_codec_decode(Format, TypeInfo, SpType, Data, Options) ->
 ) -> {ok, dynamic()} | {error, [error()]}.
 maybe_codec_encode(Format, TypeInfo, SpType, Data, Options) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_encode(Mod, Format, SpType, Data) of
+    case spectra_codec:try_codec_encode(Mod, Format, SpType, Data, SpType) of
         continue -> default_encode(Format, TypeInfo, SpType, Data, Options);
         Result -> Result
     end.

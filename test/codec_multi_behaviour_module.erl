@@ -13,21 +13,21 @@
 -opaque point() :: {float(), float()}.
 -export_type([point/0]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_encode_result().
 encode(_, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
 encode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_decode_result().
 decode(_, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
 decode(_, _Mod, {type, point, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]}.
 
--spec schema(atom(), module(), spectra:sp_type_reference(), map()) -> dynamic().
+-spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type()) -> dynamic().
 schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
     #{
         type => <<"array">>,

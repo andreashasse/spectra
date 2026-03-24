@@ -21,7 +21,7 @@
 ]).
 -export([encode/5, decode/5, schema/4]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_encode_result().
 encode(_, _Mod, {type, point, 0}, {X, Y}, _Opts) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
@@ -30,7 +30,7 @@ encode(_, _Mod, {type, point, 0}, Data, _Opts) ->
 encode(_, _, _, _, _) ->
     continue.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_decode_result().
 decode(_, _Mod, {type, point, 0}, [X, Y], _Opts) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
@@ -39,7 +39,7 @@ decode(_, _Mod, {type, point, 0}, Data, _Opts) ->
 decode(_, _, _, _, _) ->
     continue.
 
--spec schema(atom(), module(), spectra:sp_type_reference(), map()) -> map().
+-spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type()) -> map().
 schema(json_schema, _Mod, {type, point, 0}, _Opts) ->
     #{
         type => <<"array">>,

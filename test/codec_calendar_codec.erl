@@ -6,7 +6,7 @@
 
 -export([encode/5, decode/5, schema/4]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_encode_result().
 encode(_, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _Opts) ->
     Bin = iolist_to_binary(
@@ -16,7 +16,7 @@ encode(_, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _Opts) ->
 encode(_, _Mod, {type, datetime, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_decode_result().
 decode(_, _Mod, {type, datetime, 0}, Bin, _Opts) when is_binary(Bin) ->
     case parse_datetime(Bin) of
@@ -26,7 +26,7 @@ decode(_, _Mod, {type, datetime, 0}, Bin, _Opts) when is_binary(Bin) ->
 decode(_, _Mod, {type, datetime, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
--spec schema(atom(), module(), spectra:sp_type_reference(), map()) -> map().
+-spec schema(atom(), module(), spectra:sp_type_reference(), spectra:sp_type()) -> map().
 schema(json_schema, _Mod, {type, datetime, 0}, _Opts) ->
     #{type => <<"string">>, format => <<"date-time">>}.
 

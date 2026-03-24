@@ -9,7 +9,7 @@
 -export_type([color/0]).
 -export([encode/5, decode/5]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_encode_result().
 encode(_, _Mod, {type, color, 0}, {R, G, B}, _Opts) when
     is_integer(R),
@@ -26,7 +26,7 @@ encode(_, _Mod, {type, color, 0}, {R, G, B}, _Opts) when
 encode(_, _Mod, {type, color, 0}, Data, _Opts) ->
     {error, [sp_error:type_mismatch({type, color, 0}, Data)]}.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), map()) ->
+-spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type()) ->
     spectra:codec_decode_result().
 decode(_, _Mod, {type, color, 0}, <<"#", R1, R2, G1, G2, B1, B2>>, _Opts) ->
     R = list_to_integer([R1, R2], 16),

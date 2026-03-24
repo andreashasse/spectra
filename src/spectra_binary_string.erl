@@ -70,12 +70,13 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_binary_string(
-    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args}, BinaryString, Opts
+    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = UserTypeRef, BinaryString, Opts
 ) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    case spectra_codec:try_codec_decode(Mod, binary_string, Type, BinaryString) of
+    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
+    case spectra_codec:try_codec_decode(Mod, binary_string, Type, BinaryString, SpType) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts);
@@ -83,12 +84,13 @@ from_binary_string(
             Result
     end;
 from_binary_string(
-    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, BinaryString, Opts
+    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, BinaryString, Opts
 ) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_decode(Module, binary_string, RemoteType, BinaryString) of
+    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
+    case spectra_codec:try_codec_decode(Module, binary_string, RemoteType, BinaryString, SpType) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts);
@@ -98,7 +100,7 @@ from_binary_string(
 from_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, BinaryString, _Opts) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, binary_string, RecordType, BinaryString) of
+    case spectra_codec:try_codec_decode(Mod, binary_string, RecordType, BinaryString, RecordType) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
@@ -199,11 +201,14 @@ and converts it to a binary string representation.
     Opts :: spectra:binary_string_encode_opts()
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
-to_binary_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args}, Data, Opts) ->
+to_binary_string(
+    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Data, Opts
+) ->
     Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_encode(Mod, binary_string, Type, Data) of
+    SpType = spectra_type:enrich_ref(UserTypeRef, Type),
+    case spectra_codec:try_codec_encode(Mod, binary_string, Type, Data, SpType) of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts);
@@ -211,12 +216,13 @@ to_binary_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = A
             Result
     end;
 to_binary_string(
-    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}}, Data, Opts
+    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Data, Opts
 ) ->
     TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_encode(Module, binary_string, RemoteType, Data) of
+    SpType = spectra_type:enrich_ref(RemoteRef, RemoteType),
+    case spectra_codec:try_codec_encode(Module, binary_string, RemoteType, Data, SpType) of
         continue ->
             TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
             to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts);
@@ -226,7 +232,7 @@ to_binary_string(
 to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName}, Data, _Opts) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, binary_string, RecordType, Data) of
+    case spectra_codec:try_codec_encode(Mod, binary_string, RecordType, Data, RecordType) of
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;

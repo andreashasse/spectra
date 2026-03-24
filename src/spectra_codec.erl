@@ -4,19 +4,20 @@
 Behaviour for custom codecs that extend spectra's encoding, decoding, and schema
 generation for specific types and formats.
 
-## Params argument
+## SpType argument
 
-The `Params` argument passed to every callback is the value of the
-`type_parameters` key in the `-spectra(#{type_parameters => Value})` attribute
-on the type definition, or `undefined` if that attribute is absent.
+The `SpType` argument passed to every callback is the original `sp_type()` node
+from the traversal — the instantiation node carrying concrete type-variable
+bindings.
 
-**Important**: `Params` is unrelated to Erlang type variables (generic
-parameters such as the `T` in `-type wrapper(T) :: {wrapper, T}`). When a
-codec is invoked for a parameterised type, the concrete bindings for those type
-variables are **not** available in `Params`. Codec types with Erlang type
-variables are therefore not useful in practice — the codec cannot act on the
-variable bindings. Use `type_parameters` in the `-spectra` attribute to pass
-static, per-type configuration to your codec instead.
+For `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes the concrete type
+arguments are available via `spectra_type:type_args/1`. For a type such as
+`dict:dict(binary(), integer())` the codec receives the full remote-type node
+and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys
+and values.
+
+To recover the static `type_parameters` value from a `-spectra()` attribute
+use `spectra_type:parameters(SpType)`.
 """.
 
 -callback encode(
@@ -24,7 +25,7 @@ static, per-type configuration to your codec instead.
     Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
-    Params :: term()
+    SpType :: spectra:sp_type()
 ) ->
     spectra:codec_encode_result().
 -callback decode(
@@ -32,36 +33,37 @@ static, per-type configuration to your codec instead.
     Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
-    Params :: term()
+    SpType :: spectra:sp_type()
 ) ->
     spectra:codec_decode_result().
 -callback schema(
     Format :: atom(),
     Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
-    Params :: term()
+    SpType :: spectra:sp_type()
 ) ->
     dynamic().
 
 -optional_callbacks([schema/4]).
 
 -export([
-    try_codec_encode/4,
-    try_codec_decode/4,
-    try_codec_schema/3
+    try_codec_encode/5,
+    try_codec_decode/5,
+    try_codec_schema/4
 ]).
 
 -spec try_codec_encode(
     Mod :: module(),
     Format :: atom(),
     Type :: spectra:sp_type(),
-    Data :: dynamic()
+    Data :: dynamic(),
+    SpType :: spectra:sp_type()
 ) -> spectra:codec_encode_result().
-try_codec_encode(Mod, Format, Type, Data) ->
+try_codec_encode(Mod, Format, Type, Data, SpType) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
-            M:encode(Format, Mod, TypeReference, Data, spectra_type:parameters(Type));
+            M:encode(Format, Mod, TypeReference, Data, SpType);
         error ->
             continue
     end.
@@ -70,13 +72,14 @@ try_codec_encode(Mod, Format, Type, Data) ->
     Mod :: module(),
     Format :: atom(),
     Type :: spectra:sp_type(),
-    Data :: dynamic()
+    Data :: dynamic(),
+    SpType :: spectra:sp_type()
 ) -> spectra:codec_decode_result().
-try_codec_decode(Mod, Format, Type, Data) ->
+try_codec_decode(Mod, Format, Type, Data, SpType) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
-            M:decode(Format, Mod, TypeReference, Data, spectra_type:parameters(Type));
+            M:decode(Format, Mod, TypeReference, Data, SpType);
         error ->
             continue
     end.
@@ -84,15 +87,16 @@ try_codec_decode(Mod, Format, Type, Data) ->
 -spec try_codec_schema(
     Mod :: module(),
     Format :: atom(),
-    Type :: spectra:sp_type()
+    Type :: spectra:sp_type(),
+    SpType :: spectra:sp_type()
 ) -> dynamic() | continue.
-try_codec_schema(Mod, Format, Type) ->
+try_codec_schema(Mod, Format, Type, SpType) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 4) of
                 true ->
-                    M:schema(Format, Mod, TypeReference, spectra_type:parameters(Type));
+                    M:schema(Format, Mod, TypeReference, SpType);
                 false ->
                     erlang:error({schema_not_implemented, M, TypeReference})
             end;
