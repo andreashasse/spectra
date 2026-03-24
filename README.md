@@ -131,11 +131,11 @@ All three functions accept an optional `Options` list as the last argument. Two 
 SchemaMap = spectra:schema(json_schema, my_module, user, [pre_encoded]).
 ```
 
-### Custom Codecs
+## Custom Codecs
 
 Custom codecs let you override how spectra encodes, decodes, and generates schemas for specific types. Eg, the JSON format differ from their Erlang structure (e.g. a `{X, Y}` tuple serialised as a `[X, Y]` array)
 
-#### Implementing a Codec
+### Implementing a Codec
 
 Implement the `spectra_codec` behaviour in your module. Codec callbacks receive a type reference: `{type, Name, Arity}` for named types (declared with `-type name() :: ...`) and `{record, Name}` for records. Return `continue` for any type reference your codec does not own — spectra falls through to its default structural encoder/decoder.
 
@@ -173,11 +173,11 @@ For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data
 
 The `schema/5` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
-#### Types in the Same Module (No Configuration)
+### Types in the Same Module (No Configuration)
 
 If a module declares `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all named types defined in that module — no application environment configuration required. The `my_geo_codec` example above works this way: `point()` is defined in the same module that implements the behaviour.
 
-#### Types from Other Modules (App Environment)
+### Types from Other Modules (App Environment)
 
 To use a codec for a named type defined in another module (e.g., from a dependency), register it in the application environment:
 
@@ -196,17 +196,59 @@ The key is a `spectra:codec_key()` — a `{Module, TypeRef}` tuple identifying t
 
 Alternatively, if the other module itself implements `-behaviour(spectra_codec)`, spectra automatically uses it as the codec for all types defined in that module — no app environment entry is required. This applies to third-party modules that have adopted the `spectra_codec` behaviour themselves.
 
-#### Type Parameters
+### The SpType Argument
 
-Every codec callback receives two arguments for inspecting the type in context:
+The `SpType` argument (5th position) is the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
 
-- **`SpType`** (5th argument) — the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
+## Type Parameters
 
-- **`Params`** (6th argument) — the value from the `-spectra(#{type_parameters => ...})` attribute on the type definition, or `undefined` when absent. Use this for static, per-type configuration.
+The `-spectra()` attribute accepts a `type_parameters` key that serves two purposes: it is passed as `Params` to codec callbacks, and for built-in string/binary types it enables structural constraints — no custom codec required.
 
-#### Type Parameters (`Params`)
+### String and Binary Constraints
 
-The `-spectra()` attribute accepts a `type_parameters` key whose value is passed as `Params` (the 6th argument) to `encode/6`, `decode/6`, and `schema/5`. This lets you reuse a single codec across multiple types that differ only by configuration.
+For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types you can apply structural constraints directly via `type_parameters` — **no custom codec required**. The value must be a map with any combination of the following keys:
+
+| Key | JSON Schema keyword | Validated at encode/decode? | Notes |
+|---|---|---|---|
+| `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
+| `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
+| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
+| `format` | `format` | no | Schema annotation only |
+
+```erlang
+-spectra(#{type_parameters => #{min_length => 2, max_length => 64}}).
+-type username() :: binary().
+
+-spectra(#{type_parameters => #{pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}}).
+-type slug() :: binary().
+```
+
+Decoding enforces the constraints and returns a validation error on failure:
+
+```erlang
+spectra:decode(json, my_module, username, <<"x">>).
+%% => {error, [#sp_error{...}]}   %% too short
+
+spectra:decode(json, my_module, username, <<"alice">>).
+%% => {ok, <<"alice">>}
+```
+
+The generated JSON Schema reflects the constraints:
+
+```erlang
+spectra:schema(json_schema, my_module, slug).
+%% => #{type => <<"string">>, pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}
+```
+
+Encoding (`to_json`) also validates constraints — an error is returned if the Erlang value violates `min_length`, `max_length`, or `pattern`.
+
+`nonempty_binary()` and `nonempty_string()` already imply `minLength: 1` in the schema; a `min_length` parameter overrides this baseline value.
+
+Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
+
+### Codec Configuration
+
+The `type_parameters` value is passed as `Params` (the 6th argument) to `encode/6`, `decode/6`, and `schema/5`. This lets you reuse a single codec across multiple types that differ only by configuration.
 
 For example, a prefixed-ID codec where each type carries its own expected prefix:
 
@@ -261,51 +303,9 @@ spectra:schema(json_schema, prefixed_id_codec, org_id).
 %% => #{type => <<"string">>, pattern => <<"^org:">>}
 ```
 
-When `type_parameters` is not set on a type, the codec receives `undefined` as the last argument (`Params`).
+When `type_parameters` is not set on a type, the codec receives `undefined` as `Params`.
 
 Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
-
-#### String and Binary Constraints
-
-For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types you can apply structural constraints directly via `type_parameters` — **no custom codec required**. The value must be a map with any combination of the following keys:
-
-| Key | JSON Schema keyword | Validated at encode/decode? | Notes |
-|---|---|---|---|
-| `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
-| `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
-| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
-| `format` | `format` | no | Schema annotation only |
-
-```erlang
--spectra(#{type_parameters => #{min_length => 2, max_length => 64}}).
--type username() :: binary().
-
--spectra(#{type_parameters => #{pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}}).
--type slug() :: binary().
-```
-
-Decoding enforces the constraints and returns a validation error on failure:
-
-```erlang
-spectra:decode(json, my_module, username, <<"x">>).
-%% => {error, [#sp_error{...}]}   %% too short
-
-spectra:decode(json, my_module, username, <<"alice">>).
-%% => {ok, <<"alice">>}
-```
-
-The generated JSON Schema reflects the constraints:
-
-```erlang
-spectra:schema(json_schema, my_module, slug).
-%% => #{type => <<"string">>, pattern => <<"^[a-z0-9_]+$">>, format => <<"hostname">>}
-```
-
-Encoding (`to_json`) also validates constraints — an error is returned if the Erlang value violates `min_length`, `max_length`, or `pattern`.
-
-`nonempty_binary()` and `nonempty_string()` already imply `minLength: 1` in the schema; a `min_length` parameter overrides this baseline value.
-
-Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
 
 ## Adding Documentation and Examples to Schemas
 
@@ -320,7 +320,7 @@ The `-spectra()` attribute annotates types, records, and function specs with met
 | `deprecated` | `boolean()` | Marks the type as deprecated |
 | `examples` | `[term()]` | Example values (use tuple syntax for records) |
 | `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
-| `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see above) |
+| `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see [Type Parameters](#type-parameters)) |
 
 **Before a `-spec` declaration:**
 
