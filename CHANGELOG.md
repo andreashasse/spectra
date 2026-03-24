@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-03-24
+
+### Added
+- **`spectra_dict_codec`**: Built-in codec for encoding and decoding `dict:dict()` values. Register it via the app env or `-behaviour(spectra_codec)` like any other codec. Mostly to show that codecs can be implemented for types with arity > 0.
+
+### Changed
+- **Breaking**: `spectra_codec` callbacks now receive an additional `SpType :: spectra:sp_type()` argument. `encode` and `decode` are now arity 6; `schema` is now arity 5. Existing codec modules must add this argument to all callback clauses. Use `spectra_type:type_args/1` on `SpType` to access concrete type-variable bindings at the call site.
+
 ## [0.8.2] - 2026-03-21
 
 ### Changed
