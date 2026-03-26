@@ -32,3 +32,10 @@
     }
 }).
 -type full_constraints() :: binary().
+
+%% Remote type aliases — constraints must survive remote-type resolution (String.t() pattern)
+-spectra(#{type_parameters => #{min_length => 2, max_length => 5}}).
+-type bounded_remote() :: string_alias_module:t().
+
+-spectra(#{type_parameters => #{pattern => <<"^[a-z]+$">>}}).
+-type pattern_remote() :: string_alias_module:t().

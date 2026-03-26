@@ -15,6 +15,7 @@ detection, and normalisation of `-spectra()` doc annotations.
     get_meta/1,
     set_meta/2,
     parameters/1,
+    propagate_params/2,
     type_args/1,
     add_doc_to_type/2,
     normalize_doc/1,
@@ -112,6 +113,14 @@ set_meta(#sp_nonempty_list{} = T, Meta) -> T#sp_nonempty_list{meta = Meta}.
 -spec parameters(spectra:sp_type()) -> term().
 parameters(Type) ->
     maps:get(parameters, get_meta(Type), undefined).
+
+-doc "If `From` carries `parameters` in its meta, copies them into `To`'s meta. Used when following a remote type alias to preserve string constraints (e.g. `bounded :: String.t()` with `min_length`).".
+-spec propagate_params(spectra:sp_type(), spectra:sp_type()) -> spectra:sp_type().
+propagate_params(From, To) ->
+    case parameters(From) of
+        undefined -> To;
+        Params -> set_meta(To, (get_meta(To))#{parameters => Params})
+    end.
 
 -doc "Extracts the type-variable bindings from an `sp_type()` node. Returns the list of concrete type arguments for `#sp_user_type_ref{}` and `#sp_remote_type{}`, or `[]` for all other types.".
 -spec type_args(spectra:sp_type()) -> [spectra:sp_type()].

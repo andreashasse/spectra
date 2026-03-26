@@ -92,8 +92,10 @@ from_binary_string(
         spectra_codec:try_codec_decode(Module, binary_string, RemoteType, BinaryString, RemoteRef)
     of
         continue ->
-            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            from_binary_string(RemoteTypeInfo, TypeWithoutVars, BinaryString, Opts);
+            TypeResolved = spectra_type:propagate_params(
+                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            from_binary_string(RemoteTypeInfo, TypeResolved, BinaryString, Opts);
         Result ->
             Result
     end;

@@ -60,8 +60,10 @@ to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRe
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_encode(Module, json, RemoteType, Data, RemoteRef) of
         continue ->
-            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            to_json(RemoteTypeInfo, TypeWithoutVars, Data);
+            TypeResolved = spectra_type:propagate_params(
+                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            to_json(RemoteTypeInfo, TypeResolved, Data);
         Result ->
             Result
     end;
@@ -481,8 +483,10 @@ do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = Rem
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_decode(Module, json, RemoteType, Json, RemoteRef) of
         continue ->
-            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
-            do_from_json(RemoteTypeInfo, TypeWithoutVars, Json);
+            TypeResolved = spectra_type:propagate_params(
+                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            do_from_json(RemoteTypeInfo, TypeResolved, Json);
         Result ->
             Result
     end;
