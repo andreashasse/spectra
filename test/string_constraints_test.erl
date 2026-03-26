@@ -203,3 +203,67 @@ encode_within_bounds_test() ->
             pre_encoded
         ])
     ).
+
+%% -----------------------------------------------------------------------
+%% Remote type aliases — constraints survive #sp_remote_type{} resolution
+%% -----------------------------------------------------------------------
+
+schema_remote_min_max_test() ->
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, bounded_remote, 0}, [
+        pre_encoded
+    ]),
+    ?assertMatch(#{type := <<"string">>, minLength := 2, maxLength := 5}, Schema).
+
+schema_remote_pattern_test() ->
+    Schema = spectra:schema(json_schema, string_constraints_module, {type, pattern_remote, 0}, [
+        pre_encoded
+    ]),
+    ?assertMatch(#{type := <<"string">>, pattern := <<"^[a-z]+$">>}, Schema).
+
+decode_remote_within_bounds_test() ->
+    ?assertEqual(
+        {ok, <<"abc">>},
+        spectra:decode(json, string_constraints_module, {type, bounded_remote, 0}, <<"abc">>, [
+            pre_decoded
+        ])
+    ).
+
+decode_remote_too_short_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(json, string_constraints_module, {type, bounded_remote, 0}, <<"a">>, [
+            pre_decoded
+        ])
+    ).
+
+decode_remote_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"hello">>},
+        spectra:decode(json, string_constraints_module, {type, pattern_remote, 0}, <<"hello">>, [
+            pre_decoded
+        ])
+    ).
+
+decode_remote_pattern_no_match_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(json, string_constraints_module, {type, pattern_remote, 0}, <<"Hello">>, [
+            pre_decoded
+        ])
+    ).
+
+encode_remote_within_bounds_test() ->
+    ?assertEqual(
+        {ok, <<"abc">>},
+        spectra:encode(json, string_constraints_module, {type, bounded_remote, 0}, <<"abc">>, [
+            pre_encoded
+        ])
+    ).
+
+encode_remote_too_short_test() ->
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(json, string_constraints_module, {type, bounded_remote, 0}, <<"a">>, [
+            pre_encoded
+        ])
+    ).

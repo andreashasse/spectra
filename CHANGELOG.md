@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking**: `with_request_body/4` fourth argument changed from an opts map (`#{content_type => ..., description => ...}`) to a plain `content_type` binary. Pass `description` via the type's `-spectra()` annotation instead.
 
 ### Fixed
-- **`type_doc/2` now follows type references**: `spectra_openapi:type_doc/2` previously returned an empty description whenever the resolved type was an `#sp_user_type_ref{}` or `#sp_remote_type{}`. It now follows the reference to the underlying type to retrieve its description. Local annotations on the alias take precedence — the reference is only followed when the alias itself carries no `-spectra` doc.
+- **`type_doc/2` now follows type references**: The internal `type_doc/2` function in `spectra_openapi` previously returned an empty description whenever the resolved type was an `#sp_user_type_ref{}` or `#sp_remote_type{}`. It now follows the reference to the underlying type to retrieve its description. Local annotations on the alias take precedence — the reference is only followed when the alias itself carries no `-spectra` doc.
 
 ## [0.7.0] - 2026-03-04
 
