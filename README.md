@@ -268,6 +268,13 @@ Encoding (`to_json`) also validates constraints — an error is returned if the 
 
 `nonempty_binary()` and `nonempty_string()` already imply `minLength: 1` in the schema; a `min_length` parameter overrides this baseline value.
 
+Constraints are also preserved when the type body is a remote alias that resolves to a string/binary type — for example, Elixir's `String.t()`:
+
+```erlang
+-spectra(#{type_parameters => #{min_length => 1, max_length => 255}}).
+-type name() :: 'Elixir.String':t().
+```
+
 Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint, Key, Value}`.
 
 ### Codec Configuration
