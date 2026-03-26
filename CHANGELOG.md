@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-03-26
+
+### Fixed
+- String/binary constraints (`min_length`, `max_length`, `pattern`) are now correctly enforced when the type body is a remote type alias that resolves to a string/binary type (e.g. Elixir's `String.t()`). Previously the constraints were silently ignored.
+
 ## [0.9.0] - 2026-03-24
 
 ### Added
