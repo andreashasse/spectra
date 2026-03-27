@@ -683,8 +683,9 @@ Example configuration in `sys.config`:
 
 ## Related Projects
 
-- **[elli_openapi](https://github.com/andreashasse/elli_openapi)** - Elli middleware for automatic OpenAPI spec generation and validation using spectra
-- **[exdantic](https://github.com/andreashasse/exdantic)** - Elixir port of spectra for data validation and JSON serialization
+- **[elli_openapi](https://hex.pm/packages/elli_openapi)** - elli middleware for automatic OpenAPI spec generation and validation using spectra
+- **[spectral](https://hex.pm/packages/spectral)** - Elixir wrapper for spectra
+- **[phoenix_spectral](https://hex.pm/packages/phoenix_spectral)** - Phoenix integration for spectral
 
 ## Development Status
 
