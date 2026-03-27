@@ -484,7 +484,7 @@ spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
 
 %% Generate complete OpenAPI spec (returns encoded JSON iodata)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
-    {ok, iodata()} | {error, [spectra:error()]}.
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 
 %% Generate complete OpenAPI spec with options
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
