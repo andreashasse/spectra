@@ -209,7 +209,7 @@ Spectra ships with opt-in codecs for common OTP types. None are active by defaul
 
 ### spectra_dict_codec
 
-Encodes `dict:dict(Key, Value)` as a JSON object. Keys must encode to binary strings. `Key` and `Value` types are resolved from the type-variable bindings at each usage site.
+Encodes `dict:dict(Key, Value)` as a JSON object. Keys must encode to binary strings when encoding to JSON. `Key` and `Value` types are resolved from the type-variable bindings at each usage site.
 
 ```erlang
 {spectra, [
