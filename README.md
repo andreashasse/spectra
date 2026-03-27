@@ -689,7 +689,7 @@ Example configuration in `sys.config`:
 
 ## Development Status
 
-This library is under active development. APIs and error messages will probably change.
+This library is under active development. The core API is stabilising — breaking changes will be noted in the changelog.
 
 ## Contributing
 
