@@ -201,6 +201,8 @@ Alternatively, if the other module itself implements `-behaviour(spectra_codec)`
 
 The `SpType` argument (5th position) is the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
 
+See [`spectra_dict_codec`](src/spectra_dict_codec.erl) for a complete example of a codec that uses `spectra_type:type_args/1` to handle a parameterised type.
+
 ## Built-in Codecs
 
 Spectra ships with a codec for `dict:dict/2`. It is not active by default — register it in the application environment to use it:
