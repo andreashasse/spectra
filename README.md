@@ -205,7 +205,11 @@ See [`spectra_dict_codec`](src/spectra_dict_codec.erl) for a complete example of
 
 ## Built-in Codecs
 
-Spectra ships with a codec for `dict:dict/2`. It is not active by default — register it in the application environment to use it:
+Spectra ships with opt-in codecs for common OTP types. None are active by default — register them in the application environment.
+
+### spectra_dict_codec
+
+Encodes `dict:dict(Key, Value)` as a JSON object. Keys must encode to binary strings. `Key` and `Value` types are resolved from the type-variable bindings at each usage site.
 
 ```erlang
 {spectra, [
@@ -215,8 +219,6 @@ Spectra ships with a codec for `dict:dict/2`. It is not active by default — re
 ]}
 ```
 
-`spectra_dict_codec` encodes a dict as a JSON object and decodes a JSON object back into a dict. The concrete `Key` and `Value` types are resolved from the type-variable bindings at each usage site, so `dict:dict(binary(), integer())` and `dict:dict(binary(), dict:dict(binary(), float()))` are both handled without any extra configuration. Keys must encode to binary strings (as required by JSON).
-
 ```erlang
 -type word_counts() :: dict:dict(binary(), non_neg_integer()).
 
@@ -225,6 +227,32 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 %% => {ok, <<"{\"hello\":3,\"world\":1}">>}
 
 {ok, D2} = spectra:decode(json, my_module, word_counts, Json).
+```
+
+### spectra_calendar_codec
+
+Encodes `calendar:datetime()` and `calendar:date()` as ISO 8601 strings. Register only the types you use:
+
+```erlang
+{spectra, [
+    {codecs, #{
+        {calendar, {type, datetime, 0}} => spectra_calendar_codec,
+        {calendar, {type, date, 0}} => spectra_calendar_codec
+    }}
+]}
+```
+
+| Type | JSON representation | JSON Schema format |
+|---|---|---|
+| `calendar:datetime()` | `"2024-01-15T10:30:00"` | `date-time` |
+| `calendar:date()` | `"2024-01-15"` | `date` |
+
+```erlang
+-type event() :: #{title => binary(), at => calendar:datetime()}.
+
+{ok, Json} = spectra:encode(json, my_module, event,
+    #{title => <<"Party">>, at => {{2024, 1, 15}, {18, 30, 0}}}).
+%% => {ok, <<"{\"title\":\"Party\",\"at\":\"2024-01-15T18:30:00\"}">>}
 ```
 
 ## Type Parameters
