@@ -90,6 +90,7 @@ Where:
   - an atom: spectra will look for a type of arity 0 or a record with that name
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
   - `{record, RecordName}` for records (e.g., `{record, user}`)
+  - a `spectra:sp_type()` directly, for advanced usage (e.g. when you have already resolved the type via `spectra_abstract_code`)
 
 The `binary_string` and `string` formats decode a single value from a binary or string — useful for query parameters and path variables:
 
