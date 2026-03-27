@@ -4,7 +4,7 @@
 Built-in codec for `dict:dict(Key, Value)`.
 
 Encodes a dict as a JSON object and decodes a JSON object back into a dict.
-Keys must encode to binary strings (as required by JSON).
+Keys must encode to binary strings when encoding to JSON.
 
 The concrete `Key` and `Value` types are extracted from the `sp_type()` node via
 `spectra_type:type_args/1`, so this codec works for any instantiation such as

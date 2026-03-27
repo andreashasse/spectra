@@ -11,6 +11,9 @@ make build-test
 When `make build-test` succeeds, see if you can cleanup the code.
 Once that is done, run `make proper`.
 
+## Git Workflow
+  - Never commit directly to the `main` branch — it is protected and pushes will be rejected. Always work on a feature or release branch.
+
 ## Common Tasks
   - Add test: Create new test file in test/ directory
   - Run specific test: rebar3 eunit --module=test_module_name

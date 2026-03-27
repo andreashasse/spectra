@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.9.1"}
+    {spectra, "~> 0.9.2"}
 ]}.
 ```
 
@@ -90,6 +90,7 @@ Where:
   - an atom: spectra will look for a type of arity 0 or a record with that name
   - `{type, TypeName, Arity}` for user-defined types (e.g., `{type, my_type, 0}`)
   - `{record, RecordName}` for records (e.g., `{record, user}`)
+  - a `spectra:sp_type()` directly, for advanced usage (e.g. when you have already resolved the type via `spectra_abstract_code`)
 
 The `binary_string` and `string` formats decode a single value from a binary or string — useful for query parameters and path variables:
 
@@ -200,9 +201,15 @@ Alternatively, if the other module itself implements `-behaviour(spectra_codec)`
 
 The `SpType` argument (5th position) is the instantiation node from the traversal. For generic types (`#sp_user_type_ref{}` / `#sp_remote_type{}`), this node carries the **concrete type-variable bindings**. Call `spectra_type:type_args/1` to extract them. For a field typed as `dict:dict(binary(), integer())` the codec receives the remote-type node and can extract `[BinaryType, IntegerType]` to recursively encode/decode keys and values.
 
+See [`spectra_dict_codec`](src/spectra_dict_codec.erl) for a complete example of a codec that uses `spectra_type:type_args/1` to handle a parameterised type.
+
 ## Built-in Codecs
 
-Spectra ships with a codec for `dict:dict/2`. It is not active by default — register it in the application environment to use it:
+Spectra ships with opt-in codecs for common OTP types. None are active by default — register them in the application environment.
+
+### spectra_dict_codec
+
+Encodes `dict:dict(Key, Value)` as a JSON object. Keys must encode to binary strings when encoding to JSON. `Key` and `Value` types are resolved from the type-variable bindings at each usage site.
 
 ```erlang
 {spectra, [
@@ -212,8 +219,6 @@ Spectra ships with a codec for `dict:dict/2`. It is not active by default — re
 ]}
 ```
 
-`spectra_dict_codec` encodes a dict as a JSON object and decodes a JSON object back into a dict. The concrete `Key` and `Value` types are resolved from the type-variable bindings at each usage site, so `dict:dict(binary(), integer())` and `dict:dict(binary(), dict:dict(binary(), float()))` are both handled without any extra configuration. Keys must encode to binary strings (as required by JSON).
-
 ```erlang
 -type word_counts() :: dict:dict(binary(), non_neg_integer()).
 
@@ -222,6 +227,34 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 %% => {ok, <<"{\"hello\":3,\"world\":1}">>}
 
 {ok, D2} = spectra:decode(json, my_module, word_counts, Json).
+```
+
+### spectra_calendar_codec
+
+Encodes `calendar:datetime()` and `calendar:date()` as ISO 8601 strings. Register only the types you use:
+
+```erlang
+{spectra, [
+    {codecs, #{
+        {calendar, {type, datetime, 0}} => spectra_calendar_codec,
+        {calendar, {type, date, 0}} => spectra_calendar_codec
+    }}
+]}
+```
+
+| Type | JSON representation | JSON Schema format |
+|---|---|---|
+| `calendar:datetime()` | `"2024-01-15T10:30:00Z"` | `date-time` |
+| `calendar:date()` | `"2024-01-15"` | `date` |
+
+`calendar:datetime()` has no timezone — values are treated as UTC. Encoding always appends `Z`; decoding requires `Z` and rejects other offsets. If you need full timezone support, use a dedicated datetime library and implement a custom `spectra_codec` for it.
+
+```erlang
+-type event() :: #{title => binary(), at => calendar:datetime()}.
+
+{ok, Json} = spectra:encode(json, my_module, event,
+    #{title => <<"Party">>, at => {{2024, 1, 15}, {18, 30, 0}}}).
+%% => {ok, <<"{\"title\":\"Party\",\"at\":\"2024-01-15T18:30:00Z\"}">>}
 ```
 
 ## Type Parameters
@@ -338,7 +371,7 @@ When `type_parameters` is not set on a type, the codec receives `undefined` as `
 
 Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
 
-## Adding Documentation and Examples to Schemas
+## Documentation and Examples in Schemas
 
 The `-spectra()` attribute annotates types, records, and function specs with metadata. The valid keys differ depending on what follows the attribute.
 
@@ -453,7 +486,7 @@ spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
 
 %% Generate complete OpenAPI spec (returns encoded JSON iodata)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
-    {ok, iodata()} | {error, [spectra:error()]}.
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 
 %% Generate complete OpenAPI spec with options
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
@@ -652,12 +685,13 @@ Example configuration in `sys.config`:
 
 ## Related Projects
 
-- **[elli_openapi](https://github.com/andreashasse/elli_openapi)** - Elli middleware for automatic OpenAPI spec generation and validation using spectra
-- **[exdantic](https://github.com/andreashasse/exdantic)** - Elixir port of spectra for data validation and JSON serialization
+- **[elli_openapi](https://hex.pm/packages/elli_openapi)** - elli middleware for automatic OpenAPI spec generation and validation using spectra
+- **[spectral](https://hex.pm/packages/spectral)** - Elixir wrapper for spectra
+- **[phoenix_spectral](https://hex.pm/packages/phoenix_spectral)** - Phoenix integration for spectral
 
 ## Development Status
 
-This library is under active development. APIs and error messages will probably change.
+This library is under active development. The core API is stabilising — breaking changes will be noted in the changelog.
 
 ## Contributing
 

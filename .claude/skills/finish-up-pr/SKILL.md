@@ -1,6 +1,6 @@
 ---
 name: finish-up-pr
-description: Finalize a PR by cleaning up comments, verifying test coverage, checking README accuracy, and tightening type specs.
+description: Finalize a PR by cleaning up comments, verifying test coverage, checking README accuracy, tightening type specs, and reviewing the PR title and description.
 ---
 
 # Finish Up PR Skill
@@ -92,7 +92,28 @@ make format
 make build-test
 ```
 
-## Step 6: Final Check
+## Step 6: Review PR Title and Description
+
+Fetch the current PR title and body:
+
+```bash
+gh pr view --json title,body
+```
+
+Compare them against the actual changes in this PR (`git log main..HEAD --oneline` and the diff).
+
+Check for:
+- **Outdated title** — does it still accurately describe what the PR does?
+- **Missing changes in the body** — were significant changes added after the PR was opened that aren't mentioned?
+- **Stale or resolved items** — does the test plan mention things already done or no longer relevant?
+
+If the title or description is out of date, suggest an updated version and ask the user whether to apply it. Use:
+
+```bash
+gh pr edit --title "new title" --body "new body"
+```
+
+## Step 7: Final Check
 
 Run the full test suite including property-based tests:
 
@@ -102,11 +123,12 @@ make proper
 
 If `make proper` fails, investigate and fix before finishing.
 
-## Step 7: Summary
+## Step 8: Summary
 
 Report back to the user with a concise summary:
 - Comments removed (with file:line references)
 - Tests added (with function names they cover)
 - README changes made
 - Type specs tightened (with before/after)
+- PR title/description — updated or confirmed accurate
 - Any issues found that could not be automatically fixed (with a recommendation)
