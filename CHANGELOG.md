@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-03-27
+
+### Added
+- **`spectra_calendar_codec`**: Built-in codec for `calendar:datetime()` and `calendar:date()`. Serialises to/from ISO 8601 strings (`"YYYY-MM-DDTHH:MM:SS"` and `"YYYY-MM-DD"`). Opt-in via the application environment, same pattern as `spectra_dict_codec`.
+
 ## [0.9.1] - 2026-03-26
 
 ### Fixed
