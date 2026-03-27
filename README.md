@@ -369,7 +369,7 @@ When `type_parameters` is not set on a type, the codec receives `undefined` as `
 
 Parameters belong to the **type definition**, not the usage site. If `user_id()` is referenced from another module, the parameters always come from the module where `user_id()` is defined. There is no way to override them at the call site — which means the same prefix is enforced wherever the type is used.
 
-## Adding Documentation and Examples to Schemas
+## Documentation and Examples in Schemas
 
 The `-spectra()` attribute annotates types, records, and function specs with metadata. The valid keys differ depending on what follows the attribute.
 
