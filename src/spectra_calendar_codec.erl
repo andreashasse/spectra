@@ -91,24 +91,51 @@ schema(json_schema, _Mod, {type, date, 0}, _SpType, _Params) ->
 
 %% Internal helpers
 
+-spec parse_datetime(binary()) -> {ok, calendar:datetime()} | error.
 parse_datetime(
     <<Y1, Y2, Y3, Y4, $-, Mo1, Mo2, $-, D1, D2, $T, H1, H2, $:, Mi1, Mi2, $:, S1, S2>>
 ) ->
-    {ok,
-        {
-            {
-                list_to_integer([Y1, Y2, Y3, Y4]),
-                list_to_integer([Mo1, Mo2]),
-                list_to_integer([D1, D2])
-            },
-            {list_to_integer([H1, H2]), list_to_integer([Mi1, Mi2]), list_to_integer([S1, S2])}
-        }};
+    try
+        Date = {
+            list_to_integer([Y1, Y2, Y3, Y4]),
+            list_to_integer([Mo1, Mo2]),
+            list_to_integer([D1, D2])
+        },
+        Time = {
+            list_to_integer([H1, H2]),
+            list_to_integer([Mi1, Mi2]),
+            list_to_integer([S1, S2])
+        },
+        case calendar:valid_date(Date) andalso valid_time(Time) of
+            true -> {ok, {Date, Time}};
+            false -> error
+        end
+    catch
+        error:badarg -> error
+    end;
 parse_datetime(_) ->
     error.
 
+-spec parse_date(binary()) -> {ok, calendar:date()} | error.
 parse_date(<<Y1, Y2, Y3, Y4, $-, Mo1, Mo2, $-, D1, D2>>) ->
-    {ok, {
-        list_to_integer([Y1, Y2, Y3, Y4]), list_to_integer([Mo1, Mo2]), list_to_integer([D1, D2])
-    }};
+    try
+        Date = {
+            list_to_integer([Y1, Y2, Y3, Y4]),
+            list_to_integer([Mo1, Mo2]),
+            list_to_integer([D1, D2])
+        },
+        case calendar:valid_date(Date) of
+            true -> {ok, Date};
+            false -> error
+        end
+    catch
+        error:badarg -> error
+    end;
 parse_date(_) ->
     error.
+
+-spec valid_time(calendar:time()) -> boolean().
+valid_time({H, Mi, S}) ->
+    H >= 0 andalso H =< 23 andalso
+        Mi >= 0 andalso Mi =< 59 andalso
+        S >= 0 andalso S =< 59.

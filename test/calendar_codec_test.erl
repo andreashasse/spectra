@@ -17,6 +17,9 @@ datetime_codec_test_() ->
             fun(_) -> fun datetime_decode/0 end,
             fun(_) -> fun datetime_decode_bad_string/0 end,
             fun(_) -> fun datetime_decode_non_binary/0 end,
+            fun(_) -> fun datetime_decode_non_digit_bytes/0 end,
+            fun(_) -> fun datetime_decode_invalid_month/0 end,
+            fun(_) -> fun datetime_decode_invalid_time/0 end,
             fun(_) -> fun datetime_schema/0 end,
             fun(_) -> fun datetime_roundtrip/0 end
         ]}.
@@ -33,6 +36,8 @@ date_codec_test_() ->
             fun(_) -> fun date_encode_bad_value/0 end,
             fun(_) -> fun date_decode/0 end,
             fun(_) -> fun date_decode_bad_string/0 end,
+            fun(_) -> fun date_decode_non_digit_bytes/0 end,
+            fun(_) -> fun date_decode_invalid_month/0 end,
             fun(_) -> fun date_schema/0 end,
             fun(_) -> fun date_roundtrip/0 end
         ]}.
@@ -97,6 +102,45 @@ datetime_decode_non_binary() ->
             calendar_codec_module,
             {type, event, 0},
             #{<<"title">> => <<"Party">>, <<"at">> => 12345},
+            [pre_decoded]
+        )
+    ).
+
+datetime_decode_non_digit_bytes() ->
+    %% "2024-0a-15T10:30:00" has a non-digit byte — must return error, not crash
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, event, 0},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-0a-15T10:30:00">>},
+            [pre_decoded]
+        )
+    ).
+
+datetime_decode_invalid_month() ->
+    %% "2024-99-01" is the right shape but an out-of-range month
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, event, 0},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-99-01T00:00:00">>},
+            [pre_decoded]
+        )
+    ).
+
+datetime_decode_invalid_time() ->
+    %% "25:00:00" is out of range for hours
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, event, 0},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T25:00:00">>},
             [pre_decoded]
         )
     ).
@@ -167,6 +211,32 @@ date_decode_bad_string() ->
             calendar_codec_module,
             {type, appointment, 0},
             #{<<"title">> => <<"Dentist">>, <<"on">> => <<"not-a-date">>},
+            [pre_decoded]
+        )
+    ).
+
+date_decode_non_digit_bytes() ->
+    %% "2024-0a-15" has a non-digit byte — must return error, not crash
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, appointment, 0},
+            #{<<"title">> => <<"Dentist">>, <<"on">> => <<"2024-0a-15">>},
+            [pre_decoded]
+        )
+    ).
+
+date_decode_invalid_month() ->
+    %% month 99 is out of range
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, appointment, 0},
+            #{<<"title">> => <<"Dentist">>, <<"on">> => <<"2024-99-01">>},
             [pre_decoded]
         )
     ).
