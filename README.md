@@ -244,15 +244,17 @@ Encodes `calendar:datetime()` and `calendar:date()` as ISO 8601 strings. Registe
 
 | Type | JSON representation | JSON Schema format |
 |---|---|---|
-| `calendar:datetime()` | `"2024-01-15T10:30:00"` | `date-time` |
+| `calendar:datetime()` | `"2024-01-15T10:30:00Z"` | `date-time` |
 | `calendar:date()` | `"2024-01-15"` | `date` |
+
+`calendar:datetime()` has no timezone — values are treated as UTC. Encoding always appends `Z`; decoding requires `Z` and rejects other offsets. If you need full timezone support, use a dedicated datetime library and implement a custom `spectra_codec` for it.
 
 ```erlang
 -type event() :: #{title => binary(), at => calendar:datetime()}.
 
 {ok, Json} = spectra:encode(json, my_module, event,
     #{title => <<"Party">>, at => {{2024, 1, 15}, {18, 30, 0}}}).
-%% => {ok, <<"{\"title\":\"Party\",\"at\":\"2024-01-15T18:30:00\"}">>}
+%% => {ok, <<"{\"title\":\"Party\",\"at\":\"2024-01-15T18:30:00Z\"}">>}
 ```
 
 ## Type Parameters

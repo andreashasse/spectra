@@ -17,6 +17,7 @@ datetime_codec_test_() ->
             fun(_) -> fun datetime_decode/0 end,
             fun(_) -> fun datetime_decode_bad_string/0 end,
             fun(_) -> fun datetime_decode_non_binary/0 end,
+            fun(_) -> fun datetime_decode_missing_timezone/0 end,
             fun(_) -> fun datetime_decode_non_digit_bytes/0 end,
             fun(_) -> fun datetime_decode_invalid_month/0 end,
             fun(_) -> fun datetime_decode_invalid_time/0 end,
@@ -48,7 +49,7 @@ date_codec_test_() ->
 
 datetime_encode() ->
     ?assertEqual(
-        {ok, #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T10:30:00">>}},
+        {ok, #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T10:30:00Z">>}},
         spectra:encode(
             json,
             calendar_codec_module,
@@ -77,7 +78,7 @@ datetime_decode() ->
             json,
             calendar_codec_module,
             {type, event, 0},
-            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T10:30:00">>},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T10:30:00Z">>},
             [pre_decoded]
         )
     ).
@@ -106,6 +107,19 @@ datetime_decode_non_binary() ->
         )
     ).
 
+datetime_decode_missing_timezone() ->
+    %% datetime without Z must be rejected
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json,
+            calendar_codec_module,
+            {type, event, 0},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T10:30:00">>},
+            [pre_decoded]
+        )
+    ).
+
 datetime_decode_non_digit_bytes() ->
     %% "2024-0a-15T10:30:00" has a non-digit byte — must return error, not crash
     ?assertMatch(
@@ -114,7 +128,7 @@ datetime_decode_non_digit_bytes() ->
             json,
             calendar_codec_module,
             {type, event, 0},
-            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-0a-15T10:30:00">>},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-0a-15T10:30:00Z">>},
             [pre_decoded]
         )
     ).
@@ -127,7 +141,7 @@ datetime_decode_invalid_month() ->
             json,
             calendar_codec_module,
             {type, event, 0},
-            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-99-01T00:00:00">>},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-99-01T00:00:00Z">>},
             [pre_decoded]
         )
     ).
@@ -140,7 +154,7 @@ datetime_decode_invalid_time() ->
             json,
             calendar_codec_module,
             {type, event, 0},
-            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T25:00:00">>},
+            #{<<"title">> => <<"Party">>, <<"at">> => <<"2024-01-15T25:00:00Z">>},
             [pre_decoded]
         )
     ).

@@ -4,8 +4,17 @@
 Built-in codec for `calendar:datetime()` and `calendar:date()`.
 
 Serialises to ISO 8601 strings and parses them back:
-- `calendar:datetime()` ↔ `"YYYY-MM-DDTHH:MM:SS"` (e.g. `"2024-01-15T10:30:00"`)
+- `calendar:datetime()` ↔ `"YYYY-MM-DDTHH:MM:SSZ"` (e.g. `"2024-01-15T10:30:00Z"`)
 - `calendar:date()` ↔ `"YYYY-MM-DD"` (e.g. `"2024-01-15"`)
+
+`calendar:datetime()` carries no timezone information — values are treated as
+UTC. Encoding always appends `Z`; decoding requires the `Z` suffix and rejects
+any other offset (e.g. `+01:00`).
+
+If you need full timezone support, use a dedicated datetime library (e.g.
+[`qdate`](https://hex.pm/packages/qdate) or
+[`calendar_extended`](https://hex.pm/packages/calendar_extended)) and implement
+a custom `spectra_codec` behaviour for it.
 
 ## Registering
 
@@ -30,7 +39,7 @@ independent.
 
 DT = {{2024, 1, 15}, {10, 30, 0}},
 {ok, Encoded} = spectra:encode(json, my_module, meeting, #{title => <<"Standup">>, at => DT}).
-%% => {ok, <<"{\"title\":\"Standup\",\"at\":\"2024-01-15T10:30:00\"}">>}
+%% => {ok, <<"{\"title\":\"Standup\",\"at\":\"2024-01-15T10:30:00Z\"}">>}
 
 {ok, Decoded} = spectra:decode(json, my_module, meeting, Encoded).
 %% => {ok, #{title => <<"Standup">>, at => {{2024,1,15},{10,30,0}}}}
@@ -52,7 +61,7 @@ encode(json, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _SpType, _Para
     is_integer(S)
 ->
     Bin = iolist_to_binary(
-        io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0w", [Y, Mo, D, H, Mi, S])
+        io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0wZ", [Y, Mo, D, H, Mi, S])
     ),
     {ok, Bin};
 encode(json, _Mod, {type, datetime, 0} = TypeRef, Data, _SpType, _Params) ->
@@ -93,7 +102,7 @@ schema(json_schema, _Mod, {type, date, 0}, _SpType, _Params) ->
 
 -spec parse_datetime(binary()) -> {ok, calendar:datetime()} | error.
 parse_datetime(
-    <<Y1, Y2, Y3, Y4, $-, Mo1, Mo2, $-, D1, D2, $T, H1, H2, $:, Mi1, Mi2, $:, S1, S2>>
+    <<Y1, Y2, Y3, Y4, $-, Mo1, Mo2, $-, D1, D2, $T, H1, H2, $:, Mi1, Mi2, $:, S1, S2, $Z>>
 ) ->
     try
         Date = {
