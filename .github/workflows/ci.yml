@@ -72,6 +72,9 @@ jobs:
       - name: Run Hank
         run: make hank
 
+      - name: Lint
+        run: make lint
+
       - name: Generate coverage report
         run: make cover
 
