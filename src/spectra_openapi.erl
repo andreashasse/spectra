@@ -28,8 +28,6 @@
     {spectra_openapi, add_response, 2}
 ]).
 
--compile(nowarn_unused_type).
-
 -export_type([
     endpoint_spec/0,
     endpoint_doc/0,
@@ -38,7 +36,8 @@
     parameter_input_spec/0,
     http_method/0,
     http_status_code/0,
-    openapi_metadata/0
+    openapi_metadata/0,
+    openapi_spec/0
 ]).
 
 -define(DEFAULT_CONTENT_TYPE, <<"application/json">>).
@@ -628,7 +627,7 @@ group_endpoints_by_path(Endpoints) ->
         fun(Endpoint, Acc) ->
             Path = maps:get(path, Endpoint),
             PathEndpoints = maps:get(Path, Acc, []),
-            maps:put(Path, [Endpoint | PathEndpoints], Acc)
+            Acc#{Path => [Endpoint | PathEndpoints]}
         end,
         #{},
         Endpoints

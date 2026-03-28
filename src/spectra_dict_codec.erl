@@ -37,8 +37,6 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 
 -behaviour(spectra_codec).
 
--include("../include/spectra_internal.hrl").
-
 -export([encode/6, decode/6, schema/5]).
 
 -spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->

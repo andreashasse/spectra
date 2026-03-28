@@ -305,7 +305,7 @@ process_map_fields(
     HasAdditional
 ) ->
     FieldSchema = do_to_schema(TypeInfo, FieldType),
-    NewProperties = maps:put(BinaryName, FieldSchema, Properties),
+    NewProperties = Properties#{BinaryName => FieldSchema},
     NewRequired =
         case Kind of
             exact -> [BinaryName | Required];

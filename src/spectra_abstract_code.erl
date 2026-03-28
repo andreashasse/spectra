@@ -591,7 +591,7 @@ bound_fun_constraint_aux(
 ) when
     is_atom(VarName)
 ->
-    maps:put(VarName, TypeDef, Acc);
+    Acc#{VarName => TypeDef};
 bound_fun_constraint_aux(Constraint, _Acc) ->
     error({unsupported_constraint, Constraint}).
 

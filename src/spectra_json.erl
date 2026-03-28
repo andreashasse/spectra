@@ -511,7 +511,7 @@ do_from_json(
     case map_from_json(TypeInfo, Type, Json) of
         {ok, MapResult} when StructName =/= undefined ->
             %% Add back the __struct__ field for Elixir structs
-            {ok, maps:put('__struct__', StructName, MapResult)};
+            {ok, MapResult#{'__struct__' => StructName}};
         Result ->
             Result
     end;

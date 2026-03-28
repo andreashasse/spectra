@@ -1,4 +1,4 @@
-.PHONY: all compile format test cover clean doc perf
+.PHONY: all compile format test cover clean doc perf lint
 
 all: format build-test doc
 
@@ -13,6 +13,13 @@ format_verify:
 
 hank:
 	rebar3 hank
+
+lint:
+	@output=$$(elp lint --rebar --read-config); \
+	echo "$$output"; \
+	if ! echo "$$output" | grep -q "No diagnostics reported"; then \
+		exit 1; \
+	fi
 
 test:
 	@if command -v elixirc >/dev/null 2>&1; then \
