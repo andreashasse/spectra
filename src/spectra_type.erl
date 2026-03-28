@@ -14,6 +14,7 @@ detection, and normalisation of `-spectra()` doc annotations.
     can_be_missing/2,
     get_meta/1,
     set_meta/2,
+    update_meta/2,
     parameters/1,
     propagate_params/2,
     type_args/1,
@@ -26,6 +27,7 @@ detection, and normalisation of `-spectra()` doc annotations.
 -ignore_xref([
     get_meta/1,
     set_meta/2,
+    update_meta/2,
     parameters/1,
     type_args/1,
     add_doc_to_type/2,
@@ -109,6 +111,11 @@ set_meta(#sp_range{} = T, Meta) -> T#sp_range{meta = Meta};
 set_meta(#sp_list{} = T, Meta) -> T#sp_list{meta = Meta};
 set_meta(#sp_nonempty_list{} = T, Meta) -> T#sp_nonempty_list{meta = Meta}.
 
+-doc "Merges `Updates` into the existing meta map of `Type`, returning the updated type. Existing keys not present in `Updates` are preserved; keys in `Updates` overwrite existing ones.".
+-spec update_meta(spectra:sp_type(), spectra:sp_type_meta()) -> spectra:sp_type().
+update_meta(Type, Updates) ->
+    set_meta(Type, maps:merge(get_meta(Type), Updates)).
+
 -doc "Returns the `parameters` entry from the type's meta map, or `undefined` if absent. Used for string constraints such as `min_length`, `max_length`, and `pattern`.".
 -spec parameters(spectra:sp_type()) -> term().
 parameters(Type) ->
@@ -119,7 +126,7 @@ parameters(Type) ->
 propagate_params(From, To) ->
     case parameters(From) of
         undefined -> To;
-        Params -> set_meta(To, (get_meta(To))#{parameters => Params})
+        Params -> update_meta(To, #{parameters => Params})
     end.
 
 -doc "Extracts the type-variable bindings from an `sp_type()` node. Returns the list of concrete type arguments for `#sp_user_type_ref{}` and `#sp_remote_type{}`, or `[]` for all other types.".
@@ -132,8 +139,7 @@ type_args(_) -> [].
 -spec add_doc_to_type(spectra:sp_type(), map()) -> spectra:sp_type().
 add_doc_to_type(Type, DocMap) ->
     Doc = normalize_doc(DocMap),
-    Meta = get_meta(Type),
-    set_meta(Type, Meta#{doc => Doc}).
+    update_meta(Type, #{doc => Doc}).
 
 -doc "Validates and normalises a raw `-spectra()` annotation map into a `type_doc()`. Raises `{invalid_spectra_field, Key, Value}` on unknown or ill-typed fields.".
 -spec normalize_doc(map()) -> spectra:type_doc().

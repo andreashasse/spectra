@@ -114,8 +114,7 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->
-    Meta = spectra_type:get_meta(Type),
-    spectra_type:set_meta(Type, Meta#{parameters => Params});
+    spectra_type:update_meta(Type, #{parameters => Params});
 apply_type_parameters(Type, #{}) ->
     Type.
 
@@ -123,12 +122,10 @@ build_type_info(Module, IsBehaviour, NamedTypes) ->
     lists:foldl(fun build_type_info_fold/2, spectra_type_info:new(Module, IsBehaviour), NamedTypes).
 
 build_type_info_fold({{type, Name, Arity}, Type}, TypeInfo) ->
-    Meta = spectra_type:get_meta(Type),
-    TaggedType = spectra_type:set_meta(Type, Meta#{name => {type, Name, Arity}}),
+    TaggedType = spectra_type:update_meta(Type, #{name => {type, Name, Arity}}),
     spectra_type_info:add_type(TypeInfo, Name, Arity, TaggedType);
 build_type_info_fold({{record, Name}, Record}, TypeInfo) ->
-    Meta = spectra_type:get_meta(Record),
-    #sp_rec{} = TaggedRecord = spectra_type:set_meta(Record, Meta#{name => {record, Name}}),
+    #sp_rec{} = TaggedRecord = spectra_type:update_meta(Record, #{name => {record, Name}}),
     spectra_type_info:add_record(TypeInfo, Name, TaggedRecord);
 build_type_info_fold({{function, Name, Arity}, FuncSpec}, TypeInfo) ->
     spectra_type_info:add_function(TypeInfo, Name, Arity, FuncSpec).
