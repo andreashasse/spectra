@@ -84,7 +84,7 @@ simple_test() ->
                     #sp_rec_field{
                         name = id,
                         binary_name = <<"id">>,
-                        type = #sp_user_type_ref{type_name = user_id, variables = []}
+                        type = #sp_user_type_ref{type_name = user_id, variables = [], arity = 0}
                     },
                     #sp_rec_field{
                         name = data, binary_name = <<"data">>, type = #sp_simple_type{type = term}

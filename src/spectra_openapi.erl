@@ -721,9 +721,13 @@ generate_response(#{description := Description} = ResponseSpec) when
                         {record, Name} ->
                             SchemaName = schema_component_name(Module, {record, Name}),
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
-                        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
+                        #sp_list{
+                            type = #sp_remote_type{
+                                mfargs = {ItemMod, ItemName, _}, arity = ItemArity
+                            }
+                        } ->
                             ItemSchemaName = schema_component_name(
-                                ItemMod, {type, ItemName, length(ItemArgs)}
+                                ItemMod, {type, ItemName, ItemArity}
                             ),
                             #{
                                 type => <<"array">>,
@@ -733,8 +737,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                                             <<"#/components/schemas/", ItemSchemaName/binary>>
                                     }
                             };
-                        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
-                            RemoteArity = length(RemoteArgs),
+                        #sp_remote_type{mfargs = {RemoteMod, RemoteName, _}, arity = RemoteArity} ->
                             SchemaName = schema_component_name(
                                 RemoteMod, {type, RemoteName, RemoteArity}
                             ),
@@ -793,8 +796,7 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
             {record, Name} ->
                 SchemaName = schema_component_name(Module, {record, Name}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
-            #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
-                RemoteArity = length(RemoteArgs),
+            #sp_remote_type{mfargs = {RemoteMod, RemoteName, _}, arity = RemoteArity} ->
                 SchemaName = schema_component_name(RemoteMod, {type, RemoteName, RemoteArity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
@@ -913,10 +915,10 @@ filter_typeref(Schema, Module) ->
             {true, {Module, TypeRef}};
         {record, _} = TypeRef ->
             {true, {Module, TypeRef}};
-        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, ItemArgs}}} ->
-            {true, {ItemMod, {type, ItemName, length(ItemArgs)}}};
-        #sp_remote_type{mfargs = {RemoteMod, RemoteName, RemoteArgs}} ->
-            {true, {RemoteMod, {type, RemoteName, length(RemoteArgs)}}};
+        #sp_list{type = #sp_remote_type{mfargs = {ItemMod, ItemName, _}, arity = ItemArity}} ->
+            {true, {ItemMod, {type, ItemName, ItemArity}}};
+        #sp_remote_type{mfargs = {RemoteMod, RemoteName, _}, arity = RemoteArity} ->
+            {true, {RemoteMod, {type, RemoteName, RemoteArity}}};
         _ ->
             false
     end.
@@ -971,18 +973,18 @@ type_doc(TypeInfo, {type, Name, Arity}) ->
     type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity));
 type_doc(TypeInfo, {record, Name}) ->
     type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name));
-type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, variables = Args} = Ref) ->
+type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, arity = Arity} = Ref) ->
     case spectra_type:get_meta(Ref) of
         #{doc := Doc} -> maps:remove(examples_function, Doc);
-        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, length(Args)))
+        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity))
     end;
-type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, Args}} = Ref) ->
+type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, _}, arity = Arity} = Ref) ->
     case spectra_type:get_meta(Ref) of
         #{doc := Doc} ->
             maps:remove(examples_function, Doc);
         _ ->
             RemoteTypeInfo = spectra_module_types:get(Mod),
-            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, length(Args)))
+            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity))
     end;
 type_doc(_TypeInfo, Type) ->
     case spectra_type:get_meta(Type) of

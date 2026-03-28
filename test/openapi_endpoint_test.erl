@@ -1013,7 +1013,7 @@ response_builder_multiple_responses_test() ->
 %% Test that a list-of-remote-type response emits {type: array, items: {$ref: ...}}
 %% and puts the item type in components/schemas
 list_of_remote_type_response_test() ->
-    ListType = #sp_list{type = #sp_remote_type{mfargs = {?MODULE, item, []}}},
+    ListType = #sp_list{type = #sp_remote_type{mfargs = {?MODULE, item, []}, arity = 0}},
     Response = spectra_openapi:response(200, <<"List of items">>),
     ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, ListType),
     Endpoint1 = spectra_openapi:endpoint(get, <<"/items">>),

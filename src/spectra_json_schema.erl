@@ -67,8 +67,9 @@ to_schema_for_sp_type(TypeInfo, Type) ->
     Type :: spectra:sp_type()
 ) ->
     json_schema_object().
-do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = UserTypeRef) ->
-    Arity = length(Args),
+do_to_schema(
+    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef
+) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
     case spectra_codec:try_codec_schema(Mod, json_schema, Type, UserTypeRef) of
@@ -78,8 +79,7 @@ do_to_schema(TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = User
         Schema ->
             Schema
     end;
-do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}} = RemoteRef) ->
-    Arity = length(Args),
+do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}, arity = Arity} = RemoteRef) ->
     RemoteTypeInfo = spectra_module_types:get(Mod),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType, RemoteRef) of
@@ -249,8 +249,9 @@ can_be_json_key(_TypeInfo, #sp_literal{value = Value}) when is_atom(Value) ->
     true;
 can_be_json_key(TypeInfo, #sp_union{types = Types}) ->
     lists:all(fun(T) -> can_be_json_key(TypeInfo, T) end, Types);
-can_be_json_key(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = TypeArgs}) ->
-    TypeArity = length(TypeArgs),
+can_be_json_key(TypeInfo, #sp_user_type_ref{
+    type_name = TypeName, variables = TypeArgs, arity = TypeArity
+}) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
     can_be_json_key(TypeInfo, TypeWithoutVars);
@@ -423,17 +424,19 @@ try_generate_enum_schema(Types, TypeInfo) ->
 expand_to_literals(#sp_literal{} = Literal, _TypeInfo) ->
     {ok, [Literal]};
 %% Resolve remote types
-expand_to_literals(#sp_remote_type{mfargs = {Module, TypeName, Args}}, _TypeInfo) ->
+expand_to_literals(
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity}, _TypeInfo
+) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
     Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
     expand_to_literals(TypeWithoutVars, RemoteTypeInfo);
 %% Resolve user type references
-expand_to_literals(#sp_user_type_ref{type_name = TypeName, variables = TypeArgs}, TypeInfo) when
+expand_to_literals(
+    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity}, TypeInfo
+) when
     TypeInfo =/= undefined
 ->
-    TypeArity = length(TypeArgs),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
     expand_to_literals(TypeWithoutVars, TypeInfo);

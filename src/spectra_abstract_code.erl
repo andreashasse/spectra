@@ -275,7 +275,7 @@ field_info_to_type({remote_type, _, [{atom, _, Module}, {atom, _, Type}, Args]})
             end,
             Args
         ),
-    [#sp_remote_type{mfargs = {Module, Type, MyArgs}}];
+    [#sp_remote_type{mfargs = {Module, Type, MyArgs}, arity = length(MyArgs)}];
 field_info_to_type({Type, _, map, any}) when
     Type =:= type orelse Type =:= opaque orelse Type =:= nominal
 ->
@@ -296,7 +296,7 @@ field_info_to_type({user_type, _, Type, TypeAttrs}) when
     is_atom(Type) andalso is_list(TypeAttrs)
 ->
     TAttrs = lists:flatmap(fun field_info_to_type/1, TypeAttrs),
-    [#sp_user_type_ref{type_name = Type, variables = TAttrs}];
+    [#sp_user_type_ref{type_name = Type, variables = TAttrs, arity = length(TAttrs)}];
 field_info_to_type({TypeOrOpaque, _, Type, TypeAttrs}) when
     is_list(TypeAttrs) andalso
         (TypeOrOpaque =:= type orelse TypeOrOpaque =:= opaque orelse TypeOrOpaque =:= nominal)

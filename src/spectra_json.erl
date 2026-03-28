@@ -40,11 +40,12 @@ structured `#sp_error{}` values describing every mismatch found.
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(
-    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Data
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
+    Data
 ) when
     is_atom(TypeName)
 ->
-    Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_encode(Mod, json, Type, Data, UserTypeRef) of
@@ -54,8 +55,11 @@ to_json(
         Result ->
             Result
     end;
-to_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Data) ->
-    TypeArity = length(Args),
+to_json(
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    Data
+) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_encode(Module, json, RemoteType, Data, RemoteRef) of
@@ -463,11 +467,12 @@ from_json(TypeInfo, Type, Json) ->
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 do_from_json(
-    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Json
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
+    Json
 ) when
     is_atom(TypeName)
 ->
-    Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_decode(Mod, json, Type, Json, UserTypeRef) of
@@ -477,9 +482,12 @@ do_from_json(
         Result ->
             Result
     end;
-do_from_json(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Json) ->
+do_from_json(
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    Json
+) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
-    TypeArity = length(Args),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_decode(Module, json, RemoteType, Json, RemoteRef) of
         continue ->

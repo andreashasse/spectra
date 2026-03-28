@@ -33,9 +33,10 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_string(
-    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, String
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
+    String
 ) ->
-    Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_decode(Mod, string, Type, String, UserTypeRef) of
@@ -52,8 +53,11 @@ from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String)
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
-from_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, String) ->
-    TypeArity = length(Args),
+from_string(
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    String
+) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_decode(Module, string, RemoteType, String, RemoteRef) of
@@ -125,8 +129,11 @@ and converts it to a string representation.
     Data :: dynamic()
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Data) ->
-    Arity = length(Args),
+to_string(
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
+    Data
+) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_encode(Mod, string, Type, Data, UserTypeRef) of
@@ -143,8 +150,11 @@ to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data) ->
         continue -> erlang:error({type_not_supported, RecordType});
         Result -> Result
     end;
-to_string(_TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Data) ->
-    TypeArity = length(Args),
+to_string(
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    Data
+) ->
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_encode(Module, string, RemoteType, Data, RemoteRef) of
