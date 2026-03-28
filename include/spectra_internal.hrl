@@ -48,6 +48,7 @@
 }).
 -record(sp_remote_type, {
     mfargs :: {module(), atom(), [spectra:sp_type()]},
+    arity :: arity(),
     meta = #{} :: spectra:sp_type_meta()
 }).
 -record(sp_maybe_improper_list, {
@@ -63,6 +64,7 @@
 -record(sp_user_type_ref, {
     type_name :: spectra:user_type_name(),
     variables :: [spectra:sp_type()],
+    arity :: arity(),
     meta = #{} :: spectra:sp_type_meta()
 }).
 -record(sp_var, {

@@ -70,9 +70,11 @@ and converts it to the corresponding Erlang value.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_binary_string(
-    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args} = UserTypeRef, BinaryString, Opts
+    TypeInfo,
+    #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef,
+    BinaryString,
+    Opts
 ) ->
-    Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
     case spectra_codec:try_codec_decode(Mod, binary_string, Type, BinaryString, UserTypeRef) of
@@ -83,9 +85,11 @@ from_binary_string(
             Result
     end;
 from_binary_string(
-    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, BinaryString, Opts
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    BinaryString,
+    Opts
 ) ->
-    TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
@@ -206,9 +210,11 @@ and converts it to a binary string representation.
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
 to_binary_string(
-    TypeInfo, #sp_user_type_ref{type_name = TypeName, variables = Args} = UserTypeRef, Data, Opts
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
+    Data,
+    Opts
 ) ->
-    Arity = length(Args),
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_encode(Mod, binary_string, Type, Data, UserTypeRef) of
@@ -219,9 +225,11 @@ to_binary_string(
             Result
     end;
 to_binary_string(
-    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}} = RemoteRef, Data, Opts
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
+    Data,
+    Opts
 ) ->
-    TypeArity = length(Args),
     RemoteTypeInfo = spectra_module_types:get(Module),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case spectra_codec:try_codec_encode(Module, binary_string, RemoteType, Data, RemoteRef) of

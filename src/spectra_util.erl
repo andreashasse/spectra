@@ -225,6 +225,8 @@ type_replace_vars(
         Args
     ),
     % Return the remote type with resolved args, preserving module context and meta
-    #sp_remote_type{mfargs = {Module, TypeName, ResolvedArgs}, meta = Meta};
+    #sp_remote_type{
+        mfargs = {Module, TypeName, ResolvedArgs}, arity = length(ResolvedArgs), meta = Meta
+    };
 type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
     Type.

@@ -104,13 +104,13 @@ openapi_parameter_description_uses_local_alias_doc_test() ->
 %% When the schema is an sp_remote_type{} with no local meta, type_doc follows
 %% the remote reference and returns the description from the remote module.
 openapi_parameter_description_follows_remote_type_test() ->
-    Param = path_param_for_schema(#sp_remote_type{mfargs = {?MODULE, user_id, []}}),
+    Param = path_param_for_schema(#sp_remote_type{mfargs = {?MODULE, user_id, []}, arity = 0}),
     ?assertMatch(#{<<"description">> := <<"A user's unique identifier">>}, Param).
 
 %% When the response body is an sp_remote_type{}, it should be registered as a
 %% component and referenced via $ref, with its full documentation preserved.
 openapi_response_body_remote_type_uses_ref_test() ->
-    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}},
+    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}, arity = 0},
     Response = spectra_openapi:response(200, <<"User found">>),
     ResponseWithBody = spectra_openapi:response_with_body(Response, ?MODULE, RemoteType),
     Endpoint = spectra_openapi:add_response(
@@ -159,7 +159,7 @@ openapi_response_body_remote_type_uses_ref_test() ->
 %% When the request body is an sp_remote_type{}, it should be registered as a
 %% component and referenced via $ref.
 openapi_request_body_remote_type_uses_ref_test() ->
-    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}},
+    RemoteType = #sp_remote_type{mfargs = {?MODULE, user_type, []}, arity = 0},
     Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
     Endpoint2 = spectra_openapi:with_request_body(Endpoint1, ?MODULE, RemoteType),
     Endpoint = spectra_openapi:add_response(

@@ -1560,7 +1560,7 @@ remote_type_test() ->
     %% The actual functionality would require setting up modules with types, which is complex for unit tests
     %% We'll just verify that the pattern matching and basic structure work
     %% Create a mock remote type (this won't actually resolve, but will test error handling)
-    RemoteType = #sp_remote_type{mfargs = {non_existent_module, some_type, []}},
+    RemoteType = #sp_remote_type{mfargs = {non_existent_module, some_type, []}, arity = 0},
 
     %% This should fail when trying to get the module types
     ?assertError(

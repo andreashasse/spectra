@@ -440,7 +440,7 @@ multi_clause_spec_test() ->
             #sp_function_spec{
                 args =
                     [
-                        #sp_user_type_ref{type_name = my_id, variables = []},
+                        #sp_user_type_ref{type_name = my_id, variables = [], arity = 0},
                         #sp_simple_type{type = string}
                     ],
                 return = #sp_rec_ref{record_name = user, field_types = []}

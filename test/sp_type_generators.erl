@@ -291,7 +291,8 @@ sp_plain_remote_type(Size) ->
             Args,
             vector(Len, sp_type(Size)),
             #sp_remote_type{
-                mfargs = {known_plain_module(), known_plain_type_name(), Args}
+                mfargs = {known_plain_module(), known_plain_type_name(), Args},
+                arity = length(Args)
             }
         )
     ).
@@ -299,7 +300,7 @@ sp_plain_remote_type(Size) ->
 %% Remote types backed by a codec module — no args needed, module provides the codec
 sp_codec_remote_type() ->
     oneof([
-        #sp_remote_type{mfargs = {codec_geo_module, point, []}}
+        #sp_remote_type{mfargs = {codec_geo_module, point, []}, arity = 0}
     ]).
 
 known_plain_module() ->
@@ -348,7 +349,8 @@ sp_user_type_ref(Size) ->
             vector(Len, sp_type(Size)),
             #sp_user_type_ref{
                 type_name = known_plain_type_name(),
-                variables = Variables
+                variables = Variables,
+                arity = length(Variables)
             }
         )
     ).
