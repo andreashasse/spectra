@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-04-01
+
+### Added
+- **`spectra_type:update_meta/2`**: New helper that updates a type's metadata map in one call, reducing the boilerplate of paired `get_meta`/`set_meta` calls.
+- **`make lint`**: New lint target using `elp lint --rebar --read-config` (also added to CI).
+
+### Changed
+- `#sp_user_type_ref{}` and `#sp_remote_type{}` internal records now cache `arity` directly, eliminating repeated `length/1` calls across all serialization and deserialization modules.
+
 ## [0.9.2] - 2026-03-27
 
 ### Added
