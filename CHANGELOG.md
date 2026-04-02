@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-04-02
+
+### Fixed
+- **OpenAPI component generation bypasses codec `schema/5`**: When a codec-backed named type or record was referenced as an OpenAPI component via `endpoints_to_openapi`, the codec's `schema/5` callback was never called — the structural schema was generated instead.
+
 ## [0.9.3] - 2026-04-01
 
 ### Added

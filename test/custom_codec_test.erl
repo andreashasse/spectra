@@ -500,6 +500,39 @@ app_env_record_schema_test() ->
         application:unset_env(spectra, codecs)
     end.
 
+%% Regression: to_inline_schema({record, Name}) used to pass the resolved #sp_rec{}
+%% directly to spectra_json_schema:to_schema, bypassing the codec registry. The
+%% structural object schema was generated instead of calling the codec's schema/5.
+app_env_record_openapi_component_uses_codec_schema_test() ->
+    application:set_env(
+        spectra,
+        codecs,
+        #{{codec_appenv_rec_module, {record, point2d}} => codec_appenv_rec_codec}
+    ),
+    try
+        Resp = spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"ok">>),
+            codec_appenv_rec_module,
+            {record, point2d}
+        ),
+        Endpoint = spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/point">>),
+            Resp
+        ),
+        {ok, Spec} = spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+        #{<<"components">> := #{<<"schemas">> := #{<<"Point2d">> := Point2dSchema}}} = Spec,
+        ?assertMatch(
+            #{type := <<"array">>, items := #{type := <<"number">>}, minItems := 2, maxItems := 2},
+            Point2dSchema
+        )
+    after
+        application:unset_env(spectra, codecs)
+    end.
+
 %% When encoding a record whose field type is an inline #sp_rec_ref{}, and the
 %% referenced record has a codec registered via app env, the inline ref must
 %% dispatch to the codec rather than fall through to structural encoding.
