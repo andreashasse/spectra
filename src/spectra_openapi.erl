@@ -1008,6 +1008,10 @@ to_inline_schema(TypeInfo, {type, Name, Arity}) ->
     end;
 to_inline_schema(TypeInfo, {record, RecordName}) ->
     Record = spectra_type_info:get_record(TypeInfo, RecordName),
-    spectra_json_schema:to_schema(TypeInfo, Record);
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_schema(Mod, json_schema, Record, Record) of
+        continue -> spectra_json_schema:to_schema(TypeInfo, Record);
+        Schema -> Schema
+    end;
 to_inline_schema(TypeInfo, SpType) ->
     spectra_json_schema:to_schema(TypeInfo, SpType).
