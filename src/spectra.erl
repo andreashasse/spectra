@@ -219,17 +219,17 @@ decode(Format, TypeInfo, SpType, Data, Options) ->
 -spec default_decode(
     Format :: atom(),
     TypeInfo :: type_info(),
-    SpType :: sp_type(),
+    Type :: sp_type(),
     Data :: dynamic(),
     Options :: [decode_option()]
 ) ->
     {ok, dynamic()} | {error, [error()]}.
-default_decode(json, Typeinfo, TypeOrRef, Data, Options) ->
+default_decode(json, Typeinfo, Type, Data, Options) ->
     case proplists:get_value(pre_decoded, Options, false) of
         false when is_binary(Data) ->
             case json_decode(Data) of
                 {ok, DecodedJson} ->
-                    spectra_json:from_json(Typeinfo, TypeOrRef, DecodedJson);
+                    spectra_json:from_json(Typeinfo, Type, DecodedJson);
                 {error, _} = Err ->
                     Err
             end;
@@ -245,7 +245,7 @@ default_decode(json, Typeinfo, TypeOrRef, Data, Options) ->
                 }
             ]};
         true ->
-            spectra_json:from_json(Typeinfo, TypeOrRef, Data)
+            spectra_json:from_json(Typeinfo, Type, Data)
     end;
 default_decode(binary_string, Typeinfo, TypeOrRef, Binary, _Options) when is_binary(Binary) ->
     spectra_binary_string:from_binary_string(Typeinfo, TypeOrRef, Binary);

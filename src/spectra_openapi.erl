@@ -1001,7 +1001,11 @@ capitalize_word([First | Rest]) ->
     spectra_json_schema:json_schema().
 to_inline_schema(TypeInfo, {type, Name, Arity}) ->
     Type = spectra_type_info:get_type(TypeInfo, Name, Arity),
-    spectra_json_schema:to_schema(TypeInfo, Type);
+    Mod = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_schema(Mod, json_schema, Type, Type) of
+        continue -> spectra_json_schema:to_schema(TypeInfo, Type);
+        Schema -> Schema
+    end;
 to_inline_schema(TypeInfo, {record, RecordName}) ->
     Record = spectra_type_info:get_record(TypeInfo, RecordName),
     spectra_json_schema:to_schema(TypeInfo, Record);
