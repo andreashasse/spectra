@@ -75,20 +75,11 @@ pers_type(Module) ->
 pers_types_set(Module, Vsn, TypeInfo) ->
     persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
 
--spec ensure_module(Module :: module()) -> boolean().
-ensure_module(Module) ->
-    erlang:module_loaded(Module) orelse code:which(Module) =/= non_existing.
-
 -spec module_vsn(Module :: module()) ->
     Version :: module_version().
 module_vsn(Module) ->
-    case ensure_module(Module) of
-        true ->
-            case erlang:get_module_info(Module, attributes) of
-                Attrs when is_list(Attrs) ->
-                    {vsn, Vsn} = lists:keyfind(vsn, 1, Attrs),
-                    Vsn
-            end;
-        false ->
-            erlang:error({module_types_not_found, Module, non_existing})
+    case erlang:get_module_info(Module, attributes) of
+        Attrs when is_list(Attrs) ->
+            {vsn, Vsn} = lists:keyfind(vsn, 1, Attrs),
+            Vsn
     end.
