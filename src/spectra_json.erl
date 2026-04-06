@@ -513,16 +513,8 @@ do_from_json(
         continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
         Result -> Result
     end;
-do_from_json(
-    TypeInfo, #sp_map{struct_name = StructName} = Type, Json
-) ->
-    case map_from_json(TypeInfo, Type, Json) of
-        {ok, MapResult} when StructName =/= undefined ->
-            %% Add back the __struct__ field for Elixir structs
-            {ok, MapResult#{'__struct__' => StructName}};
-        Result ->
-            Result
-    end;
+do_from_json(TypeInfo, #sp_map{} = Type, Json) ->
+    map_from_json(TypeInfo, Type, Json);
 do_from_json(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
     nonempty_list_from_json(TypeInfo, Type, Data);
 do_from_json(TypeInfo, #sp_list{type = ListType} = Type, Data) ->
@@ -841,7 +833,14 @@ arg_names(_) ->
 ) ->
     {ok, #{json:encode_value() => json:encode_value()}}
     | {error, [spectra:error()]}.
-map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) ->
+map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}, Json) when
+    is_map(Json)
+->
+    Defaults =
+        case StructName of
+            undefined -> undefined;
+            _ -> StructName:'__struct__'()
+        end,
     %% Partition fields: exact literal fields should be processed first to claim their keys
     %% before typed fields try to match them
     {ExactLiteralFields, OtherFields} = lists:partition(
@@ -896,11 +895,17 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) 
                             {error, Errs2}
                     end;
                 error ->
-                    case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                        {true, MissingValue} ->
-                            {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
-                        false ->
-                            {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
+                    case Defaults of
+                        undefined ->
+                            case spectra_type:can_be_missing(TypeInfo, FieldType) of
+                                {true, MissingValue} ->
+                                    {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
+                                false ->
+                                    {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
+                            end;
+                        _ ->
+                            %% Struct field missing from JSON — default will be applied via merge
+                            {ok, {FieldsAcc, JsonAcc}}
                     end
             end;
         (
@@ -932,7 +937,13 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType}, Json) when is_map(Json) 
 
     case spectra_util:fold_until_error(Fun, {[], Json}, SortedFields) of
         {ok, {Fields, _NotMapped}} ->
-            {ok, maps:from_list(Fields)};
+            Decoded = maps:from_list(Fields),
+            Result =
+                case Defaults of
+                    undefined -> Decoded;
+                    _ -> maps:merge(Defaults, Decoded)
+                end,
+            {ok, Result};
         % TODO: Add config option to optionally error on extra fields
         % case maps:size(NotMapped) of
         %     0 ->

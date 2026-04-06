@@ -24,6 +24,7 @@ Once that is done, run `make proper`.
   - When using a type that is defined in the same file, you don't have to prefix it with the module name
   - When the property based tests uncover an error. Make a unit test that reproduces the error and fix the error.
   - Unit tests that tests the decoders, encoders and schemas should call spectra.erl, not eg spectra_json.erl
+  - In tests, avoid hardcoding internal `#sp_map{}` / `#sp_rec{}` / `#sp_simple_type{}` etc. records directly. Instead, define the type in a dedicated Erlang helper module in `test/` and use `spectra_abstract_code:types_in_module(helper_module)` + `spectra_type_info:get_type(TypeInfo, type_name, 0)` to get the type. This keeps tests readable and decoupled from internal record formats.
 
 ## Library Architecture
   - The library uses Erlang types during runtime to support type-safe serialization and deserialization
