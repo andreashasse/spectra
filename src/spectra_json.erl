@@ -895,40 +895,17 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                             {error, Errs2}
                     end;
                 error ->
-                    case Defaults of
-                        undefined ->
-                            case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                                {true, MissingValue} ->
-                                    {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
-                                false ->
-                                    {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
-                            end;
-                        _ ->
-                            %% Struct field missing from JSON.
-                            %% If the type allows nil/undefined, let the struct default fill it in.
-                            %% If not, only accept the struct default when it is a real value
-                            %% (not nil/undefined) — a nil struct default for a non-nullable field
-                            %% means the field is genuinely required.
-                            case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                                {true, _} ->
+                    case spectra_type:can_be_missing(TypeInfo, FieldType) of
+                        {true, MissingValue} when Defaults =:= undefined ->
+                            {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
+                        {true, _} ->
+                            {ok, {FieldsAcc, JsonAcc}};
+                        false ->
+                            case struct_default_value(Defaults, FieldName) of
+                                {ok, _} ->
                                     {ok, {FieldsAcc, JsonAcc}};
-                                false ->
-                                    case maps:find(FieldName, Defaults) of
-                                        {ok, DefaultValue} when
-                                            DefaultValue =/= nil,
-                                            DefaultValue =/= undefined
-                                        ->
-                                            %% Struct has a real non-nil default (e.g. score: 100)
-                                            {ok, {FieldsAcc, JsonAcc}};
-                                        _ ->
-                                            %% No default, or default is nil/undefined but
-                                            %% the type requires a real value
-                                            {error, [
-                                                sp_error:missing_data(
-                                                    Type, JsonAcc, [FieldName]
-                                                )
-                                            ]}
-                                    end
+                                error ->
+                                    {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
                             end
                     end
             end;
@@ -991,6 +968,15 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
 map_from_json(_TypeInfo, MapType, Json) ->
     %% Return error when Json is not a map
     {error, [sp_error:type_mismatch(MapType, Json)]}.
+
+-spec struct_default_value(undefined | map(), atom()) -> {ok, term()} | error.
+struct_default_value(undefined, _FieldName) ->
+    error;
+struct_default_value(Defaults, FieldName) ->
+    case maps:find(FieldName, Defaults) of
+        {ok, V} when V =/= nil, V =/= undefined -> {ok, V};
+        _ -> error
+    end.
 
 map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
     spectra_util:fold_until_error(

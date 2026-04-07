@@ -15,7 +15,7 @@
 ).
 
 struct_type() ->
-    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_type),
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
     spectra_type_info:get_type(TypeInfo, t, 0).
 
 to_json_excludes_struct_field_test() ->
@@ -128,11 +128,11 @@ run_from_json_missing_required_field_errors() ->
 %% --- 'only' option tests ---
 
 struct_only_type() ->
-    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
-    spectra_type_info:get_type(TypeInfo, t, 0).
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t_only, 0).
 
 struct_only_type_or_nil() ->
-    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
     spectra_type_info:get_type(TypeInfo, t_or_nil, 0).
 
 to_json_only_excludes_other_fields_test() ->
@@ -168,8 +168,8 @@ run_from_json_only() ->
     ).
 
 schema_only_includes_listed_fields_test() ->
-    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
-    Schema = spectra:schema(json_schema, TypeInfo, {type, t, 0}, [pre_encoded]),
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    Schema = spectra:schema(json_schema, TypeInfo, {type, t_only, 0}, [pre_encoded]),
     Properties = maps:get(properties, Schema),
     ?assertEqual([<<"age">>, <<"name">>], lists:sort(maps:keys(Properties))).
 
@@ -194,8 +194,8 @@ from_json_only_union_nil_test() ->
 %% --- Fix #1: maps:get/2 crash when field absent from struct defaults ---
 
 extra_field_struct_type() ->
-    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_extra_field_type),
-    spectra_type_info:get_type(TypeInfo, t, 0).
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t_with_extra_field, 0).
 
 from_json_field_absent_from_struct_errors_gracefully_test() ->
     ?SKIP_IF_NO_ELIXIR(run_from_json_field_absent_from_struct_errors_gracefully()).

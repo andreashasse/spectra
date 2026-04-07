@@ -30,14 +30,3 @@ The list comprehension `[F || #literal_map_field{name = N} = F <- Fields, lists:
 
 For Elixir structs, struct defaults fill excluded fields (via `StructName:'__struct__'()`), so the returned map is a valid struct. For plain map types, excluded fields are simply absent from the decoded result. In both cases, the result may not satisfy the declared type — this is intentional and documented.
 
----
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/spectra_abstract_code.erl` | New `apply_only/2` helper; new `attach_doc` clause for types with `only` in DocMap |
-| `test/elixir_test_user_struct_only_type.erl` | New test helper module with `t()` and `t_or_nil()` using `only` |
-| `test/elixir_struct_test.erl` | Tests for encode, decode, schema, and union behaviour |
-| `README.md` | `only` added to attribute table; new "Field Filtering with `only`" section |
-| `specs/only-feature.md` | This document |
