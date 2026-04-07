@@ -114,6 +114,17 @@ run_from_json_uses_struct_defaults() ->
         Result
     ).
 
+from_json_missing_required_field_errors_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_missing_required_field_errors()).
+
+run_from_json_missing_required_field_errors() ->
+    %% age :: non_neg_integer() has no explicit default in defstruct so its struct default
+    %% is nil — decoding JSON missing age should error, not silently return age => nil
+    JsonBinary = <<"{\"name\":\"John\",\"email\":\"john@example.com\",\"score\":50}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    Result = spectra:decode(json, TypeInfo, struct_type(), JsonBinary),
+    ?assertMatch({error, _}, Result).
+
 %% --- 'only' option tests ---
 
 struct_only_type() ->
