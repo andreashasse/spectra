@@ -113,3 +113,69 @@ run_from_json_uses_struct_defaults() ->
         },
         Result
     ).
+
+%% --- 'only' option tests ---
+
+struct_only_type() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
+    spectra_type_info:get_type(TypeInfo, t, 0).
+
+struct_only_type_or_nil() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
+    spectra_type_info:get_type(TypeInfo, t_or_nil, 0).
+
+to_json_only_excludes_other_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_to_json_only()).
+
+run_to_json_only() ->
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"Alice">>, age => 28, email => <<"a@example.com">>}
+    ),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_only_type(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
+    ?assertEqual(#{<<"name">> => <<"Alice">>, <<"age">> => 28}, Decoded).
+
+from_json_only_ignores_extra_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_only()).
+
+run_from_json_only() ->
+    %% score is present in JSON but excluded by 'only' — struct default (100) applies
+    JsonBinary = <<"{\"name\":\"Alice\",\"age\":28,\"score\":999}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_only_type(), JsonBinary),
+    ?assertEqual(
+        #{
+            '__struct__' => 'Elixir.TestUserStruct',
+            name => <<"Alice">>,
+            age => 28,
+            email => nil,
+            score => 100
+        },
+        Result
+    ).
+
+schema_only_includes_listed_fields_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_only_type),
+    Schema = spectra:schema(json_schema, TypeInfo, {type, t, 0}, [pre_encoded]),
+    Properties = maps:get(properties, Schema),
+    ?assertEqual([<<"age">>, <<"name">>], lists:sort(maps:keys(Properties))).
+
+to_json_only_union_excludes_other_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_to_json_only_union()).
+
+run_to_json_only_union() ->
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"Bob">>, age => 35, email => <<"b@example.com">>}
+    ),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_only_type_or_nil(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
+    ?assertEqual(#{<<"name">> => <<"Bob">>, <<"age">> => 35}, Decoded).
+
+from_json_only_union_nil_test() ->
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_only_type_or_nil(), <<"null">>),
+    ?assertEqual(nil, Result).

@@ -94,6 +94,10 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
     end.
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
+attach_doc({{type, _Name, _Arity} = Key, Type}, #{only := Only} = DocMap) ->
+    FilteredType = apply_only(Type, Only),
+    CleanDocMap = maps:remove(only, maps:remove(type_parameters, DocMap)),
+    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     {Key,
         apply_type_parameters(
@@ -111,6 +115,26 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
      || FS <- FuncSpecs
     ],
     {Key, Tagged}.
+
+-doc """
+Filters the fields of a map type to only those named in `Only`.
+
+Propagates through `#sp_union{}` members so that types like `MyStruct | nil`
+work correctly. `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes are passed
+through unchanged — they resolve at encode/decode time and cannot be filtered
+here without cross-module type resolution.
+
+**Note:** When `only` is used, the produced or accepted maps may not fully conform
+to the declared Erlang type. This is intentional.
+""".
+-spec apply_only(spectra:sp_type(), [atom()]) -> spectra:sp_type().
+apply_only(#sp_map{fields = Fields} = Map, Only) ->
+    FilteredFields = [F || #literal_map_field{name = N} = F <- Fields, lists:member(N, Only)],
+    Map#sp_map{fields = FilteredFields};
+apply_only(#sp_union{types = Types} = Union, Only) ->
+    Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
+apply_only(Other, _Only) ->
+    Other.
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->

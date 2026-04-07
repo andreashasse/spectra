@@ -385,6 +385,7 @@ The `-spectra()` attribute annotates types, records, and function specs with met
 | `examples` | `[term()]` | Example values (use tuple syntax for records) |
 | `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
 | `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see [Type Parameters](#type-parameters)) |
+| `only` | `[atom()]` | Restrict encoding, decoding, and schema to the listed field names (see [Field Filtering with `only`](#field-filtering-with-only)) |
 
 **Before a `-spec` declaration:**
 
@@ -443,6 +444,31 @@ person_examples() ->
 ```
 
 The function specified in `examples_function` must be exported.
+
+## Field Filtering with `only`
+
+The `only` key in the `-spectra()` attribute restricts which fields are included when encoding, decoding, and generating schemas for a map type. It works similarly to Jason's `only` option for Elixir structs.
+
+```erlang
+-spectra(#{only => [name, age]}).
+-type t() :: #{
+    '__struct__' := 'Elixir.MyStruct',
+    name := binary(),
+    age := non_neg_integer(),
+    email := binary() | 'nil',
+    password_hash := binary()
+}.
+```
+
+With this definition:
+
+- **Encoding**: only `name` and `age` appear in the JSON output — `email` and `password_hash` are omitted even if present in the input map.
+- **Decoding**: only `name` and `age` are read from the JSON input. For Elixir structs, excluded fields are still populated from the struct's default values (via `__struct__/0`). Extra fields in the JSON for excluded fields are silently ignored.
+- **Schema**: the generated schema includes only `name` and `age` as properties.
+
+The `only` filter propagates through union types, so `t() | nil` works as expected — the map member is filtered and the `nil` member is left unchanged.
+
+> **Note:** When `only` is used, spectra may produce or accept maps that do not fully conform to the declared Erlang type. The encoded JSON will be missing fields that the type declares, and the decoded map (for non-struct types) will likewise be missing excluded fields. This is intentional — `only` is an opt-in escape hatch for cases where you need to control the external representation independently of the internal type. Dialyzer and type checkers will not warn about this discrepancy.
 
 ## OpenAPI Spec
 
