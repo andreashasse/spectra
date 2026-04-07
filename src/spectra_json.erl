@@ -913,19 +913,21 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                                 {true, _} ->
                                     {ok, {FieldsAcc, JsonAcc}};
                                 false ->
-                                    DefaultValue = maps:get(FieldName, Defaults),
-                                    case
-                                        DefaultValue =:= nil orelse
-                                            DefaultValue =:= undefined
-                                    of
-                                        true ->
+                                    case maps:find(FieldName, Defaults) of
+                                        {ok, DefaultValue} when
+                                            DefaultValue =/= nil,
+                                            DefaultValue =/= undefined
+                                        ->
+                                            %% Struct has a real non-nil default (e.g. score: 100)
+                                            {ok, {FieldsAcc, JsonAcc}};
+                                        _ ->
+                                            %% No default, or default is nil/undefined but
+                                            %% the type requires a real value
                                             {error, [
                                                 sp_error:missing_data(
                                                     Type, JsonAcc, [FieldName]
                                                 )
-                                            ]};
-                                        false ->
-                                            {ok, {FieldsAcc, JsonAcc}}
+                                            ]}
                                     end
                             end
                     end

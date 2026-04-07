@@ -190,3 +190,31 @@ from_json_only_union_nil_test() ->
     TypeInfo = spectra_type_info:new(?MODULE, false),
     {ok, Result} = spectra:decode(json, TypeInfo, struct_only_type_or_nil(), <<"null">>),
     ?assertEqual(nil, Result).
+
+%% --- Fix #1: maps:get/2 crash when field absent from struct defaults ---
+
+extra_field_struct_type() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_extra_field_type),
+    spectra_type_info:get_type(TypeInfo, t, 0).
+
+from_json_field_absent_from_struct_errors_gracefully_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_field_absent_from_struct_errors_gracefully()).
+
+run_from_json_field_absent_from_struct_errors_gracefully() ->
+    %% 'address' is in the declared type but not in TestUserStruct.__struct__/0.
+    %% JSON also lacks 'address'. Before the fix this crashes with badkey;
+    %% after the fix it returns {error, _}.
+    JsonBinary = <<"{\"name\":\"John\",\"age\":30,\"email\":\"john@example.com\",\"score\":50}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    Result = spectra:decode(json, TypeInfo, extra_field_struct_type(), JsonBinary),
+    ?assertMatch({error, _}, Result).
+
+%% --- Fix #2: apply_only/2 must recurse into #sp_type_with_variables{} ---
+
+schema_only_parameterized_type_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(spectra_only_parameterized_type),
+    %% binary_item() = item(binary()) where item/1 has only => [name]
+    %% Without the fix, 'age' also appears because apply_only bypasses #sp_type_with_variables{}
+    Schema = spectra:schema(json_schema, TypeInfo, binary_item, [pre_encoded]),
+    Properties = maps:get(properties, Schema),
+    ?assertEqual([<<"name">>], lists:sort(maps:keys(Properties))).

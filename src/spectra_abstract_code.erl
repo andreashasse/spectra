@@ -95,7 +95,7 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
 attach_doc({{type, _Name, _Arity} = Key, Type}, #{only := Only} = DocMap) ->
-    FilteredType = apply_only(Type, Only),
+    FilteredType = apply_only(Type, validate_only(Only)),
     CleanDocMap = maps:remove(only, maps:remove(type_parameters, DocMap)),
     {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
@@ -116,6 +116,15 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     ],
     {Key, Tagged}.
 
+-spec validate_only([atom()]) -> [atom()].
+validate_only(Only) when is_list(Only) ->
+    case lists:all(fun erlang:is_atom/1, Only) of
+        true -> Only;
+        false -> erlang:error({invalid_spectra_field, only, Only})
+    end;
+validate_only(Only) ->
+    erlang:error({invalid_spectra_field, only, Only}).
+
 -doc """
 Filters the fields of a map type to only those named in `Only`.
 
@@ -133,6 +142,8 @@ apply_only(#sp_map{fields = Fields} = Map, Only) ->
     Map#sp_map{fields = FilteredFields};
 apply_only(#sp_union{types = Types} = Union, Only) ->
     Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
+apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->
+    TypeWithVars#sp_type_with_variables{type = apply_only(Inner, Only)};
 apply_only(Other, _Only) ->
     Other.
 
