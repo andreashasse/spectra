@@ -188,3 +188,35 @@ invalid_field_in_function_doc_test() ->
         {invalid_spectra_field, examples, []},
         spectra_type:normalize_function_doc(#{examples => []})
     ).
+
+%% --- Fix #3: validate shape of 'only' in -spectra() attribute ---
+
+only_not_a_list_errors_test() ->
+    Code =
+        "-module(test_only_not_a_list).\n"
+        "-compile(nowarn_unused_type).\n"
+        "-spectra(#{only => not_a_list}).\n"
+        "-type t() :: #{name := binary()}.\n",
+    {ok, test_only_not_a_list, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("test_only_not_a_list"),
+    ok = file:write_file(TempFile, BeamBinary),
+    ?assertError(
+        {invalid_spectra_field, only, not_a_list},
+        spectra_abstract_code:types_in_module_path(TempFile)
+    ),
+    file:delete(TempFile).
+
+only_with_non_atom_elements_errors_test() ->
+    Code =
+        "-module(test_only_non_atom_elements).\n"
+        "-compile(nowarn_unused_type).\n"
+        "-spectra(#{only => [name, 42]}).\n"
+        "-type t() :: #{name := binary()}.\n",
+    {ok, test_only_non_atom_elements, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("test_only_non_atom_elements"),
+    ok = file:write_file(TempFile, BeamBinary),
+    ?assertError(
+        {invalid_spectra_field, only, [name, 42]},
+        spectra_abstract_code:types_in_module_path(TempFile)
+    ),
+    file:delete(TempFile).

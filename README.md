@@ -385,6 +385,7 @@ The `-spectra()` attribute annotates types, records, and function specs with met
 | `examples` | `[term()]` | Example values (use tuple syntax for records) |
 | `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
 | `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see [Type Parameters](#type-parameters)) |
+| `only` | `[atom()]` | Restrict encoding, decoding, and schema to the listed field names (see [Field Filtering with `only`](#field-filtering-with-only)) |
 
 **Before a `-spec` declaration:**
 
@@ -443,6 +444,33 @@ person_examples() ->
 ```
 
 The function specified in `examples_function` must be exported.
+
+## Field Filtering with `only`
+
+The `only` key in the `-spectra()` attribute restricts which fields are included when encoding, decoding, and generating schemas for a map type. It works for plain Erlang maps and Elixir structs alike, similarly to Jason's `only` option.
+
+```erlang
+-spectra(#{only => [name, age]}).
+-type t() :: #{
+    name := binary(),
+    age := non_neg_integer(),
+    email := binary() | undefined,
+    password_hash := binary()
+}.
+```
+
+With this definition:
+
+- **Encoding**: only `name` and `age` appear in the JSON output — `email` and `password_hash` are omitted even if present in the input map.
+- **Decoding**: only `name` and `age` are read from the JSON input. For Elixir structs, excluded fields are still populated from the struct's default values (via `__struct__/0`). Extra fields in the JSON for excluded fields are silently ignored.
+- **Schema**: the generated schema includes only `name` and `age` as properties.
+
+The `only` filter propagates through union types, so `t() | undefined` works as expected — the map member is filtered and the `undefined` literal is left unchanged.
+
+> **Note:** When `only` is used, mandatory (`:=`) fields that are excluded will be absent from
+> decoded plain maps, and absent from the encoded JSON — the result does not fully conform to the
+> declared Erlang type. This is intentional: `only` is an opt-in escape hatch for controlling the
+> external representation independently of the internal type. Dialyzer will not warn about this.
 
 ## OpenAPI Spec
 

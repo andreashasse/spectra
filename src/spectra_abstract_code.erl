@@ -2,8 +2,8 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([types_in_module/1, types_in_module_path/1]).
--ignore_xref([types_in_module_path/1]).
+-export([types_in_module/1, types_in_module_path/1, apply_only/2]).
+-ignore_xref([types_in_module_path/1, apply_only/2]).
 
 -define(is_primary_type(PrimaryType),
     PrimaryType =:= string orelse
@@ -94,6 +94,10 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
     end.
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
+attach_doc({{type, _Name, _Arity} = Key, Type}, #{only := Only} = DocMap) ->
+    FilteredType = apply_only(Type, validate_only(Only)),
+    CleanDocMap = maps:remove(only, maps:remove(type_parameters, DocMap)),
+    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     {Key,
         apply_type_parameters(
@@ -111,6 +115,37 @@ attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
      || FS <- FuncSpecs
     ],
     {Key, Tagged}.
+
+-spec validate_only([atom()]) -> [atom()].
+validate_only(Only) when is_list(Only) ->
+    case lists:all(fun erlang:is_atom/1, Only) of
+        true -> Only;
+        false -> erlang:error({invalid_spectra_field, only, Only})
+    end;
+validate_only(Only) ->
+    erlang:error({invalid_spectra_field, only, Only}).
+
+-doc """
+Filters the fields of a map type to only those named in `Only`.
+
+Propagates through `#sp_union{}` members so that types like `MyStruct | nil`
+work correctly. `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes are passed
+through unchanged — they resolve at encode/decode time and cannot be filtered
+here without cross-module type resolution.
+
+**Note:** When `only` is used, the produced or accepted maps may not fully conform
+to the declared Erlang type. This is intentional.
+""".
+-spec apply_only(spectra:sp_type(), [atom()]) -> spectra:sp_type().
+apply_only(#sp_map{fields = Fields} = Map, Only) ->
+    FilteredFields = [F || #literal_map_field{name = N} = F <- Fields, lists:member(N, Only)],
+    Map#sp_map{fields = FilteredFields};
+apply_only(#sp_union{types = Types} = Union, Only) ->
+    Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
+apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->
+    TypeWithVars#sp_type_with_variables{type = apply_only(Inner, Only)};
+apply_only(Other, _Only) ->
+    Other.
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->

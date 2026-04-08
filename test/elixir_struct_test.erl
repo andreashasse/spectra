@@ -2,277 +2,219 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("../include/spectra_internal.hrl").
-
-to_json_excludes_struct_field_test() ->
-    %% Skip test if Elixir module is not available
+-define(SKIP_IF_NO_ELIXIR(Body),
     case code:is_loaded('Elixir.TestUserStruct') of
         false ->
             case code:load_file('Elixir.TestUserStruct') of
-                {error, _} ->
-                    % Skip test silently
-                    ok;
-                {module, _} ->
-                    run_to_json()
+                {error, _} -> ok;
+                {module, _} -> Body
             end;
         {file, _} ->
-            run_to_json()
-    end.
+            Body
+    end
+).
+
+struct_type() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t, 0).
+
+to_json_excludes_struct_field_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_to_json()).
 
 run_to_json() ->
-    %% Create an instance of the Elixir struct using runtime reflection
-    EmptyStruct = 'Elixir.TestUserStruct':'__struct__'(),
-    StructData =
-        maps:merge(
-            EmptyStruct,
-            #{
-                name => <<"John">>,
-                age => 30,
-                email => <<"john@example.com">>
-            }
-        ),
-
-    %% Create a type definition based on the struct fields (excluding __struct__)
-    %% Note: We manually define the type instead of using spectra_abstract_code:types_in_module/1
-    %% because Elixir beam files use a different backend (elixir_erl) that's incompatible
-    %% with Erlang's beam_lib:chunks/2 for abstract code extraction
-    StructType =
-        #sp_map{
-            fields =
-                [
-                    #literal_map_field{
-                        kind = exact,
-                        name = name,
-                        binary_name = <<"name">>,
-                        val_type = #sp_simple_type{type = binary}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = age,
-                        binary_name = <<"age">>,
-                        val_type = #sp_simple_type{type = non_neg_integer}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = email,
-                        binary_name = <<"email">>,
-                        val_type = #sp_simple_type{type = binary}
-                    }
-                ],
-            struct_name = 'Elixir.TestUserStruct'
-        },
-
-    %% Convert to JSON - should exclude __struct__ field and contain expected data
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"John">>, age => 30, email => <<"john@example.com">>}
+    ),
     TypeInfo = spectra_type_info:new(?MODULE, false),
-    {ok, JsonIoList} = spectra:encode(json, TypeInfo, StructType, StructData),
-    JsonBinary = iolist_to_binary(JsonIoList),
-
-    %% Decode the JSON to verify it has the expected structure
-    Decoded = json:decode(JsonBinary),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_type(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
     ?assertEqual(
         #{
             <<"name">> => <<"John">>,
             <<"age">> => 30,
-            <<"email">> => <<"john@example.com">>
+            <<"email">> => <<"john@example.com">>,
+            <<"score">> => 100
         },
         Decoded
     ).
 
 from_json_adds_struct_field_test() ->
-    %% Skip test if Elixir module is not available
-    case code:is_loaded('Elixir.TestUserStruct') of
-        false ->
-            case code:load_file('Elixir.TestUserStruct') of
-                {error, _} ->
-                    % Skip test silently
-                    ok;
-                {module, _} ->
-                    run_from_json()
-            end;
-        {file, _} ->
-            run_from_json()
-    end.
+    ?SKIP_IF_NO_ELIXIR(run_from_json()).
 
 run_from_json() ->
-    %% JSON string without __struct__ field
     JsonBinary = <<"{\"name\":\"John\",\"age\":30,\"email\":\"john@example.com\"}">>,
-
-    %% Create type definition with struct name
-    %% Note: Manual type definition required due to Elixir/Erlang beam compatibility issues
-    StructType =
-        #sp_map{
-            fields =
-                [
-                    #literal_map_field{
-                        kind = exact,
-                        name = name,
-                        binary_name = <<"name">>,
-                        val_type = #sp_simple_type{type = binary}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = age,
-                        binary_name = <<"age">>,
-                        val_type = #sp_simple_type{type = non_neg_integer}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = email,
-                        binary_name = <<"email">>,
-                        val_type = #sp_simple_type{type = binary}
-                    }
-                ],
-            struct_name = 'Elixir.TestUserStruct'
-        },
-
-    %% Convert from JSON - should add back __struct__ field with all data
     TypeInfo = spectra_type_info:new(?MODULE, false),
-    {ok, Result} = spectra:decode(json, TypeInfo, StructType, JsonBinary),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_type(), JsonBinary),
     ?assertEqual(
         #{
             '__struct__' => 'Elixir.TestUserStruct',
             name => <<"John">>,
             age => 30,
-            email => <<"john@example.com">>
+            email => <<"john@example.com">>,
+            score => 100
         },
         Result
     ).
 
 to_json_with_nil_email_test() ->
-    %% Skip test if Elixir module is not available
-    case code:is_loaded('Elixir.TestUserStruct') of
-        false ->
-            case code:load_file('Elixir.TestUserStruct') of
-                {error, _} ->
-                    ok;
-                {module, _} ->
-                    run_to_json_nil_email()
-            end;
-        {file, _} ->
-            run_to_json_nil_email()
-    end.
+    ?SKIP_IF_NO_ELIXIR(run_to_json_nil_email()).
 
 run_to_json_nil_email() ->
-    %% Create an instance with email set to nil
-    EmptyStruct = 'Elixir.TestUserStruct':'__struct__'(),
-    StructData =
-        maps:merge(
-            EmptyStruct,
-            #{
-                name => <<"Jane">>,
-                age => 25,
-                email => nil
-            }
-        ),
-
-    %% Create type definition with email as optional (union with nil)
-    StructType =
-        #sp_map{
-            fields =
-                [
-                    #literal_map_field{
-                        kind = exact,
-                        name = name,
-                        binary_name = <<"name">>,
-                        val_type = #sp_simple_type{type = binary}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = age,
-                        binary_name = <<"age">>,
-                        val_type = #sp_simple_type{type = non_neg_integer}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = email,
-                        binary_name = <<"email">>,
-                        val_type =
-                            #sp_union{
-                                types = [
-                                    #sp_simple_type{type = binary},
-                                    #sp_literal{value = nil, binary_value = <<"nil">>}
-                                ]
-                            }
-                    }
-                ],
-            struct_name = 'Elixir.TestUserStruct'
-        },
-
-    %% Convert to JSON - nil email should be omitted from JSON
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"Jane">>, age => 25, email => nil}
+    ),
     TypeInfo = spectra_type_info:new(?MODULE, false),
-    {ok, JsonIoList} = spectra:encode(json, TypeInfo, StructType, StructData),
-    JsonBinary = iolist_to_binary(JsonIoList),
-
-    %% Decode the JSON to verify it has the expected structure (without email)
-    Decoded = json:decode(JsonBinary),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_type(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
     ?assertEqual(
         #{
             <<"name">> => <<"Jane">>,
-            <<"age">> => 25
+            <<"age">> => 25,
+            <<"score">> => 100
         },
         Decoded
     ).
 
 from_json_with_missing_email_test() ->
-    %% Skip test if Elixir module is not available
-    case code:is_loaded('Elixir.TestUserStruct') of
-        false ->
-            case code:load_file('Elixir.TestUserStruct') of
-                {error, _} ->
-                    ok;
-                {module, _} ->
-                    run_from_json_missing_email()
-            end;
-        {file, _} ->
-            run_from_json_missing_email()
-    end.
+    ?SKIP_IF_NO_ELIXIR(run_from_json_missing_email()).
 
 run_from_json_missing_email() ->
-    %% JSON string without email field
     JsonBinary = <<"{\"name\":\"Jane\",\"age\":25}">>,
-
-    %% Create type definition with email as optional
-    StructType =
-        #sp_map{
-            fields =
-                [
-                    #literal_map_field{
-                        kind = exact,
-                        name = name,
-                        binary_name = <<"name">>,
-                        val_type = #sp_simple_type{type = binary}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = age,
-                        binary_name = <<"age">>,
-                        val_type = #sp_simple_type{type = non_neg_integer}
-                    },
-                    #literal_map_field{
-                        kind = exact,
-                        name = email,
-                        binary_name = <<"email">>,
-                        val_type =
-                            #sp_union{
-                                types = [
-                                    #sp_simple_type{type = binary},
-                                    #sp_literal{value = nil, binary_value = <<"nil">>}
-                                ]
-                            }
-                    }
-                ],
-            struct_name = 'Elixir.TestUserStruct'
-        },
-
-    %% Convert from JSON - missing email should become nil
     TypeInfo = spectra_type_info:new(?MODULE, false),
-    {ok, Result} = spectra:decode(json, TypeInfo, StructType, JsonBinary),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_type(), JsonBinary),
     ?assertEqual(
         #{
             '__struct__' => 'Elixir.TestUserStruct',
             name => <<"Jane">>,
             age => 25,
-            email => nil
+            email => nil,
+            score => 100
         },
         Result
     ).
+
+from_json_uses_struct_defaults_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_uses_struct_defaults()).
+
+run_from_json_uses_struct_defaults() ->
+    %% JSON with only name and age — email and score get struct defaults (nil and 100)
+    JsonBinary = <<"{\"name\":\"Bob\",\"age\":42}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_type(), JsonBinary),
+    ?assertEqual(
+        #{
+            '__struct__' => 'Elixir.TestUserStruct',
+            name => <<"Bob">>,
+            age => 42,
+            email => nil,
+            score => 100
+        },
+        Result
+    ).
+
+from_json_missing_required_field_errors_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_missing_required_field_errors()).
+
+run_from_json_missing_required_field_errors() ->
+    %% age :: non_neg_integer() has no explicit default in defstruct so its struct default
+    %% is nil — decoding JSON missing age should error, not silently return age => nil
+    JsonBinary = <<"{\"name\":\"John\",\"email\":\"john@example.com\",\"score\":50}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    Result = spectra:decode(json, TypeInfo, struct_type(), JsonBinary),
+    ?assertMatch({error, _}, Result).
+
+%% --- 'only' option tests ---
+
+struct_only_type() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t_only, 0).
+
+struct_only_type_or_nil() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t_or_nil, 0).
+
+to_json_only_excludes_other_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_to_json_only()).
+
+run_to_json_only() ->
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"Alice">>, age => 28, email => <<"a@example.com">>}
+    ),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_only_type(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
+    ?assertEqual(#{<<"name">> => <<"Alice">>, <<"age">> => 28}, Decoded).
+
+from_json_only_ignores_extra_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_only()).
+
+run_from_json_only() ->
+    %% score is present in JSON but excluded by 'only' — struct default (100) applies
+    JsonBinary = <<"{\"name\":\"Alice\",\"age\":28,\"score\":999}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_only_type(), JsonBinary),
+    ?assertEqual(
+        #{
+            '__struct__' => 'Elixir.TestUserStruct',
+            name => <<"Alice">>,
+            age => 28,
+            email => nil,
+            score => 100
+        },
+        Result
+    ).
+
+schema_only_includes_listed_fields_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    Schema = spectra:schema(json_schema, TypeInfo, {type, t_only, 0}, [pre_encoded]),
+    Properties = maps:get(properties, Schema),
+    ?assertEqual([<<"age">>, <<"name">>], lists:sort(maps:keys(Properties))).
+
+to_json_only_union_excludes_other_fields_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_to_json_only_union()).
+
+run_to_json_only_union() ->
+    StructData = maps:merge(
+        'Elixir.TestUserStruct':'__struct__'(),
+        #{name => <<"Bob">>, age => 35, email => <<"b@example.com">>}
+    ),
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, JsonIoList} = spectra:encode(json, TypeInfo, struct_only_type_or_nil(), StructData),
+    Decoded = json:decode(iolist_to_binary(JsonIoList)),
+    ?assertEqual(#{<<"name">> => <<"Bob">>, <<"age">> => 35}, Decoded).
+
+from_json_only_union_nil_test() ->
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    {ok, Result} = spectra:decode(json, TypeInfo, struct_only_type_or_nil(), <<"null">>),
+    ?assertEqual(nil, Result).
+
+%% --- Fix #1: maps:get/2 crash when field absent from struct defaults ---
+
+extra_field_struct_type() ->
+    TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
+    spectra_type_info:get_type(TypeInfo, t_with_extra_field, 0).
+
+from_json_field_absent_from_struct_errors_gracefully_test() ->
+    ?SKIP_IF_NO_ELIXIR(run_from_json_field_absent_from_struct_errors_gracefully()).
+
+run_from_json_field_absent_from_struct_errors_gracefully() ->
+    %% 'address' is in the declared type but not in TestUserStruct.__struct__/0.
+    %% JSON also lacks 'address'. Before the fix this crashes with badkey;
+    %% after the fix it returns {error, _}.
+    JsonBinary = <<"{\"name\":\"John\",\"age\":30,\"email\":\"john@example.com\",\"score\":50}">>,
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    Result = spectra:decode(json, TypeInfo, extra_field_struct_type(), JsonBinary),
+    ?assertMatch({error, _}, Result).
+
+%% --- Fix #2: apply_only/2 must recurse into #sp_type_with_variables{} ---
+
+schema_only_parameterized_type_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(spectra_only_parameterized_type),
+    %% binary_item() = item(binary()) where item/1 has only => [name]
+    %% Without the fix, 'age' also appears because apply_only bypasses #sp_type_with_variables{}
+    Schema = spectra:schema(json_schema, TypeInfo, binary_item, [pre_encoded]),
+    Properties = maps:get(properties, Schema),
+    ?assertEqual([<<"name">>], lists:sort(maps:keys(Properties))).
