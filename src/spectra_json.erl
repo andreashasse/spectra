@@ -3,9 +3,9 @@
 -moduledoc """
 JSON encode and decode traversal for `sp_type()` values.
 
-`to_json/3` walks an Erlang term against an `sp_type()` and produces a
+`to_json/4` walks an Erlang term against an `sp_type()` and produces a
 `json:encode_value()` (a map/list/scalar tree accepted by `json:encode/1`).
-`from_json/3` does the inverse: it walks a decoded JSON value and produces
+`from_json/4` does the inverse: it walks a decoded JSON value and produces
 the corresponding Erlang term.
 
 Neither function calls `json:encode/1` or `json:decode/1` — that is the
@@ -13,14 +13,52 @@ responsibility of the caller (typically `spectra.erl`).
 
 Codec dispatch is handled mid-traversal at `#sp_user_type_ref{}`,
 `#sp_remote_type{}`, and `#sp_rec_ref{}` nodes via
-`spectra_codec:try_codec_encode/5` and `try_codec_decode/5`.
+`spectra_codec:try_codec_encode/6` and `try_codec_decode/6`.
 """.
 
--export([to_json/3, from_json/3]).
+-export([to_json/3, to_json/4, from_json/3, from_json/4]).
 
--ignore_xref([to_json/3, from_json/3]).
+-ignore_xref([to_json/3, to_json/4, from_json/3, from_json/4]).
 
 -include("../include/spectra_internal.hrl").
+
+-doc """
+Encodes `Data` to a JSON-compatible value according to `Type`.
+
+Equivalent to calling to_json/4 with a default configuration.
+""".
+-doc #{
+    equiv => to_json(TypeInfo, Type, Data, #sp_config{})
+}.
+-spec to_json(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type(),
+    Data :: dynamic()
+) ->
+    {ok, json:encode_value()} | {error, [spectra:error()]}.
+to_json(TypeInfo, Type, Data) ->
+    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    Codecs = application:get_env(spectra, codecs, #{}),
+    to_json(TypeInfo, Type, Data, #sp_config{use_module_types_cache = UseCache, codecs = Codecs}).
+
+-doc """
+Decodes a JSON value to an Erlang value according to `Type`.
+
+Equivalent to calling from_json/4 with a default configuration.
+""".
+-doc #{
+    equiv => from_json(TypeInfo, Type, Json, #sp_config{})
+}.
+-spec from_json(
+    TypeInfo :: spectra:type_info(),
+    Type :: spectra:sp_type(),
+    Json :: json:decode_value()
+) ->
+    {ok, dynamic()} | {error, [spectra:error()]}.
+from_json(TypeInfo, Type, Json) ->
+    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    Codecs = application:get_env(spectra, codecs, #{}),
+    from_json(TypeInfo, Type, Json, #sp_config{use_module_types_cache = UseCache, codecs = Codecs}).
 
 -doc """
 Encodes `Data` to a JSON-compatible value according to `Type`.
@@ -36,57 +74,71 @@ structured `#sp_error{}` values describing every mismatch found.
 -spec to_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type(),
-    Data :: dynamic()
+    Data :: dynamic(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(
     TypeInfo,
     #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
-    Data
+    Data,
+    Config
 ) when
     is_atom(TypeName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_encode(Mod, json, Type, Data, UserTypeRef) of
+    case
+        spectra_codec:try_codec_encode(Mod, json, Type, Data, UserTypeRef, Config#sp_config.codecs)
+    of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            to_json(TypeInfo, TypeWithoutVars, Data);
+            to_json(TypeInfo, TypeWithoutVars, Data, Config);
         Result ->
             Result
     end;
 to_json(
     _TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
-    Data
+    Data,
+    Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_encode(Module, json, RemoteType, Data, RemoteRef) of
+    case
+        spectra_codec:try_codec_encode(
+            Module, json, RemoteType, Data, RemoteRef, Config#sp_config.codecs
+        )
+    of
         continue ->
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
-            to_json(RemoteTypeInfo, TypeResolved, Data);
+            to_json(RemoteTypeInfo, TypeResolved, Data, Config);
         Result ->
             Result
     end;
-to_json(TypeInfo, #sp_rec{} = RecordInfo, Record) when is_tuple(Record) ->
-    record_to_json(TypeInfo, RecordInfo, Record, []);
+to_json(TypeInfo, #sp_rec{} = RecordInfo, Record, Config) when is_tuple(Record) ->
+    record_to_json(TypeInfo, RecordInfo, Record, [], Config);
 to_json(
     TypeInfo,
     #sp_rec_ref{record_name = RecordName, field_types = TypeArgs} = RecordRef,
-    Record
+    Record,
+    Config
 ) when
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_encode(Mod, json, RecordType, Record, RecordRef) of
-        continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs);
+    case
+        spectra_codec:try_codec_encode(
+            Mod, json, RecordType, Record, RecordRef, Config#sp_config.codecs
+        )
+    of
+        continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
         Result -> Result
     end;
-to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
+to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data, _Config) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -95,7 +147,7 @@ to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, Type});
-to_json(_TypeInfo, #sp_simple_type{} = Type, Value) ->
+to_json(_TypeInfo, #sp_simple_type{} = Type, Value, _Config) ->
     prim_type_to_json(Type, Value);
 to_json(
     _TypeInfo,
@@ -104,47 +156,48 @@ to_json(
         lower_bound = Min,
         upper_bound = Max
     },
-    Value
+    Value,
+    _Config
 ) when
     is_integer(Value) andalso Min =< Value, Value =< Max
 ->
     {ok, Value};
-to_json(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, Value) when
+to_json(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, Value, _Config) when
     is_atom(Value)
 ->
     {ok, BinaryValue};
-to_json(_TypeInfo, #sp_literal{value = Value}, Value) when
+to_json(_TypeInfo, #sp_literal{value = Value}, Value, _Config) when
     is_integer(Value) orelse Value =:= []
 ->
     {ok, Value};
-to_json(TypeInfo, #sp_union{} = Type, Data) ->
-    union(fun to_json/3, TypeInfo, Type, Data);
-to_json(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
-    nonempty_list_to_json(TypeInfo, Type, Data);
-to_json(TypeInfo, #sp_list{} = ListType, Data) when is_list(Data) ->
-    list_to_json(TypeInfo, ListType, Data);
-to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data) ->
+to_json(TypeInfo, #sp_union{} = Type, Data, Config) ->
+    union(fun to_json/4, TypeInfo, Type, Data, Config);
+to_json(TypeInfo, #sp_nonempty_list{} = Type, Data, Config) ->
+    nonempty_list_to_json(TypeInfo, Type, Data, Config);
+to_json(TypeInfo, #sp_list{} = ListType, Data, Config) when is_list(Data) ->
+    list_to_json(TypeInfo, ListType, Data, Config);
+to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data, Config) ->
     case StructName of
         undefined ->
-            map_to_json(TypeInfo, Map, Data);
+            map_to_json(TypeInfo, Map, Data, Config);
         _ ->
             %% For Elixir structs, we expect the data to have the __struct__ field
             case maps:get('__struct__', Data, undefined) of
                 StructName ->
-                    map_to_json(TypeInfo, Map, Data);
+                    map_to_json(TypeInfo, Map, Data, Config);
                 _ ->
                     {error, [sp_error:type_mismatch(Map, Data, #{message => "Struct mismatch"})]}
             end
     end;
-to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data) ->
+to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data, _Config) ->
     erlang:error({type_not_supported, Type});
-to_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data) ->
+to_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Data, _Config) ->
     erlang:error({type_not_supported, Type});
-to_json(_TypeInfo, #sp_tuple{} = Type, _Data) ->
+to_json(_TypeInfo, #sp_tuple{} = Type, _Data, _Config) ->
     erlang:error({type_not_supported, Type});
-to_json(_TypeInfo, #sp_function{} = Type, _Data) ->
+to_json(_TypeInfo, #sp_function{} = Type, _Data, _Config) ->
     erlang:error({type_not_supported, Type});
-to_json(_TypeInfo, Type, OtherValue) ->
+to_json(_TypeInfo, Type, OtherValue, _Config) ->
     {error, [sp_error:type_mismatch(Type, OtherValue)]}.
 
 -spec prim_type_to_json(Type :: spectra:sp_type(), Value :: dynamic()) ->
@@ -167,25 +220,26 @@ prim_type_to_json(#sp_simple_type{type = Type} = T, Value) ->
             {error, [sp_error:type_mismatch(T, Value)]}
     end.
 
-nonempty_list_to_json(TypeInfo, #sp_nonempty_list{type = Type}, Data) when
+nonempty_list_to_json(TypeInfo, #sp_nonempty_list{type = Type}, Data, Config) when
     is_list(Data) andalso Data =/= []
 ->
-    list_to_json(TypeInfo, #sp_list{type = Type}, Data);
-nonempty_list_to_json(_TypeInfo, Type, Data) ->
+    list_to_json(TypeInfo, #sp_list{type = Type}, Data, Config);
+nonempty_list_to_json(_TypeInfo, Type, Data, _Config) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 -spec list_to_json(
     TypeInfo :: spectra:type_info(),
     ListType :: #sp_list{},
-    Data :: [dynamic()]
+    Data :: [dynamic()],
+    Config :: spectra:sp_config()
 ) ->
     {ok, [json:encode_value()]} | {error, [spectra:error()]}.
-list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data) when is_list(Data) ->
+list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_list(Data) ->
     case safe_enumerate(Data) of
         {ok, EnumeratedData} ->
             spectra_util:map_until_error(
                 fun({Nr, Item}) ->
-                    case to_json(TypeInfo, Type, Item) of
+                    case to_json(TypeInfo, Type, Item, Config) of
                         {ok, Json} ->
                             {ok, Json};
                         {error, Errs} ->
@@ -206,10 +260,11 @@ list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data) when is_list(Data
 -spec map_to_json(
     TypeInfo :: spectra:type_info(),
     MapFieldTypes :: #sp_map{},
-    Data :: map()
+    Data :: map(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-map_to_json(TypeInfo, #sp_map{fields = Fields}, Data) when
+map_to_json(TypeInfo, #sp_map{fields = Fields}, Data, Config) when
     is_map(Data)
 ->
     %% Check if this is an Elixir struct and remove __struct__ field for JSON serialization
@@ -220,22 +275,23 @@ map_to_json(TypeInfo, #sp_map{fields = Fields}, Data) when
             error ->
                 Data
         end,
-    case map_fields_to_json(TypeInfo, Fields, DataWithoutStruct) of
+    case map_fields_to_json(TypeInfo, Fields, DataWithoutStruct, Config) of
         {ok, MapFields} ->
             {ok, maps:from_list(MapFields)};
         {error, Errors} ->
             {error, Errors}
     end;
-map_to_json(_TypeInfo, MapType, Data) ->
+map_to_json(_TypeInfo, MapType, Data, _Config) ->
     {error, [sp_error:type_mismatch(MapType, Data)]}.
 
 -spec map_fields_to_json(
     TypeInfo :: spectra:type_info(),
     MapFieldTypes :: [spectra:map_field()],
-    Data :: map()
+    Data :: map(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, [{binary(), json:encode_value()}]} | {error, [spectra:error()]}.
-map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
+map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
     Fun = fun
         (
             #literal_map_field{
@@ -249,7 +305,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
                 {{MissingValue, NewDataAcc}, {true, MissingValue}} ->
                     {ok, {FieldsAcc, NewDataAcc}};
                 {{FieldData, NewDataAcc}, _} ->
-                    case to_json(TypeInfo, FieldType, FieldData) of
+                    case to_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
                             {ok, {
                                 [{BinaryFieldName, FieldJson}] ++ FieldsAcc,
@@ -270,7 +326,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
             #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
             {FieldsAcc, DataAcc}
         ) ->
-            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc) of
+            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc, Config) of
                 {ok, {NewFields, NewDataAcc}} ->
                     {ok, {NewFields ++ FieldsAcc, NewDataAcc}};
                 {error, _} = Err ->
@@ -280,7 +336,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
             #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
             {FieldsAcc, DataAcc}
         ) ->
-            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc) of
+            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc, Config) of
                 {ok, {[], _}} ->
                     {error, [sp_error:not_matched_fields(Type, DataAcc)]};
                 {ok, {NewFields, NewDataAcc}} ->
@@ -300,7 +356,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
                 {{MissingValue, NewDataAcc}, {true, MissingValue}} ->
                     {ok, {FieldsAcc, NewDataAcc}};
                 {{FieldData, NewDataAcc}, _} ->
-                    case to_json(TypeInfo, FieldType, FieldData) of
+                    case to_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
                             {ok, {[{BinaryFieldName, FieldJson}] ++ FieldsAcc, NewDataAcc}};
                         {error, Errs} ->
@@ -348,19 +404,20 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data) ->
     TypeInfo :: spectra:type_info(),
     KeyType :: spectra:sp_type(),
     ValueType :: spectra:sp_type(),
-    Data :: map()
+    Data :: map(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, {[{json:encode_value(), json:encode_value()}], map()}}
     | {error, [spectra:error()]}.
-map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
+map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data, Config) ->
     Fun = fun({Key, Value}, {FieldsAcc, DataAcc}) ->
-        case to_json(TypeInfo, KeyType, Key) of
+        case to_json(TypeInfo, KeyType, Key, Config) of
             {ok, KeyJson} ->
                 case {Value, spectra_type:can_be_missing(TypeInfo, ValueType)} of
                     {MissingValue, {true, MissingValue}} ->
                         {ok, {FieldsAcc, maps:remove(Key, DataAcc)}};
                     _ ->
-                        case to_json(TypeInfo, ValueType, Value) of
+                        case to_json(TypeInfo, ValueType, Value, Config) of
                             {ok, ValueJson} ->
                                 {ok, {
                                     FieldsAcc ++ [{KeyJson, ValueJson}], maps:remove(Key, DataAcc)
@@ -382,7 +439,8 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data) ->
     TypeInfo :: spectra:type_info(),
     RecordType :: #sp_rec{},
     Record :: dynamic(),
-    TypeArgs :: [{atom(), spectra:sp_type()}]
+    TypeArgs :: [{atom(), spectra:sp_type()}],
+    Config :: spectra:sp_config()
 ) ->
     {ok, #{atom() => json:encode_value()}} | {error, [spectra:error()]}.
 record_to_json(
@@ -393,7 +451,8 @@ record_to_json(
         arity = Arity
     },
     Record,
-    TypeArgs
+    TypeArgs,
+    Config
 ) when
     is_tuple(Record) andalso
         element(1, Record) =:= RecordName andalso
@@ -402,16 +461,17 @@ record_to_json(
     [RecordName | FieldsData] = tuple_to_list(Record),
     RecFieldTypes = spectra_util:record_replace_vars(Fields, TypeArgs),
     RecFieldTypesWithData = lists:zip(RecFieldTypes, FieldsData),
-    do_record_to_json(TypeInfo, RecFieldTypesWithData);
-record_to_json(_TypeInfo, RecordType, Record, TypeArgs) ->
+    do_record_to_json(TypeInfo, RecFieldTypesWithData, Config);
+record_to_json(_TypeInfo, RecordType, Record, TypeArgs, _Config) ->
     {error, [sp_error:type_mismatch(RecordType, Record, #{type_args => TypeArgs})]}.
 
 -spec do_record_to_json(
     spectra:type_info(),
-    [{#sp_rec_field{}, Value :: dynamic()}]
+    [{#sp_rec_field{}, Value :: dynamic()}],
+    Config :: spectra:sp_config()
 ) ->
     {ok, #{atom() => json}} | {error, [spectra:error()]}.
-do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
+do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
     Fun = fun(
         {
             #sp_rec_field{name = FieldName, binary_name = BinaryFieldName, type = FieldType},
@@ -423,7 +483,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
             {MissingValue, {true, MissingValue}} ->
                 {ok, FieldsAcc};
             _ ->
-                case to_json(TypeInfo, FieldType, RecordFieldData) of
+                case to_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
                         {ok, [{BinaryFieldName, FieldJson}] ++ FieldsAcc};
                     {error, Errors} ->
@@ -445,7 +505,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData) ->
 -doc """
 Decodes `Json` into an Erlang term according to `Type`.
 
-The inverse of `to_json/3`. Binary map keys become atom keys, binary atom
+The inverse of `to_json/4`. Binary map keys become atom keys, binary atom
 values are converted via `binary_to_existing_atom/2`, JSON `null` maps to
 `nil` or `undefined` where the type allows it, and JSON arrays become lists.
 
@@ -454,72 +514,87 @@ Returns `{ok, Term}` on success or `{error, Errors}` with structured errors.
 -spec from_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type(),
-    Json :: json:decode_value()
+    Json :: json:decode_value(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-from_json(TypeInfo, Type, Json) ->
-    do_from_json(TypeInfo, Type, Json).
+from_json(TypeInfo, Type, Json, Config) ->
+    do_from_json(TypeInfo, Type, Json, Config).
 
 -spec do_from_json(
     TypeInfo :: spectra:type_info(),
     Type :: spectra:sp_type(),
-    Json :: json:decode_value()
+    Json :: json:decode_value(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 do_from_json(
     TypeInfo,
     #sp_user_type_ref{type_name = TypeName, variables = Args, arity = Arity} = UserTypeRef,
-    Json
+    Json,
+    Config
 ) when
     is_atom(TypeName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_decode(Mod, json, Type, Json, UserTypeRef) of
+    case
+        spectra_codec:try_codec_decode(Mod, json, Type, Json, UserTypeRef, Config#sp_config.codecs)
+    of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_from_json(TypeInfo, TypeWithoutVars, Json);
+            do_from_json(TypeInfo, TypeWithoutVars, Json, Config);
         Result ->
             Result
     end;
 do_from_json(
     _TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
-    Json
+    Json,
+    Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    case spectra_codec:try_codec_decode(Module, json, RemoteType, Json, RemoteRef) of
+    case
+        spectra_codec:try_codec_decode(
+            Module, json, RemoteType, Json, RemoteRef, Config#sp_config.codecs
+        )
+    of
         continue ->
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
-            do_from_json(RemoteTypeInfo, TypeResolved, Json);
+            do_from_json(RemoteTypeInfo, TypeResolved, Json, Config);
         Result ->
             Result
     end;
-do_from_json(TypeInfo, #sp_rec{} = Rec, Json) ->
-    record_from_json(TypeInfo, Rec, Json, []);
+do_from_json(TypeInfo, #sp_rec{} = Rec, Json, Config) ->
+    record_from_json(TypeInfo, Rec, Json, [], Config);
 do_from_json(
     TypeInfo,
     #sp_rec_ref{record_name = RecordName, field_types = TypeArgs} = RecordRef,
-    Json
+    Json,
+    Config
 ) when
     is_atom(RecordName)
 ->
     Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
-    case spectra_codec:try_codec_decode(Mod, json, RecordType, Json, RecordRef) of
-        continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs);
+    case
+        spectra_codec:try_codec_decode(
+            Mod, json, RecordType, Json, RecordRef, Config#sp_config.codecs
+        )
+    of
+        continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);
         Result -> Result
     end;
-do_from_json(TypeInfo, #sp_map{} = Type, Json) ->
-    map_from_json(TypeInfo, Type, Json);
-do_from_json(TypeInfo, #sp_nonempty_list{} = Type, Data) ->
-    nonempty_list_from_json(TypeInfo, Type, Data);
-do_from_json(TypeInfo, #sp_list{type = ListType} = Type, Data) ->
-    list_from_json(TypeInfo, ListType, Data, Type);
-do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value) when
+do_from_json(TypeInfo, #sp_map{} = Type, Json, Config) ->
+    map_from_json(TypeInfo, Type, Json, Config);
+do_from_json(TypeInfo, #sp_nonempty_list{} = Type, Data, Config) ->
+    nonempty_list_from_json(TypeInfo, Type, Data, Config);
+do_from_json(TypeInfo, #sp_list{type = ListType} = Type, Data, Config) ->
+    list_from_json(TypeInfo, ListType, Data, Type, Config);
+do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value, _Config) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -528,7 +603,7 @@ do_from_json(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Value) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) when
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json, _Config) when
     PrimaryType =:= binary orelse
         PrimaryType =:= nonempty_binary orelse
         PrimaryType =:= string orelse
@@ -543,7 +618,7 @@ do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) when
         false ->
             {error, [sp_error:type_mismatch(Type, Json)]}
     end;
-do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) ->
+do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json, _Config) ->
     case check_type_from_json(PrimaryType, Json) of
         {true, NewValue} ->
             {ok, NewValue};
@@ -552,17 +627,17 @@ do_from_json(_TypeInfo, #sp_simple_type{type = PrimaryType} = Type, Json) ->
         false ->
             {error, [sp_error:type_mismatch(Type, Json)]}
     end;
-do_from_json(_TypeInfo, #sp_literal{value = Literal}, Literal) ->
+do_from_json(_TypeInfo, #sp_literal{value = Literal}, Literal, _Config) ->
     {ok, Literal};
-do_from_json(_TypeInfo, #sp_literal{} = Type, Value) ->
+do_from_json(_TypeInfo, #sp_literal{} = Type, Value, _Config) ->
     case try_convert_to_literal(Type, Value) of
         {ok, Literal} ->
             {ok, Literal};
         false ->
             {error, [sp_error:type_mismatch(Type, Value)]}
     end;
-do_from_json(TypeInfo, #sp_union{} = Type, Json) ->
-    union(fun do_from_json/3, TypeInfo, Type, Json);
+do_from_json(TypeInfo, #sp_union{} = Type, Json, Config) ->
+    union(fun do_from_json/4, TypeInfo, Type, Json, Config);
 do_from_json(
     _TypeInfo,
     #sp_range{
@@ -570,7 +645,8 @@ do_from_json(
         lower_bound = Min,
         upper_bound = Max
     },
-    Value
+    Value,
+    _Config
 ) when
     Min =< Value, Value =< Max, is_integer(Value)
 ->
@@ -583,20 +659,21 @@ do_from_json(
         upper_bound = _Max
     } =
         Range,
-    Value
+    Value,
+    _Config
 ) when
     is_integer(Value)
 ->
     {error, [sp_error:type_mismatch(Range, Value)]};
-do_from_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Value) ->
+do_from_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Value, _Config) ->
     erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Value) ->
+do_from_json(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Value, _Config) ->
     erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, #sp_function{} = Type, _Value) ->
+do_from_json(_TypeInfo, #sp_function{} = Type, _Value, _Config) ->
     erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, #sp_tuple{} = Type, _Value) ->
+do_from_json(_TypeInfo, #sp_tuple{} = Type, _Value, _Config) ->
     erlang:error({type_not_supported, Type});
-do_from_json(_TypeInfo, Type, Value) ->
+do_from_json(_TypeInfo, Type, Value, _Config) ->
     {error, [sp_error:type_mismatch(Type, Value)]}.
 
 -spec try_convert_to_literal(
@@ -618,18 +695,18 @@ try_convert_to_literal(
 try_convert_to_literal(#sp_literal{}, _Value) ->
     false.
 
-nonempty_list_from_json(TypeInfo, #sp_nonempty_list{type = ListType} = Type, Data) when
+nonempty_list_from_json(TypeInfo, #sp_nonempty_list{type = ListType} = Type, Data, Config) when
     is_list(Data) andalso Data =/= []
 ->
-    list_from_json(TypeInfo, ListType, Data, Type);
-nonempty_list_from_json(_TypeInfo, Type, Data) ->
+    list_from_json(TypeInfo, ListType, Data, Type, Config);
+nonempty_list_from_json(_TypeInfo, Type, Data, _Config) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
-list_from_json(TypeInfo, Type, Data, ListType) when is_list(Data) ->
+list_from_json(TypeInfo, Type, Data, ListType, Config) when is_list(Data) ->
     case safe_enumerate(Data) of
         {ok, EnumeratedData} ->
             Fun = fun({Nr, Item}) ->
-                case do_from_json(TypeInfo, Type, Item) of
+                case do_from_json(TypeInfo, Type, Item, Config) of
                     {ok, Json} ->
                         {ok, Json};
                     {error, Errs} ->
@@ -643,7 +720,7 @@ list_from_json(TypeInfo, Type, Data, ListType) when is_list(Data) ->
             %% Improper lists cannot be decoded from JSON
             {error, [sp_error:type_mismatch(ListType, Data)]}
     end;
-list_from_json(_TypeInfo, _ListType, Data, Type) ->
+list_from_json(_TypeInfo, _ListType, Data, Type, _Config) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 string_from_json(Type, Json) ->
@@ -795,22 +872,22 @@ safe_enumerate(List) ->
         error:function_clause -> {error, improper_list}
     end.
 
-union(Fun, TypeInfo, #sp_union{types = Types} = T, Json) ->
-    case do_first(Fun, TypeInfo, Types, Json, []) of
+union(Fun, TypeInfo, #sp_union{types = Types} = T, Json, Config) ->
+    case do_first(Fun, TypeInfo, Types, Json, Config, []) of
         {error, UnionErrors} ->
             {error, [sp_error:no_match(T, Json, UnionErrors)]};
         Result ->
             Result
     end.
 
-do_first(_Fun, _TypeInfo, [], _Json, Errors) ->
+do_first(_Fun, _TypeInfo, [], _Json, _Config, Errors) ->
     {error, Errors};
-do_first(Fun, TypeInfo, [Type | Rest], Json, ErrorsAcc) ->
-    case Fun(TypeInfo, Type, Json) of
+do_first(Fun, TypeInfo, [Type | Rest], Json, Config, ErrorsAcc) ->
+    case Fun(TypeInfo, Type, Json, Config) of
         {ok, Result} ->
             {ok, Result};
         {error, Errors} ->
-            do_first(Fun, TypeInfo, Rest, Json, [{Type, Errors} | ErrorsAcc])
+            do_first(Fun, TypeInfo, Rest, Json, Config, [{Type, Errors} | ErrorsAcc])
     end.
 
 apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
@@ -829,11 +906,12 @@ arg_names(_) ->
 -spec map_from_json(
     spectra:type_info(),
     #sp_map{},
-    json:decode_value()
+    json:decode_value(),
+    spectra:sp_config()
 ) ->
     {ok, #{json:encode_value() => json:encode_value()}}
     | {error, [spectra:error()]}.
-map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}, Json) when
+map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}, Json, Config) when
     is_map(Json)
 ->
     Defaults =
@@ -861,7 +939,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
         ) ->
             case maps:take(BinaryName, JsonAcc) of
                 {FieldData, NewJsonAcc} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData) of
+                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
                             {ok, {[{FieldName, FieldJson}] ++ FieldsAcc, NewJsonAcc}};
                         {error, Errs} ->
@@ -883,7 +961,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
         ) ->
             case maps:take(BinaryName, JsonAcc) of
                 {FieldData, NewJsonAcc} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData) of
+                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
                             {ok, {[{FieldName, FieldJson}] ++ FieldsAcc, NewJsonAcc}};
                         {error, Errs} ->
@@ -913,7 +991,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
             #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
             {FieldsAcc, JsonAcc}
         ) ->
-            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc) of
+            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc, Config) of
                 {ok, {NewFields, NewJsonAcc}} ->
                     {ok, {NewFields ++ FieldsAcc, NewJsonAcc}};
                 {error, Reason} ->
@@ -923,7 +1001,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
             #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
             {FieldsAcc, JsonAcc}
         ) ->
-            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc) of
+            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc, Config) of
                 {ok, {NewFields, NewJsonAcc}} ->
                     case NewFields of
                         [] ->
@@ -965,7 +1043,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
         {error, _} = Err ->
             Err
     end;
-map_from_json(_TypeInfo, MapType, Json) ->
+map_from_json(_TypeInfo, MapType, Json, _Config) ->
     %% Return error when Json is not a map
     {error, [sp_error:type_mismatch(MapType, Json)]}.
 
@@ -978,12 +1056,12 @@ struct_default_value(Defaults, FieldName) ->
         _ -> error
     end.
 
-map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
+map_field_type_from_json(TypeInfo, KeyType, ValueType, Json, Config) ->
     spectra_util:fold_until_error(
         fun({Key, Value}, {FieldsAcc, JsonAcc}) ->
-            case do_from_json(TypeInfo, KeyType, Key) of
+            case do_from_json(TypeInfo, KeyType, Key, Config) of
                 {ok, KeyJson} ->
-                    case do_from_json(TypeInfo, ValueType, Value) of
+                    case do_from_json(TypeInfo, ValueType, Value, Config) of
                         {ok, ValueJson} ->
                             {ok, {FieldsAcc ++ [{KeyJson, ValueJson}], maps:remove(Key, JsonAcc)}};
                         {error, Errs} ->
@@ -1011,23 +1089,25 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json) ->
     TypeInfo :: spectra:type_info(),
     RecordType :: #sp_rec{},
     Json :: json:decode_value(),
-    TypeArgs :: [spectra:record_field_arg()]
+    TypeArgs :: [spectra:record_field_arg()],
+    Config :: spectra:sp_config()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 record_from_json(
-    TypeInfo, #sp_rec{} = ARec, Json, TypeArgs
+    TypeInfo, #sp_rec{} = ARec, Json, TypeArgs, Config
 ) ->
     RecordInfo = spectra_util:record_replace_vars(ARec#sp_rec.fields, TypeArgs),
     NewRec = ARec#sp_rec{fields = RecordInfo},
-    do_record_from_json(TypeInfo, NewRec, Json).
+    do_record_from_json(TypeInfo, NewRec, Json, Config).
 
 -spec do_record_from_json(
     TypeInfo :: spectra:type_info(),
     #sp_rec{},
-    Json :: json:decode_value()
+    Json :: json:decode_value(),
+    Config :: spectra:sp_config()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, Json) when
+do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, Json, Config) when
     is_map(Json)
 ->
     Fun = fun(
@@ -1036,7 +1116,7 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
     ) ->
         case maps:take(BinaryName, JsonAcc) of
             {RecordFieldData, NewJsonAcc} ->
-                case do_from_json(TypeInfo, FieldType, RecordFieldData) of
+                case do_from_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
                         {ok, {[FieldJson | FieldsAcc], NewJsonAcc}};
                     {error, Errs} ->
@@ -1079,5 +1159,5 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
         {error, Errs} ->
             {error, Errs}
     end;
-do_record_from_json(_TypeInfo, Type, Json) ->
+do_record_from_json(_TypeInfo, Type, Json, _Config) ->
     {error, [sp_error:type_mismatch(Type, Json)]}.

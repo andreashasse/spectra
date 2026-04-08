@@ -95,8 +95,8 @@ where the reference node is available.
 -optional_callbacks([schema/5]).
 
 -export([
-    try_codec_encode/5,
-    try_codec_decode/5,
+    try_codec_encode/6,
+    try_codec_decode/6,
     try_codec_schema/4
 ]).
 
@@ -105,11 +105,12 @@ where the reference node is available.
     Format :: atom(),
     Type :: spectra:sp_type(),
     Data :: dynamic(),
-    SpType :: spectra:sp_type()
+    SpType :: spectra:sp_type(),
+    Codecs :: #{spectra:codec_key() => module()}
 ) -> spectra:codec_encode_result().
-try_codec_encode(Mod, Format, Type, Data, SpType) ->
+try_codec_encode(Mod, Format, Type, Data, SpType, Codecs) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, false) of
         {ok, M} ->
             M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
@@ -121,11 +122,12 @@ try_codec_encode(Mod, Format, Type, Data, SpType) ->
     Format :: atom(),
     Type :: spectra:sp_type(),
     Data :: dynamic(),
-    SpType :: spectra:sp_type()
+    SpType :: spectra:sp_type(),
+    Codecs :: #{spectra:codec_key() => module()}
 ) -> spectra:codec_decode_result().
-try_codec_decode(Mod, Format, Type, Data, SpType) ->
+try_codec_decode(Mod, Format, Type, Data, SpType, Codecs) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, false) of
         {ok, M} ->
             M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
@@ -140,7 +142,8 @@ try_codec_decode(Mod, Format, Type, Data, SpType) ->
 ) -> dynamic() | continue.
 try_codec_schema(Mod, Format, Type, SpType) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference) of
+    GlobalCodecs = application:get_env(spectra, codecs, #{}),
+    case spectra_type_info:find_codec(Mod, TypeReference, GlobalCodecs, false) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 5) of
                 true ->

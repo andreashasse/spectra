@@ -101,6 +101,14 @@
     key_type :: spectra:sp_type(),
     val_type :: spectra:sp_type()
 }).
+%% Runtime configuration snapshot — read once at the spectra.erl entry point and
+%% threaded through all format modules to avoid repeated application:get_env calls.
+-record(sp_config, {
+    use_module_types_cache = false :: boolean(),
+    check_unicode = false :: boolean(),
+    codecs = #{} :: #{spectra:codec_key() => module()}
+}).
+
 %% New structured type information
 -record(type_info, {
     module :: module(),

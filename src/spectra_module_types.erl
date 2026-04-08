@@ -1,17 +1,32 @@
 -module(spectra_module_types).
 
--export([get/1, clear/1]).
+-export([get/1, get/2, clear/1]).
 
 %% Meant to be used when doing manual testing.
 -ignore_xref([clear/1]).
 
--type module_version() :: term().
-
--define(APPLICATION, spectra).
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
+
 %% API
+
+-doc """
+Resolves type information for `Module`.
+
+Equivalent to calling `get/2` with the default application environment config.
+""".
 -spec get(Module :: module()) -> spectra:type_info().
 get(Module) ->
+    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    get(Module, UseCache).
+
+-doc """
+Resolves type information for `Module`.
+
+When `UseCache` is `true` the result is cached in `persistent_term` and
+returned on subsequent calls without re-extracting the abstract code.
+""".
+-spec get(Module :: module(), UseCache :: boolean()) -> spectra:type_info().
+get(Module, UseCache) ->
     case code:ensure_loaded(Module) of
         {module, Module} ->
             ok;
@@ -19,7 +34,7 @@ get(Module) ->
             erlang:error({module_types_not_found, Module, Reason})
     end,
     HasTypeInfoFun = erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0),
-    case application:get_env(?APPLICATION, use_module_types_cache, false) of
+    case UseCache of
         true ->
             cached_type_info(Module, HasTypeInfoFun);
         false ->
@@ -36,21 +51,21 @@ clear(Module) ->
 -spec cached_type_info(Module :: module(), HasTypeInfoFun :: boolean()) ->
     spectra:type_info().
 cached_type_info(Module, true) ->
-    Vsn = module_vsn(Module),
     TypeInfoFun = fun() -> apply(Module, ?TYPE_INFO_FUNCTION, []) end,
-    do_cached_type_info(Module, Vsn, TypeInfoFun);
+    do_cached_type_info(Module, TypeInfoFun);
 cached_type_info(Module, false) ->
-    Vsn = module_vsn(Module),
     TypeInfoFun = fun() -> spectra_abstract_code:types_in_module(Module) end,
-    do_cached_type_info(Module, Vsn, TypeInfoFun).
+    do_cached_type_info(Module, TypeInfoFun).
 
-do_cached_type_info(Module, Vsn, TypeInfoFun) ->
+-spec do_cached_type_info(Module :: module(), TypeInfoFun :: fun(() -> spectra:type_info())) ->
+    spectra:type_info().
+do_cached_type_info(Module, TypeInfoFun) ->
     case pers_type(Module) of
-        {Vsn, TypeInfo} ->
+        {ok, TypeInfo} ->
             TypeInfo;
-        _ ->
+        error ->
             TypeInfo = TypeInfoFun(),
-            pers_types_set(Module, Vsn, TypeInfo),
+            pers_types_set(Module, TypeInfo),
             TypeInfo
     end.
 
@@ -61,25 +76,13 @@ fetch_type_info(Module, true) ->
 fetch_type_info(Module, false) ->
     spectra_abstract_code:types_in_module(Module).
 
--spec pers_type(Module :: module()) ->
-    {module_version(), spectra:type_info()} | undefined.
+-spec pers_type(Module :: module()) -> {ok, spectra:type_info()} | error.
 pers_type(Module) ->
-    persistent_term:get({?MODULE, pers_types, Module}, undefined).
-
--spec pers_types_set(
-    Module :: module(),
-    Vsn :: module_version(),
-    TypeInfo :: spectra:type_info()
-) ->
-    ok.
-pers_types_set(Module, Vsn, TypeInfo) ->
-    persistent_term:put({?MODULE, pers_types, Module}, {Vsn, TypeInfo}).
-
--spec module_vsn(Module :: module()) ->
-    Version :: module_version().
-module_vsn(Module) ->
-    case erlang:get_module_info(Module, attributes) of
-        Attrs when is_list(Attrs) ->
-            {vsn, Vsn} = lists:keyfind(vsn, 1, Attrs),
-            Vsn
+    case persistent_term:get({?MODULE, pers_types, Module}, undefined) of
+        undefined -> error;
+        TypeInfo -> {ok, TypeInfo}
     end.
+
+-spec pers_types_set(Module :: module(), TypeInfo :: spectra:type_info()) -> ok.
+pers_types_set(Module, TypeInfo) ->
+    persistent_term:put({?MODULE, pers_types, Module}, TypeInfo).
