@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-08
+
+### Added
+- **Elixir struct defaults on decode**: When decoding JSON into an Elixir struct type, `Module:__struct__/0` is called to retrieve field defaults. Missing JSON fields now use the struct's own default value instead of erroring — matching how Elixir itself handles struct initialisation. A field absent from JSON still errors if its declared type does not allow `nil`/`undefined` and the struct's default for that field is `nil` (i.e. no explicit default was set).
+- **`only` field-filtering in `-spectra()` attribute**: New `only => [field1, field2]` key restricts which fields are included during encoding, decoding, and schema generation — similar to Jason's `only` option. Filtering is applied at type-extraction time, so no changes are needed in encode/decode/schema modules. Propagates through union types (e.g. `MyStruct | nil`) but does not follow user-type or remote-type references.
+
 ## [0.9.4] - 2026-04-02
 
 ### Fixed
