@@ -96,10 +96,13 @@ where the reference node is available.
 
 -export([
     try_codec_encode/6,
+    try_codec_encode/7,
     try_codec_decode/6,
+    try_codec_decode/7,
     try_codec_schema/4
 ]).
 
+-doc #{equiv => try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, false)}.
 -spec try_codec_encode(
     Mod :: module(),
     Format :: atom(),
@@ -109,14 +112,28 @@ where the reference node is available.
     Codecs :: #{spectra:codec_key() => module()}
 ) -> spectra:codec_encode_result().
 try_codec_encode(Mod, Format, Type, Data, SpType, Codecs) ->
+    try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, false).
+
+-doc "Encodes `Data` via a registered codec for `{Mod, TypeReference}`, or returns `continue`.".
+-spec try_codec_encode(
+    Mod :: module(),
+    Format :: atom(),
+    Type :: spectra:sp_type(),
+    Data :: dynamic(),
+    SpType :: spectra:sp_type(),
+    Codecs :: #{spectra:codec_key() => module()},
+    UseCache :: boolean()
+) -> spectra:codec_encode_result().
+try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, false) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, UseCache) of
         {ok, M} ->
             M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
             continue
     end.
 
+-doc #{equiv => try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, false)}.
 -spec try_codec_decode(
     Mod :: module(),
     Format :: atom(),
@@ -126,8 +143,21 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs) ->
     Codecs :: #{spectra:codec_key() => module()}
 ) -> spectra:codec_decode_result().
 try_codec_decode(Mod, Format, Type, Data, SpType, Codecs) ->
+    try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, false).
+
+-doc "Decodes `Data` via a registered codec for `{Mod, TypeReference}`, or returns `continue`.".
+-spec try_codec_decode(
+    Mod :: module(),
+    Format :: atom(),
+    Type :: spectra:sp_type(),
+    Data :: dynamic(),
+    SpType :: spectra:sp_type(),
+    Codecs :: #{spectra:codec_key() => module()},
+    UseCache :: boolean()
+) -> spectra:codec_decode_result().
+try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, false) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, UseCache) of
         {ok, M} ->
             M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
