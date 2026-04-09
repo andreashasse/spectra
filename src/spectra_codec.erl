@@ -120,7 +120,9 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
-            M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config);
+            M:encode(
+                Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
+            );
         error ->
             continue
     end.
@@ -140,7 +142,9 @@ try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
-            M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config);
+            M:decode(
+                Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
+            );
         error ->
             continue
     end.
@@ -163,7 +167,9 @@ try_codec_schema(Mod, Format, Type, SpType, Config) ->
         {ok, M} ->
             case erlang:function_exported(M, schema, 6) of
                 true ->
-                    M:schema(Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config);
+                    M:schema(
+                        Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config
+                    );
                 false ->
                     erlang:error({schema_not_implemented, M, TypeReference})
             end;

@@ -448,7 +448,9 @@ type_reference_test() ->
     ),
     ?assertEqual(
         {ok, true},
-        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), "true")
+        spectra_test_util:from_string(
+            TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), "true"
+        )
     ),
 
     %% Test union types
@@ -465,7 +467,9 @@ type_reference_test() ->
     ),
     ?assertEqual(
         {ok, false},
-        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "false")
+        spectra_test_util:from_string(
+            TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "false"
+        )
     ),
 
     ok.

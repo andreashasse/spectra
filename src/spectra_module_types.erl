@@ -3,7 +3,7 @@
 -export([get/1, get/2, clear/1, clear_local/0]).
 
 %% Meant to be used when doing manual testing.
--ignore_xref([clear/1, clear_local/0]).
+-ignore_xref([get/1, clear/1, clear_local/0]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 -define(LOCAL_CACHE_KEY, {?MODULE, local_cache}).

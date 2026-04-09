@@ -51,7 +51,12 @@ DT = {{2024, 1, 15}, {10, 30, 0}},
 -export([encode/7, decode/7, schema/6]).
 
 -spec encode(
-    atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term(),
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -78,7 +83,12 @@ encode(json, _Mod, {type, date, 0} = TypeRef, Data, _SpType, _Params, _Config) -
     {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
 -spec decode(
-    atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term(),
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().

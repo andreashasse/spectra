@@ -19,32 +19,52 @@
 -type zoo() :: [codec_animal_codec:animal()].
 
 -export_type([animal/0, cat/0, dog/0, zoo/0]).
--export([encode/6, decode/6]).
+-export([encode/7, decode/7]).
 
--spec encode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
+-spec encode(
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
+    spectra:sp_config()
+) ->
     spectra:codec_encode_result().
-encode(Format, _Mod, {type, animal, 0}, #cat{} = Cat, _SpType, _Params) ->
+encode(Format, _Mod, {type, animal, 0}, #cat{} = Cat, _SpType, _Params, _Config) ->
     case spectra:encode(Format, ?MODULE, {type, cat, 0}, Cat, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"cat">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(Format, _Mod, {type, animal, 0}, #dog{} = Dog, _SpType, _Params) ->
+encode(Format, _Mod, {type, animal, 0}, #dog{} = Dog, _SpType, _Params, _Config) ->
     case spectra:encode(Format, ?MODULE, {type, dog, 0}, Dog, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"dog">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(_, _Mod, {type, animal, 0}, Data, _SpType, _Params) ->
+encode(_, _Mod, {type, animal, 0}, Data, _SpType, _Params, _Config) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
-encode(_, _, _, _, _, _) ->
+encode(_, _, _, _, _, _, _) ->
     continue.
 
--spec decode(atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term()) ->
+-spec decode(
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
+    spectra:sp_config()
+) ->
     spectra:codec_decode_result().
-decode(Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"cat">>} = Json, _SpType, _Params) ->
+decode(
+    Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"cat">>} = Json, _SpType, _Params, _Config
+) ->
     spectra:decode(Format, ?MODULE, {type, cat, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
-decode(Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"dog">>} = Json, _SpType, _Params) ->
+decode(
+    Format, _Mod, {type, animal, 0}, #{<<"type">> := <<"dog">>} = Json, _SpType, _Params, _Config
+) ->
     spectra:decode(Format, ?MODULE, {type, dog, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
-decode(_, _Mod, {type, animal, 0}, Data, _SpType, _Params) ->
+decode(_, _Mod, {type, animal, 0}, Data, _SpType, _Params, _Config) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
-decode(_, _, _, _, _, _) ->
+decode(_, _, _, _, _, _, _) ->
     continue.

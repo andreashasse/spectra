@@ -42,7 +42,12 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 -export([encode/7, decode/7, schema/6]).
 
 -spec encode(
-    atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term(),
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -58,7 +63,12 @@ encode(json, Mod, {type, dict, 2} = TypeRef, Data, SpType, _Params, Config) ->
     end.
 
 -spec decode(
-    atom(), module(), spectra:sp_type_reference(), dynamic(), spectra:sp_type(), term(),
+    atom(),
+    module(),
+    spectra:sp_type_reference(),
+    dynamic(),
+    spectra:sp_type(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
@@ -88,7 +98,9 @@ encode_pairs(TypeInfo, KeyType, ValueType, [{Key, Value} | Rest], Acc, Config) -
         {ok, KeyBin} when is_binary(KeyBin) ->
             case spectra_json:to_json(TypeInfo, ValueType, Value, Config) of
                 {ok, ValueJson} ->
-                    encode_pairs(TypeInfo, KeyType, ValueType, Rest, [{KeyBin, ValueJson} | Acc], Config);
+                    encode_pairs(
+                        TypeInfo, KeyType, ValueType, Rest, [{KeyBin, ValueJson} | Acc], Config
+                    );
                 {error, _} = Err ->
                     Err
             end;
