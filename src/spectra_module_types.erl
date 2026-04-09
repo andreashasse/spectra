@@ -57,12 +57,12 @@ fetch_type_info(Module) ->
         {error, Reason} ->
             erlang:error({module_types_not_found, Module, Reason})
     end,
-        case erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0) of
-            true ->
-                apply(Module, ?TYPE_INFO_FUNCTION, []);
-            false ->
-                spectra_abstract_code:types_in_module(Module)
-        end.
+    case erlang:function_exported(Module, ?TYPE_INFO_FUNCTION, 0) of
+        true ->
+            apply(Module, ?TYPE_INFO_FUNCTION, []);
+        false ->
+            spectra_abstract_code:types_in_module(Module)
+    end.
 
 -spec pers_type(Module :: module()) -> {ok, spectra:type_info()} | error.
 pers_type(Module) ->
