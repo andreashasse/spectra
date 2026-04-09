@@ -2,8 +2,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("../include/spectra.hrl").
-
 -compile(nowarn_unused_type).
 
 %% Test types for sp_types testing
