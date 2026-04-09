@@ -77,7 +77,9 @@ to_schema_for_sp_type(TypeInfo, Type, Config) ->
 ) ->
     json_schema_object().
 do_to_schema(
-    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef, Config
+    TypeInfo,
+    #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef,
+    Config
 ) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
@@ -293,7 +295,9 @@ apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()], spectra:sp_config()) ->
     json_schema_object().
 map_fields_to_schema(TypeInfo, Fields, Config) ->
-    {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false, Config),
+    {Properties, Required, HasAdditional} = process_map_fields(
+        TypeInfo, Fields, #{}, [], false, Config
+    ),
     lists:foldl(
         fun({Key, Value, SkipValue}, Acc) ->
             map_add_if_not_value(Acc, Key, Value, SkipValue)
@@ -455,7 +459,9 @@ expand_to_literals(
     expand_to_literals(TypeWithoutVars, RemoteTypeInfo, Config);
 %% Resolve user type references
 expand_to_literals(
-    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity}, TypeInfo, Config
+    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity},
+    TypeInfo,
+    Config
 ) when
     TypeInfo =/= undefined
 ->

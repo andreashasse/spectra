@@ -661,7 +661,9 @@ generate_operation(Endpoint, Config) ->
             true ->
                 OpenAPIResponses =
                     maps:map(
-                        fun(_StatusCode, ResponseSpec) -> generate_response(ResponseSpec, Config) end,
+                        fun(_StatusCode, ResponseSpec) ->
+                            generate_response(ResponseSpec, Config)
+                        end,
                         Responses
                     ),
                 OpenAPIResponsesBinary =
@@ -768,7 +770,9 @@ generate_response(#{description := Description} = ResponseSpec, Config) when
         HeadersSpec ->
             GeneratedHeaders =
                 maps:map(
-                    fun(_HeaderName, HeaderSpec) -> generate_response_header(HeaderSpec, Config) end,
+                    fun(_HeaderName, HeaderSpec) ->
+                        generate_response_header(HeaderSpec, Config)
+                    end,
                     HeadersSpec
                 ),
             BaseResponse#{headers => GeneratedHeaders}
@@ -997,7 +1001,9 @@ type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, _}, arity = Arity} = Re
             maps:remove(examples_function, Doc);
         _ ->
             RemoteTypeInfo = spectra_module_types:get(Mod, Config#sp_config.use_module_types_cache),
-            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity), Config)
+            type_doc(
+                RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity), Config
+            )
     end;
 type_doc(_TypeInfo, Type, _Config) ->
     case spectra_type:get_meta(Type) of
