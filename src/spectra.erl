@@ -516,7 +516,15 @@ finalize_schema(Format, _SchemaMap, _Options) ->
 maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_decode(Mod, Format, SpType, Data, SpType, Config#sp_config.codecs, Config#sp_config.use_module_types_cache)
+        spectra_codec:try_codec_decode(
+            Mod,
+            Format,
+            SpType,
+            Data,
+            SpType,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
+        )
     of
         continue -> default_decode(Format, TypeInfo, SpType, Data, Options, Config);
         Result -> Result
@@ -533,7 +541,15 @@ maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
 maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(Mod, Format, SpType, Data, SpType, Config#sp_config.codecs, Config#sp_config.use_module_types_cache)
+        spectra_codec:try_codec_encode(
+            Mod,
+            Format,
+            SpType,
+            Data,
+            SpType,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
+        )
     of
         continue -> default_encode(Format, TypeInfo, SpType, Data, Options, Config);
         Result -> Result

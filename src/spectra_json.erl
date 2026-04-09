@@ -89,7 +89,15 @@ to_json(
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
-        spectra_codec:try_codec_encode(Mod, json, Type, Data, UserTypeRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache)
+        spectra_codec:try_codec_encode(
+            Mod,
+            json,
+            Type,
+            Data,
+            UserTypeRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
+        )
     of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
@@ -107,7 +115,13 @@ to_json(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
-            Module, json, RemoteType, Data, RemoteRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Module,
+            json,
+            RemoteType,
+            Data,
+            RemoteRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
@@ -132,7 +146,13 @@ to_json(
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_encode(
-            Mod, json, RecordType, Record, RecordRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            json,
+            RecordType,
+            Record,
+            RecordRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
@@ -539,7 +559,15 @@ do_from_json(
     Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
-        spectra_codec:try_codec_decode(Mod, json, Type, Json, UserTypeRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache)
+        spectra_codec:try_codec_decode(
+            Mod,
+            json,
+            Type,
+            Json,
+            UserTypeRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
+        )
     of
         continue ->
             TypeWithoutVars = apply_args(TypeInfo, Type, Args),
@@ -557,7 +585,13 @@ do_from_json(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
-            Module, json, RemoteType, Json, RemoteRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Module,
+            json,
+            RemoteType,
+            Json,
+            RemoteRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
@@ -582,7 +616,13 @@ do_from_json(
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_decode(
-            Mod, json, RecordType, Json, RecordRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            json,
+            RecordType,
+            Json,
+            RecordRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);

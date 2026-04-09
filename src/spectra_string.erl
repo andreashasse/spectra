@@ -84,7 +84,13 @@ from_string(
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_decode(
-            Mod, string, Type, String, UserTypeRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            string,
+            Type,
+            String,
+            UserTypeRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
@@ -98,7 +104,13 @@ from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String,
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_decode(
-            Mod, string, RecordType, String, RecordRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            string,
+            RecordType,
+            String,
+            RecordRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -114,7 +126,13 @@ from_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
-            Module, string, RemoteType, String, RemoteRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Module,
+            string,
+            RemoteType,
+            String,
+            RemoteRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
@@ -233,7 +251,13 @@ to_string(
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_encode(
-            Mod, string, Type, Data, UserTypeRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            string,
+            Type,
+            Data,
+            UserTypeRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
@@ -247,7 +271,13 @@ to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Con
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_encode(
-            Mod, string, RecordType, Data, RecordRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod,
+            string,
+            RecordType,
+            Data,
+            RecordRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -263,7 +293,13 @@ to_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
-            Module, string, RemoteType, Data, RemoteRef, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Module,
+            string,
+            RemoteType,
+            Data,
+            RemoteRef,
+            Config#sp_config.codecs,
+            Config#sp_config.use_module_types_cache
         )
     of
         continue ->
