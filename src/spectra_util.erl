@@ -228,5 +228,5 @@ type_replace_vars(
     #sp_remote_type{
         mfargs = {Module, TypeName, ResolvedArgs}, arity = length(ResolvedArgs), meta = Meta
     };
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
+type_replace_vars(_TypeInfo, Type, #{}) ->
     Type.
