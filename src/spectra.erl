@@ -446,30 +446,12 @@ Accepts an options list. Supported options:
 ) ->
     iodata() | dynamic().
 schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
-    TypeInfo = spectra_module_types:get(Module, UseCache),
-    schema(Format, TypeInfo, TypeOrRef, Options);
-schema(Format, TypeInfo, TypeAtom, Options) when is_atom(TypeAtom) ->
-    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
-    schema(Format, TypeInfo, TypeRef, Options);
-schema(Format, TypeInfo, {type, _, _} = TypeRef, Options) ->
-    do_schema_ref(Format, TypeInfo, TypeRef, Options);
-schema(Format, TypeInfo, {record, _} = TypeRef, Options) ->
-    do_schema_ref(Format, TypeInfo, TypeRef, Options);
-schema(json_schema, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
-    SchemaMap =
-        case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef);
-            error -> default_schema(json_schema, TypeInfo, SpType)
-        end,
-    finalize_schema(json_schema, spectra_json_schema:add_schema_version(SchemaMap), Options);
-schema(Format, TypeInfo, SpType, Options) when is_record(TypeInfo, type_info) ->
-    SchemaMap =
-        case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef);
-            error -> default_schema(Format, TypeInfo, SpType)
-        end,
-    finalize_schema(Format, SchemaMap, Options).
+    Config = get_config(),
+    TypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    do_schema(Format, TypeInfo, TypeOrRef, Options, Config);
+schema(Format, TypeInfo, TypeOrRef, Options) ->
+    Config = get_config(),
+    do_schema(Format, TypeInfo, TypeOrRef, Options, Config).
 
 -spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
 resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
@@ -478,21 +460,21 @@ resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
 resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_type_info:get_record(TypeInfo, RecordName).
 
--spec maybe_codec_schema(atom(), type_info(), sp_type_reference()) ->
+-spec maybe_codec_schema(atom(), type_info(), sp_type_reference(), sp_config()) ->
     spectra_json_schema:json_schema_object().
-maybe_codec_schema(Format, TypeInfo, TypeRef) ->
+maybe_codec_schema(Format, TypeInfo, TypeRef, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_schema(Mod, Format, SpType, SpType) of
-        continue -> default_schema(Format, TypeInfo, SpType);
+    case spectra_codec:try_codec_schema(Mod, Format, SpType, SpType, Config) of
+        continue -> default_schema(Format, TypeInfo, SpType, Config);
         Schema -> Schema
     end.
 
--spec default_schema(atom(), type_info(), sp_type()) ->
+-spec default_schema(atom(), type_info(), sp_type(), sp_config()) ->
     spectra_json_schema:json_schema_object().
-default_schema(json_schema, TypeInfo, SpType) ->
-    spectra_json_schema:to_schema(TypeInfo, SpType);
-default_schema(Format, _TypeInfo, _SpType) ->
+default_schema(json_schema, TypeInfo, SpType, Config) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType, Config);
+default_schema(Format, _TypeInfo, _SpType, _Config) ->
     erlang:error({unsupported_format, Format}).
 
 -spec finalize_schema(atom(), spectra_json_schema:json_schema(), [schema_option()]) ->
@@ -555,15 +537,39 @@ maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
         Result -> Result
     end.
 
--spec do_schema_ref(atom(), type_info(), sp_type_reference(), [schema_option()]) ->
+-spec do_schema(atom(), type_info(), sp_type_or_ref(), [schema_option()], sp_config()) ->
     iodata() | map().
-do_schema_ref(json_schema, TypeInfo, TypeRef, Options) ->
+do_schema(Format, TypeInfo, TypeAtom, Options, Config) when is_atom(TypeAtom) ->
+    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    do_schema_ref(Format, TypeInfo, TypeRef, Options, Config);
+do_schema(Format, TypeInfo, {type, _, _} = TypeRef, Options, Config) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options, Config);
+do_schema(Format, TypeInfo, {record, _} = TypeRef, Options, Config) ->
+    do_schema_ref(Format, TypeInfo, TypeRef, Options, Config);
+do_schema(json_schema, TypeInfo, SpType, Options, Config) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef, Config);
+            error -> default_schema(json_schema, TypeInfo, SpType, Config)
+        end,
+    finalize_schema(json_schema, spectra_json_schema:add_schema_version(SchemaMap), Options);
+do_schema(Format, TypeInfo, SpType, Options, Config) ->
+    SchemaMap =
+        case type_ref_from_meta(SpType) of
+            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef, Config);
+            error -> default_schema(Format, TypeInfo, SpType, Config)
+        end,
+    finalize_schema(Format, SchemaMap, Options).
+
+-spec do_schema_ref(atom(), type_info(), sp_type_reference(), [schema_option()], sp_config()) ->
+    iodata() | map().
+do_schema_ref(json_schema, TypeInfo, TypeRef, Options, Config) ->
     SchemaMap = spectra_json_schema:add_schema_version(
-        maybe_codec_schema(json_schema, TypeInfo, TypeRef)
+        maybe_codec_schema(json_schema, TypeInfo, TypeRef, Config)
     ),
     finalize_schema(json_schema, SchemaMap, Options);
-do_schema_ref(Format, TypeInfo, TypeRef, Options) ->
-    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef),
+do_schema_ref(Format, TypeInfo, TypeRef, Options, Config) ->
+    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef, Config),
     finalize_schema(Format, SchemaMap, Options).
 
 -spec type_ref_from_meta(sp_type()) -> {ok, sp_type_reference()} | error.

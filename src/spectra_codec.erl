@@ -1,5 +1,7 @@
 -module(spectra_codec).
 
+-include("../include/spectra_internal.hrl").
+
 -doc """
 Behaviour for custom codecs that extend spectra's encoding, decoding, and
 schema generation for specific types and formats.
@@ -95,24 +97,10 @@ where the reference node is available.
 -optional_callbacks([schema/5]).
 
 -export([
-    try_codec_encode/6,
     try_codec_encode/7,
-    try_codec_decode/6,
     try_codec_decode/7,
-    try_codec_schema/4
+    try_codec_schema/5
 ]).
-
--doc #{equiv => try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, false)}.
--spec try_codec_encode(
-    Mod :: module(),
-    Format :: atom(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic(),
-    SpType :: spectra:sp_type(),
-    Codecs :: #{spectra:codec_key() => module()}
-) -> spectra:codec_encode_result().
-try_codec_encode(Mod, Format, Type, Data, SpType, Codecs) ->
-    try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, false).
 
 -doc "Encodes `Data` via a registered codec for `{Mod, TypeReference}`, or returns `continue`.".
 -spec try_codec_encode(
@@ -133,18 +121,6 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
             continue
     end.
 
--doc #{equiv => try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, false)}.
--spec try_codec_decode(
-    Mod :: module(),
-    Format :: atom(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic(),
-    SpType :: spectra:sp_type(),
-    Codecs :: #{spectra:codec_key() => module()}
-) -> spectra:codec_decode_result().
-try_codec_decode(Mod, Format, Type, Data, SpType, Codecs) ->
-    try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, false).
-
 -doc "Decodes `Data` via a registered codec for `{Mod, TypeReference}`, or returns `continue`.".
 -spec try_codec_decode(
     Mod :: module(),
@@ -164,16 +140,21 @@ try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
             continue
     end.
 
+-doc "Returns the schema for `{Mod, TypeReference}` via a registered codec, or `continue`.".
 -spec try_codec_schema(
     Mod :: module(),
     Format :: atom(),
     Type :: spectra:sp_type(),
-    SpType :: spectra:sp_type()
+    SpType :: spectra:sp_type(),
+    Config :: spectra:sp_config()
 ) -> dynamic() | continue.
-try_codec_schema(Mod, Format, Type, SpType) ->
+try_codec_schema(Mod, Format, Type, SpType, Config) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    GlobalCodecs = application:get_env(spectra, codecs, #{}),
-    case spectra_type_info:find_codec(Mod, TypeReference, GlobalCodecs, false) of
+    case
+        spectra_type_info:find_codec(
+            Mod, TypeReference, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+        )
+    of
         {ok, M} ->
             case erlang:function_exported(M, schema, 5) of
                 true ->

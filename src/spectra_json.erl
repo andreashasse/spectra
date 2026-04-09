@@ -13,7 +13,7 @@ responsibility of the caller (typically `spectra.erl`).
 
 Codec dispatch is handled mid-traversal at `#sp_user_type_ref{}`,
 `#sp_remote_type{}`, and `#sp_rec_ref{}` nodes via
-`spectra_codec:try_codec_encode/6` and `try_codec_decode/6`.
+`spectra_codec:try_codec_encode/7` and `try_codec_decode/7`.
 """.
 
 -export([to_json/3, to_json/4, from_json/3, from_json/4]).

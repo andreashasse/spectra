@@ -585,19 +585,24 @@ endpoints_to_openapi(MetaData, Endpoints) ->
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
+    Config = #sp_config{
+        use_module_types_cache = application:get_env(spectra, use_module_types_cache, false),
+        check_unicode = application:get_env(spectra, check_unicode, false),
+        codecs = application:get_env(spectra, codecs, #{})
+    },
     PathGroups = group_endpoints_by_path(Endpoints),
     Paths =
         maps:fold(
             fun(Path, PathEndpoints, Acc) ->
-                PathOps = generate_path_operations(PathEndpoints),
+                PathOps = generate_path_operations(PathEndpoints, Config),
                 Acc#{Path => PathOps}
             end,
             #{},
             PathGroups
         ),
 
-    SchemaRefs = collect_schema_refs(Endpoints),
-    ComponentsResult = generate_components(SchemaRefs),
+    SchemaRefs = collect_schema_refs(Endpoints, Config),
+    ComponentsResult = generate_components(SchemaRefs, Config),
     BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
     Info = lists:foldl(
         fun({MetaKey, InfoKey}, Acc) ->
@@ -633,19 +638,19 @@ group_endpoints_by_path(Endpoints) ->
         Endpoints
     ).
 
--spec generate_path_operations([endpoint_spec()]) -> path_operations().
-generate_path_operations(Endpoints) ->
+-spec generate_path_operations([endpoint_spec()], spectra:sp_config()) -> path_operations().
+generate_path_operations(Endpoints, Config) ->
     lists:foldl(
         fun(#{method := Method} = Endpoint, Acc) ->
-            Operation = generate_operation(Endpoint),
+            Operation = generate_operation(Endpoint, Config),
             Acc#{Method => Operation}
         end,
         #{},
         Endpoints
     ).
 
--spec generate_operation(endpoint_spec()) -> openapi_operation().
-generate_operation(Endpoint) ->
+-spec generate_operation(endpoint_spec(), spectra:sp_config()) -> openapi_operation().
+generate_operation(Endpoint, Config) ->
     %% Start with documentation if present
     Operation = maps:get(doc, Endpoint, #{}),
 
@@ -656,7 +661,7 @@ generate_operation(Endpoint) ->
             true ->
                 OpenAPIResponses =
                     maps:map(
-                        fun(_StatusCode, ResponseSpec) -> generate_response(ResponseSpec) end,
+                        fun(_StatusCode, ResponseSpec) -> generate_response(ResponseSpec, Config) end,
                         Responses
                     ),
                 OpenAPIResponsesBinary =
@@ -678,7 +683,7 @@ generate_operation(Endpoint) ->
             undefined ->
                 OperationWithResponses;
             RequestBodyRef ->
-                RequestBody = generate_request_body(RequestBodyRef),
+                RequestBody = generate_request_body(RequestBodyRef, Config),
                 OperationWithResponses#{requestBody => RequestBody}
         end,
 
@@ -687,12 +692,12 @@ generate_operation(Endpoint) ->
         [] ->
             OperationWithBody;
         _ ->
-            OpenAPIParameters = lists:map(fun generate_parameter/1, Parameters),
+            OpenAPIParameters = lists:map(fun(P) -> generate_parameter(P, Config) end, Parameters),
             OperationWithBody#{parameters => OpenAPIParameters}
     end.
 
--spec generate_response(response_spec()) -> openapi_response().
-generate_response(#{description := Description} = ResponseSpec) when
+-spec generate_response(response_spec(), spectra:sp_config()) -> openapi_response().
+generate_response(#{description := Description} = ResponseSpec, Config) when
     is_binary(Description)
 ->
     %% Build base response with optional content
@@ -711,7 +716,9 @@ generate_response(#{description := Description} = ResponseSpec) when
             ->
                 #{description => Description};
             {Schema, Module} ->
-                ModuleTypeInfo = spectra_module_types:get(Module),
+                ModuleTypeInfo = spectra_module_types:get(
+                    Module, Config#sp_config.use_module_types_cache
+                ),
                 NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
                 SchemaContent =
                     case NormalizedSchema of
@@ -744,7 +751,7 @@ generate_response(#{description := Description} = ResponseSpec) when
                             #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
                         DirectType ->
                             InlineSchema =
-                                spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
+                                spectra_json_schema:to_schema(ModuleTypeInfo, DirectType, Config),
                             maps:remove('$schema', InlineSchema)
                     end,
                 ContentType = maps:get(content_type, ResponseSpec, ?DEFAULT_CONTENT_TYPE),
@@ -761,7 +768,7 @@ generate_response(#{description := Description} = ResponseSpec) when
         HeadersSpec ->
             GeneratedHeaders =
                 maps:map(
-                    fun(_HeaderName, HeaderSpec) -> generate_response_header(HeaderSpec) end,
+                    fun(_HeaderName, HeaderSpec) -> generate_response_header(HeaderSpec, Config) end,
                     HeadersSpec
                 ),
             BaseResponse#{headers => GeneratedHeaders}
@@ -774,19 +781,19 @@ copy_if_present(Key, Source, Target) ->
         Value -> Target#{Key => Value}
     end.
 
--spec generate_response_header(response_header_spec()) -> openapi_header().
-generate_response_header(#{schema := Schema, module := Module} = HeaderSpec) ->
-    ModuleTypeInfo = spectra_module_types:get(Module),
+-spec generate_response_header(response_header_spec(), spectra:sp_config()) -> openapi_header().
+generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Config) ->
+    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
     Base = Doc#{schema => OpenApiSchema},
     copy_if_present(required, HeaderSpec, Base).
 
--spec generate_request_body(request_body_spec()) -> openapi_request_body().
-generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) ->
-    ModuleTypeInfo = spectra_module_types:get(Module),
+-spec generate_request_body(request_body_spec(), spectra:sp_config()) -> openapi_request_body().
+generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec, Config) ->
+    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     SchemaContent =
         case NormalizedSchema of
@@ -800,17 +807,17 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec) -
                 SchemaName = schema_component_name(RemoteMod, {type, RemoteName, RemoteArity}),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
-                InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType),
+                InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType, Config),
                 OpenApiSchema = maps:remove('$schema', InlineSchema),
                 OpenApiSchema
         end,
 
     ContentType = maps:get(content_type, RequestBodySpec, ?DEFAULT_CONTENT_TYPE),
-    Doc = maps:with([description], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Doc = maps:with([description], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
     Base = Doc#{required => true, content => #{ContentType => #{schema => SchemaContent}}},
     Base.
 
--spec generate_parameter(parameter_spec()) -> openapi_parameter().
+-spec generate_parameter(parameter_spec(), spectra:sp_config()) -> openapi_parameter().
 generate_parameter(
     #{
         name := Name,
@@ -818,56 +825,59 @@ generate_parameter(
         schema := Schema,
         module := Module
     } =
-        ParameterSpec
+        ParameterSpec,
+    Config
 ) when
     is_binary(Name)
 ->
-    ModuleTypeInfo = spectra_module_types:get(Module),
+    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema),
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema)),
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
 
--spec collect_schema_refs([endpoint_spec()]) -> [{module(), spectra:sp_type_reference()}].
-collect_schema_refs(Endpoints) ->
+-spec collect_schema_refs([endpoint_spec()], spectra:sp_config()) ->
+    [{module(), spectra:sp_type_reference()}].
+collect_schema_refs(Endpoints, Config) ->
     lists:foldl(
         fun(Endpoint, Acc) ->
-            EndpointRefs = collect_endpoint_schema_refs(Endpoint),
+            EndpointRefs = collect_endpoint_schema_refs(Endpoint, Config),
             lists:usort(EndpointRefs ++ Acc)
         end,
         [],
         Endpoints
     ).
 
--spec collect_endpoint_schema_refs(endpoint_spec()) ->
+-spec collect_endpoint_schema_refs(endpoint_spec(), spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
 collect_endpoint_schema_refs(
     #{responses := Responses, parameters := Parameters} =
-        Endpoint
+        Endpoint,
+    Config
 ) ->
-    ResponseRefs = collect_response_refs(Responses),
+    ResponseRefs = collect_response_refs(Responses, Config),
     RequestBodyRefs =
         case maps:get(request_body, Endpoint, undefined) of
             undefined ->
                 [];
             #{schema := Schema, module := Module} ->
-                case filter_typeref(Schema, Module) of
+                case filter_typeref(Schema, Module, Config) of
                     {true, ModuleTypeRef} ->
                         [ModuleTypeRef];
                     false ->
                         []
                 end
         end,
-    ParameterRefs = collect_parameter_refs(Parameters),
+    ParameterRefs = collect_parameter_refs(Parameters, Config),
 
     ResponseRefs ++ RequestBodyRefs ++ ParameterRefs.
 
--spec collect_response_refs(#{http_status_code() => response_spec()}) ->
+-spec collect_response_refs(#{http_status_code() => response_spec()}, spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
-collect_response_refs(Responses) ->
+collect_response_refs(Responses, Config) ->
     maps:fold(
         fun(_StatusCode, ResponseSpec, Acc) ->
             case
@@ -883,7 +893,7 @@ collect_response_refs(Responses) ->
                     %% Schema without module should not happen
                     Acc;
                 {Schema, Module} ->
-                    case filter_typeref(Schema, Module) of
+                    case filter_typeref(Schema, Module, Config) of
                         {true, ModuleTypeRef} ->
                             [ModuleTypeRef | Acc];
                         false ->
@@ -895,20 +905,20 @@ collect_response_refs(Responses) ->
         Responses
     ).
 
--spec collect_parameter_refs([parameter_spec()]) ->
+-spec collect_parameter_refs([parameter_spec()], spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
-collect_parameter_refs(Parameters) ->
+collect_parameter_refs(Parameters, Config) ->
     lists:filtermap(
         fun(#{schema := Schema, module := Module}) ->
-            filter_typeref(Schema, Module)
+            filter_typeref(Schema, Module, Config)
         end,
         Parameters
     ).
 
--spec filter_typeref(spectra:sp_type_or_ref(), module()) ->
+-spec filter_typeref(spectra:sp_type_or_ref(), module(), spectra:sp_config()) ->
     {true, {module(), spectra:sp_type_reference()}} | false.
-filter_typeref(Schema, Module) ->
-    TypeInfo = spectra_module_types:get(Module),
+filter_typeref(Schema, Module, Config) ->
+    TypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
     NormalizedSchema = spectra_util:normalize_type_ref(TypeInfo, Schema),
     case NormalizedSchema of
         {type, _, _} = TypeRef ->
@@ -923,13 +933,15 @@ filter_typeref(Schema, Module) ->
             false
     end.
 
--spec generate_components([{module(), spectra:sp_type_reference()}]) ->
+-spec generate_components([{module(), spectra:sp_type_reference()}], spectra:sp_config()) ->
     #{schemas => #{binary() => openapi_schema()}}.
-generate_components(SchemaRefs) ->
+generate_components(SchemaRefs, Config) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
-            ModuleTypeInfo = spectra_module_types:get(Module),
-            Schema = to_inline_schema(ModuleTypeInfo, TypeRef),
+            ModuleTypeInfo = spectra_module_types:get(
+                Module, Config#sp_config.use_module_types_cache
+            ),
+            Schema = to_inline_schema(ModuleTypeInfo, TypeRef, Config),
             SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
@@ -968,25 +980,26 @@ schema_component_name(Module, {type, t, 0}) ->
 schema_component_name(_Module, TypeRef) ->
     type_ref_to_component_name(TypeRef).
 
--spec type_doc(spectra:type_info(), spectra:sp_type_or_ref()) -> spectra:type_doc().
-type_doc(TypeInfo, {type, Name, Arity}) ->
-    type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity));
-type_doc(TypeInfo, {record, Name}) ->
-    type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name));
-type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, arity = Arity} = Ref) ->
+-spec type_doc(spectra:type_info(), spectra:sp_type_or_ref(), spectra:sp_config()) ->
+    spectra:type_doc().
+type_doc(TypeInfo, {type, Name, Arity}, Config) ->
+    type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity), Config);
+type_doc(TypeInfo, {record, Name}, Config) ->
+    type_doc(TypeInfo, spectra_type_info:get_record(TypeInfo, Name), Config);
+type_doc(TypeInfo, #sp_user_type_ref{type_name = Name, arity = Arity} = Ref, Config) ->
     case spectra_type:get_meta(Ref) of
         #{doc := Doc} -> maps:remove(examples_function, Doc);
-        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity))
+        _ -> type_doc(TypeInfo, spectra_type_info:get_type(TypeInfo, Name, Arity), Config)
     end;
-type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, _}, arity = Arity} = Ref) ->
+type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, _}, arity = Arity} = Ref, Config) ->
     case spectra_type:get_meta(Ref) of
         #{doc := Doc} ->
             maps:remove(examples_function, Doc);
         _ ->
-            RemoteTypeInfo = spectra_module_types:get(Mod),
-            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity))
+            RemoteTypeInfo = spectra_module_types:get(Mod, Config#sp_config.use_module_types_cache),
+            type_doc(RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity), Config)
     end;
-type_doc(_TypeInfo, Type) ->
+type_doc(_TypeInfo, Type, _Config) ->
     case spectra_type:get_meta(Type) of
         #{doc := Doc} -> maps:remove(examples_function, Doc);
         _ -> #{}
@@ -997,21 +1010,21 @@ capitalize_word([]) ->
 capitalize_word([First | Rest]) ->
     [string:to_upper(First) | Rest].
 
--spec to_inline_schema(spectra:type_info(), spectra:sp_type_or_ref()) ->
+-spec to_inline_schema(spectra:type_info(), spectra:sp_type_or_ref(), spectra:sp_config()) ->
     spectra_json_schema:json_schema().
-to_inline_schema(TypeInfo, {type, Name, Arity}) ->
+to_inline_schema(TypeInfo, {type, Name, Arity}, Config) ->
     Type = spectra_type_info:get_type(TypeInfo, Name, Arity),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_schema(Mod, json_schema, Type, Type) of
-        continue -> spectra_json_schema:to_schema(TypeInfo, Type);
+    case spectra_codec:try_codec_schema(Mod, json_schema, Type, Type, Config) of
+        continue -> spectra_json_schema:to_schema(TypeInfo, Type, Config);
         Schema -> Schema
     end;
-to_inline_schema(TypeInfo, {record, RecordName}) ->
+to_inline_schema(TypeInfo, {record, RecordName}, Config) ->
     Record = spectra_type_info:get_record(TypeInfo, RecordName),
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_schema(Mod, json_schema, Record, Record) of
-        continue -> spectra_json_schema:to_schema(TypeInfo, Record);
+    case spectra_codec:try_codec_schema(Mod, json_schema, Record, Record, Config) of
+        continue -> spectra_json_schema:to_schema(TypeInfo, Record, Config);
         Schema -> Schema
     end;
-to_inline_schema(TypeInfo, SpType) ->
-    spectra_json_schema:to_schema(TypeInfo, SpType).
+to_inline_schema(TypeInfo, SpType, Config) ->
+    spectra_json_schema:to_schema(TypeInfo, SpType, Config).
