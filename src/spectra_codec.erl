@@ -36,9 +36,9 @@ on the type definition, or `undefined` when no such attribute is present.
 The codec receives `<<"user:">>` as `Params` and can use it directly:
 
 ```erlang
-encode(json, _Mod, _TypeRef, Data, _SpType, Prefix) when is_binary(Prefix) ->
+encode(json, _Mod, _TypeRef, Data, _SpType, Prefix, _Config) when is_binary(Prefix) ->
     {ok, <<Prefix/binary, Data/binary>>};
-encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params) ->
+encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params, _Config) ->
     continue.
 ```
 
@@ -54,10 +54,10 @@ For a type written as `dict:dict(binary(), integer())` the codec receives the
 recursively encode/decode keys and values:
 
 ```erlang
-encode(json, Mod, _TypeRef, Data, SpType, _Params) ->
-    TypeInfo = spectra_module_types:get(Mod),
+encode(json, Mod, _TypeRef, Data, SpType, _Params, Config) ->
+    TypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
-    encode_pairs(TypeInfo, KeyType, ValueType, dict:to_list(Data), #{}).
+    encode_pairs(TypeInfo, KeyType, ValueType, dict:to_list(Data), #{}, Config).
 ```
 
 Note: when a codec is invoked from the `spectra:encode/decode/schema` entry
@@ -73,7 +73,8 @@ where the reference node is available.
     TypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
-    Params :: term()
+    Params :: term(),
+    Config :: spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
 -callback decode(
@@ -82,7 +83,8 @@ where the reference node is available.
     TypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
     SpType :: spectra:sp_type(),
-    Params :: term()
+    Params :: term(),
+    Config :: spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
 -callback schema(
@@ -90,11 +92,12 @@ where the reference node is available.
     Module :: module(),
     TypeRef :: spectra:sp_type_reference(),
     SpType :: spectra:sp_type(),
-    Params :: term()
+    Params :: term(),
+    Config :: spectra:sp_config()
 ) ->
     dynamic().
 
--optional_callbacks([schema/5]).
+-optional_callbacks([schema/6]).
 
 -export([
     try_codec_encode/7,
@@ -113,10 +116,11 @@ where the reference node is available.
     CacheMode :: spectra:module_types_cache()
 ) -> spectra:codec_encode_result().
 try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
+    Config = #sp_config{codecs = Codecs, module_types_cache = CacheMode},
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
-            M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
+            M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config);
         error ->
             continue
     end.
@@ -132,10 +136,11 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     CacheMode :: spectra:module_types_cache()
 ) -> spectra:codec_decode_result().
 try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
+    Config = #sp_config{codecs = Codecs, module_types_cache = CacheMode},
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
-            M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
+            M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config);
         error ->
             continue
     end.
@@ -156,9 +161,9 @@ try_codec_schema(Mod, Format, Type, SpType, Config) ->
         )
     of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 5) of
+            case erlang:function_exported(M, schema, 6) of
                 true ->
-                    M:schema(Format, Mod, TypeReference, SpType, spectra_type:parameters(Type));
+                    M:schema(Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config);
                 false ->
                     erlang:error({schema_not_implemented, M, TypeReference})
             end;

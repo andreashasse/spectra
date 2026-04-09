@@ -1,52 +1,15 @@
 -module(spectra_string).
 
--export([from_string/3, from_string/4, to_string/3, to_string/4]).
+-export([from_string/4, to_string/4]).
 
 -ignore_xref([
-    {spectra_string, from_string, 3},
     {spectra_string, from_string, 4},
-    {spectra_string, to_string, 3},
     {spectra_string, to_string, 4}
 ]).
 
 -include("../include/spectra_internal.hrl").
 
 %% API
-
--doc """
-Converts a string value to an Erlang value based on a type specification.
-
-This function validates the given string value against the specified type definition
-and converts it to the corresponding Erlang value.
-
-Equivalent to calling from_string/4 with a default configuration.
-
-### Returns
-{ok, ErlangValue} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    params =>
-        #{
-            "String" => "The string value to convert to Erlang format",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec from_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    String :: list()
-) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
-from_string(TypeInfo, Type, String) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    CheckUnicode = application:get_env(spectra, check_unicode, false),
-    Config = #sp_config{
-        module_types_cache = CacheMode, codecs = Codecs, check_unicode = CheckUnicode
-    },
-    from_string(TypeInfo, Type, String, Config).
 
 -doc """
 Converts a string value to an Erlang value based on a type specification.
@@ -179,41 +142,6 @@ from_string(_TypeInfo, #sp_rec{} = T, _String, _Config) ->
     erlang:error({type_not_supported, T});
 from_string(_TypeInfo, Type, String, _Config) ->
     {error, [sp_error:type_mismatch(Type, String)]}.
-
--doc """
-Converts an Erlang value to a string based on a type specification.
-
-This function validates the given Erlang value against the specified type definition
-and converts it to a string representation.
-
-Equivalent to calling to_string/4 with a default configuration.
-
-### Returns
-{ok, String} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    params =>
-        #{
-            "Data" => "The Erlang value to convert to string format",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec to_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic()
-) ->
-    {ok, string()} | {error, [spectra:error()]}.
-to_string(TypeInfo, Type, Data) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    CheckUnicode = application:get_env(spectra, check_unicode, false),
-    Config = #sp_config{
-        module_types_cache = CacheMode, codecs = Codecs, check_unicode = CheckUnicode
-    },
-    to_string(TypeInfo, Type, Data, Config).
 
 -doc """
 Converts an Erlang value to a string based on a type specification.

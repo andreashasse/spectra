@@ -137,13 +137,13 @@ create_typeinfo_with_known_types(Type) ->
     ).
 
 safe_to_json(TypeInfo, Type, Data) ->
-    save(fun() -> spectra_json:to_json(TypeInfo, Type, Data) end).
+    save(fun() -> spectra_test_util:to_json(TypeInfo, Type, Data) end).
 
 safe_to_schema(TypeInfo, Type) ->
-    save(fun() -> spectra_json_schema:to_schema(TypeInfo, Type) end).
+    save(fun() -> spectra_test_util:to_schema(TypeInfo, Type) end).
 
 safe_from_json(TypeInfo, Type, JsonValue) ->
-    save(fun() -> spectra_json:from_json(TypeInfo, Type, JsonValue) end).
+    save(fun() -> spectra_test_util:from_json(TypeInfo, Type, JsonValue) end).
 
 save(Fun) ->
     try

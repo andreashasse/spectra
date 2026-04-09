@@ -16,49 +16,11 @@ Codec dispatch is handled mid-traversal at `#sp_user_type_ref{}`,
 `spectra_codec:try_codec_encode/7` and `try_codec_decode/7`.
 """.
 
--export([to_json/3, to_json/4, from_json/3, from_json/4]).
+-export([to_json/4, from_json/4]).
 
--ignore_xref([to_json/3, to_json/4, from_json/3, from_json/4]).
+-ignore_xref([to_json/4, from_json/4]).
 
 -include("../include/spectra_internal.hrl").
-
--doc """
-Encodes `Data` to a JSON-compatible value according to `Type`.
-
-Equivalent to calling to_json/4 with a default configuration.
-""".
--doc #{
-    equiv => to_json(TypeInfo, Type, Data, #sp_config{})
-}.
--spec to_json(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic()
-) ->
-    {ok, json:encode_value()} | {error, [spectra:error()]}.
-to_json(TypeInfo, Type, Data) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    to_json(TypeInfo, Type, Data, #sp_config{module_types_cache = CacheMode, codecs = Codecs}).
-
--doc """
-Decodes a JSON value to an Erlang value according to `Type`.
-
-Equivalent to calling from_json/4 with a default configuration.
-""".
--doc #{
-    equiv => from_json(TypeInfo, Type, Json, #sp_config{})
-}.
--spec from_json(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    Json :: json:decode_value()
-) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
-from_json(TypeInfo, Type, Json) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    from_json(TypeInfo, Type, Json, #sp_config{module_types_cache = CacheMode, codecs = Codecs}).
 
 -doc """
 Encodes `Data` to a JSON-compatible value according to `Type`.

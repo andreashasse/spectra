@@ -1,90 +1,18 @@
 -module(spectra_binary_string).
 
 -export([
-    from_binary_string/3,
-    from_binary_string/4,
     from_binary_string/5,
-    to_binary_string/3,
-    to_binary_string/4,
     to_binary_string/5
 ]).
 
 -ignore_xref([
-    {spectra_binary_string, from_binary_string, 3},
-    {spectra_binary_string, from_binary_string, 4},
     {spectra_binary_string, from_binary_string, 5},
-    {spectra_binary_string, to_binary_string, 3},
-    {spectra_binary_string, to_binary_string, 4},
     {spectra_binary_string, to_binary_string, 5}
 ]).
 
 -include("../include/spectra_internal.hrl").
 
 %% API
-
--doc """
-Converts a binary string value to an Erlang value based on a type specification.
-
-This function validates the given binary string value against the specified type definition
-and converts it to the corresponding Erlang value.
-
-Equivalent to calling from_binary_string/4 with an empty options map.
-
-### Returns
-{ok, ErlangValue} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    equiv => from_binary_string(TypeInfo, Type, BinaryString, #{}),
-    params =>
-        #{
-            "BinaryString" => "The binary string value to convert to Erlang format",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec from_binary_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    BinaryString :: binary()
-) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
-from_binary_string(TypeInfo, Type, BinaryString) ->
-    from_binary_string(TypeInfo, Type, BinaryString, #{}).
-
--doc """
-Converts a binary string value to an Erlang value based on a type specification.
-
-This function validates the given binary string value against the specified type definition
-and converts it to the corresponding Erlang value.
-
-Equivalent to calling from_binary_string/5 with a default configuration.
-
-### Returns
-{ok, ErlangValue} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    params =>
-        #{
-            "BinaryString" => "The binary string value to convert to Erlang format",
-            "Opts" => "Decode options",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec from_binary_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    BinaryString :: binary(),
-    Opts :: spectra:binary_string_decode_opts()
-) ->
-    {ok, dynamic()} | {error, [spectra:error()]}.
-from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    Config = #sp_config{module_types_cache = CacheMode, codecs = Codecs},
-    from_binary_string(TypeInfo, Type, BinaryString, Opts, Config).
 
 -doc """
 Converts a binary string value to an Erlang value based on a type specification.
@@ -228,70 +156,6 @@ from_binary_string(_TypeInfo, #sp_rec{} = T, _BinaryString, _Opts, _Config) ->
     erlang:error({type_not_supported, T});
 from_binary_string(_TypeInfo, Type, BinaryString, _Opts, _Config) ->
     {error, [sp_error:type_mismatch(Type, BinaryString)]}.
-
--doc """
-Converts an Erlang value to a binary string based on a type specification.
-
-This function validates the given Erlang value against the specified type definition
-and converts it to a binary string representation.
-
-Equivalent to calling to_binary_string/4 with an empty options map.
-
-### Returns
-{ok, BinaryString} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    equiv => to_binary_string(TypeInfo, Type, Data, #{}),
-    params =>
-        #{
-            "Data" => "The Erlang value to convert to binary string format",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec to_binary_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic()
-) ->
-    {ok, binary()} | {error, [spectra:error()]}.
-to_binary_string(TypeInfo, Type, Data) ->
-    to_binary_string(TypeInfo, Type, Data, #{}).
-
--doc """
-Converts an Erlang value to a binary string based on a type specification.
-
-This function validates the given Erlang value against the specified type definition
-and converts it to a binary string representation.
-
-Equivalent to calling to_binary_string/5 with a default configuration.
-
-### Returns
-{ok, BinaryString} if conversion succeeds, or {error, Errors} if validation fails
-""".
--doc #{
-    params =>
-        #{
-            "Data" => "The Erlang value to convert to binary string format",
-            "Opts" => "Encode options",
-            "Type" => "The type specification (spectra:sp_type())",
-            "TypeInfo" => "The type information containing type definitions"
-        }
-}.
-
--spec to_binary_string(
-    TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type(),
-    Data :: dynamic(),
-    Opts :: spectra:binary_string_encode_opts()
-) ->
-    {ok, binary()} | {error, [spectra:error()]}.
-to_binary_string(TypeInfo, Type, Data, Opts) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    Codecs = application:get_env(spectra, codecs, #{}),
-    Config = #sp_config{module_types_cache = CacheMode, codecs = Codecs},
-    to_binary_string(TypeInfo, Type, Data, Opts, Config).
 
 -doc """
 Converts an Erlang value to a binary string based on a type specification.

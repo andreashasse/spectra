@@ -1,8 +1,8 @@
 -module(spectra_json_schema).
 
--export([to_schema/2, to_schema/3, add_schema_version/1]).
+-export([to_schema/3, add_schema_version/1]).
 
--ignore_xref([to_schema/2, to_schema/3, add_schema_version/1]).
+-ignore_xref([to_schema/3, add_schema_version/1]).
 
 -include("../include/spectra_internal.hrl").
 
@@ -52,11 +52,6 @@
 -export_type([json_schema/0, json_schema_object/0]).
 
 %% API
-
--doc #{equiv => to_schema(TypeInfo, Type, #sp_config{})}.
--spec to_schema(spectra:type_info(), spectra:sp_type()) -> json_schema_object().
-to_schema(TypeInfo, Type) ->
-    to_schema(TypeInfo, Type, #sp_config{}).
 
 -doc "Generates a JSON Schema object for `Type` using `Config` for codec and cache settings.".
 -spec to_schema(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
