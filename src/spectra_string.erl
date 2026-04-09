@@ -40,11 +40,11 @@ Equivalent to calling from_string/4 with a default configuration.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_string(TypeInfo, Type, String) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
     CheckUnicode = application:get_env(spectra, check_unicode, false),
     Config = #sp_config{
-        use_module_types_cache = UseCache, codecs = Codecs, check_unicode = CheckUnicode
+        module_types_cache = CacheMode, codecs = Codecs, check_unicode = CheckUnicode
     },
     from_string(TypeInfo, Type, String, Config).
 
@@ -90,7 +90,7 @@ from_string(
             String,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -110,7 +110,7 @@ from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String,
             String,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -122,7 +122,7 @@ from_string(
     String,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
@@ -132,7 +132,7 @@ from_string(
             String,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -207,11 +207,11 @@ Equivalent to calling to_string/4 with a default configuration.
 ) ->
     {ok, string()} | {error, [spectra:error()]}.
 to_string(TypeInfo, Type, Data) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
     CheckUnicode = application:get_env(spectra, check_unicode, false),
     Config = #sp_config{
-        use_module_types_cache = UseCache, codecs = Codecs, check_unicode = CheckUnicode
+        module_types_cache = CacheMode, codecs = Codecs, check_unicode = CheckUnicode
     },
     to_string(TypeInfo, Type, Data, Config).
 
@@ -257,7 +257,7 @@ to_string(
             Data,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -277,7 +277,7 @@ to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Con
             Data,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -289,7 +289,7 @@ to_string(
     Data,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
@@ -299,7 +299,7 @@ to_string(
             Data,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->

@@ -76,7 +76,7 @@
 
 run() ->
     {ok, _} = application:ensure_all_started(spectra),
-    application:set_env(spectra, use_module_types_cache, true),
+    application:set_env(spectra, module_types_cache, persistent),
     io:format("~n=== Spectra Performance Benchmark ===~n"),
     io:format("Loading sample data from test/sample10k.json...~n"),
 

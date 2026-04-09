@@ -98,19 +98,19 @@ Checks the supplied `Codecs` map first, then falls back to the module's own
 `spectra_codec` behaviour if it implements one. Calls `code:ensure_loaded/1`
 on any codec found in the map so it is ready before its callbacks are dispatched.
 
-The `UseCache` flag is forwarded to `spectra_module_types:get/2` when a local
+The `CacheMode` flag is forwarded to `spectra_module_types:get/2` when a local
 codec check is needed.
 """.
--spec find_codec(module(), spectra:sp_type_reference(), Codecs, UseCache) ->
+-spec find_codec(module(), spectra:sp_type_reference(), Codecs, CacheMode) ->
     {ok, module()} | error
 when
     Codecs :: #{spectra:codec_key() => module()},
-    UseCache :: boolean().
-find_codec(Mod, TypeRef, Codecs, UseCache) ->
+    CacheMode :: spectra:module_types_cache().
+find_codec(Mod, TypeRef, Codecs, CacheMode) ->
     case maps:find({Mod, TypeRef}, Codecs) of
         {ok, CodecMod} ->
             code:ensure_loaded(CodecMod),
             {ok, CodecMod};
         error ->
-            find_local_codec(spectra_module_types:get(Mod, UseCache))
+            find_local_codec(spectra_module_types:get(Mod, CacheMode))
     end.

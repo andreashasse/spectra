@@ -70,6 +70,7 @@
 -type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
+-type module_types_cache() :: persistent | local | none.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
 -doc """
@@ -132,6 +133,7 @@ Return type for codec `decode/4` callbacks. See `spectra_codec`.
     codec_encode_result/0,
     codec_decode_result/0,
     codec_key/0,
+    module_types_cache/0,
     schema_option/0,
     sp_config/0
 ]).
@@ -198,11 +200,15 @@ Accepts an options list. Supported options:
     {ok, dynamic()} | {error, [error()]}.
 decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
-    do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config);
+    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    Result = do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result;
 decode(Format, TypeInfo, TypeOrRef, Data, Options) ->
     Config = get_config(),
-    do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config).
+    Result = do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result.
 
 -spec do_decode(
     Format :: atom(),
@@ -330,11 +336,15 @@ Accepts an options list. Supported options:
     {ok, dynamic()} | {error, [error()]}.
 encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
-    do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config);
+    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    Result = do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result;
 encode(Format, TypeInfo, TypeOrRef, Data, Options) ->
     Config = get_config(),
-    do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config).
+    Result = do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result.
 
 -spec do_encode(
     Format :: atom(),
@@ -447,11 +457,15 @@ Accepts an options list. Supported options:
     iodata() | dynamic().
 schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
-    do_schema(Format, TypeInfo, TypeOrRef, Options, Config);
+    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    Result = do_schema(Format, TypeInfo, TypeOrRef, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result;
 schema(Format, TypeInfo, TypeOrRef, Options) ->
     Config = get_config(),
-    do_schema(Format, TypeInfo, TypeOrRef, Options, Config).
+    Result = do_schema(Format, TypeInfo, TypeOrRef, Options, Config),
+    maybe_clear_local_cache(Config),
+    Result.
 
 -spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
 resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
@@ -505,7 +519,7 @@ maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
             Data,
             SpType,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> default_decode(Format, TypeInfo, SpType, Data, Options, Config);
@@ -530,7 +544,7 @@ maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
             Data,
             SpType,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> default_encode(Format, TypeInfo, SpType, Data, Options, Config);
@@ -596,10 +610,16 @@ atom_to_type_ref(TypeInfo, Atom) ->
 -spec get_config() -> sp_config().
 get_config() ->
     #sp_config{
-        use_module_types_cache = application:get_env(spectra, use_module_types_cache, false),
+        module_types_cache = application:get_env(spectra, module_types_cache, local),
         check_unicode = application:get_env(spectra, check_unicode, false),
         codecs = application:get_env(spectra, codecs, #{})
     }.
+
+-spec maybe_clear_local_cache(sp_config()) -> ok.
+maybe_clear_local_cache(#sp_config{module_types_cache = local}) ->
+    spectra_module_types:clear_local();
+maybe_clear_local_cache(_) ->
+    ok.
 
 json_decode(Binary) ->
     try

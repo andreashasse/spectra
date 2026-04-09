@@ -37,9 +37,9 @@ Equivalent to calling to_json/4 with a default configuration.
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
 to_json(TypeInfo, Type, Data) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
-    to_json(TypeInfo, Type, Data, #sp_config{use_module_types_cache = UseCache, codecs = Codecs}).
+    to_json(TypeInfo, Type, Data, #sp_config{module_types_cache = CacheMode, codecs = Codecs}).
 
 -doc """
 Decodes a JSON value to an Erlang value according to `Type`.
@@ -56,9 +56,9 @@ Equivalent to calling from_json/4 with a default configuration.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_json(TypeInfo, Type, Json) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
-    from_json(TypeInfo, Type, Json, #sp_config{use_module_types_cache = UseCache, codecs = Codecs}).
+    from_json(TypeInfo, Type, Json, #sp_config{module_types_cache = CacheMode, codecs = Codecs}).
 
 -doc """
 Encodes `Data` to a JSON-compatible value according to `Type`.
@@ -96,7 +96,7 @@ to_json(
             Data,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -111,7 +111,7 @@ to_json(
     Data,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
@@ -121,7 +121,7 @@ to_json(
             Data,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -152,7 +152,7 @@ to_json(
             Record,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
@@ -566,7 +566,7 @@ do_from_json(
             Json,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -581,7 +581,7 @@ do_from_json(
     Json,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
@@ -591,7 +591,7 @@ do_from_json(
             Json,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -622,7 +622,7 @@ do_from_json(
             Json,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);

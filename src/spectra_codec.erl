@@ -110,11 +110,11 @@ where the reference node is available.
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
     Codecs :: #{spectra:codec_key() => module()},
-    UseCache :: boolean()
+    CacheMode :: spectra:module_types_cache()
 ) -> spectra:codec_encode_result().
-try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
+try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, UseCache) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
             M:encode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
@@ -129,11 +129,11 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
     Codecs :: #{spectra:codec_key() => module()},
-    UseCache :: boolean()
+    CacheMode :: spectra:module_types_cache()
 ) -> spectra:codec_decode_result().
-try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, UseCache) ->
+try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, UseCache) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
         {ok, M} ->
             M:decode(Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type));
         error ->
@@ -152,7 +152,7 @@ try_codec_schema(Mod, Format, Type, SpType, Config) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
     case
         spectra_type_info:find_codec(
-            Mod, TypeReference, Config#sp_config.codecs, Config#sp_config.use_module_types_cache
+            Mod, TypeReference, Config#sp_config.codecs, Config#sp_config.module_types_cache
         )
     of
         {ok, M} ->

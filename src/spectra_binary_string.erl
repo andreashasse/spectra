@@ -81,9 +81,9 @@ Equivalent to calling from_binary_string/5 with a default configuration.
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 from_binary_string(TypeInfo, Type, BinaryString, Opts) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
-    Config = #sp_config{use_module_types_cache = UseCache, codecs = Codecs},
+    Config = #sp_config{module_types_cache = CacheMode, codecs = Codecs},
     from_binary_string(TypeInfo, Type, BinaryString, Opts, Config).
 
 -doc """
@@ -131,7 +131,7 @@ from_binary_string(
             BinaryString,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -147,7 +147,7 @@ from_binary_string(
     Opts,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
@@ -157,7 +157,7 @@ from_binary_string(
             BinaryString,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -181,7 +181,7 @@ from_binary_string(
             BinaryString,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -288,9 +288,9 @@ Equivalent to calling to_binary_string/5 with a default configuration.
 ) ->
     {ok, binary()} | {error, [spectra:error()]}.
 to_binary_string(TypeInfo, Type, Data, Opts) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
+    CacheMode = application:get_env(spectra, module_types_cache, local),
     Codecs = application:get_env(spectra, codecs, #{}),
-    Config = #sp_config{use_module_types_cache = UseCache, codecs = Codecs},
+    Config = #sp_config{module_types_cache = CacheMode, codecs = Codecs},
     to_binary_string(TypeInfo, Type, Data, Opts, Config).
 
 -doc """
@@ -338,7 +338,7 @@ to_binary_string(
             Data,
             UserTypeRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -354,7 +354,7 @@ to_binary_string(
     Opts,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.use_module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
@@ -364,7 +364,7 @@ to_binary_string(
             Data,
             RemoteRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue ->
@@ -384,7 +384,7 @@ to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Da
             Data,
             RecordRef,
             Config#sp_config.codecs,
-            Config#sp_config.use_module_types_cache
+            Config#sp_config.module_types_cache
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});

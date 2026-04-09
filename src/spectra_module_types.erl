@@ -1,11 +1,12 @@
 -module(spectra_module_types).
 
--export([get/1, get/2, clear/1]).
+-export([get/1, get/2, clear/1, clear_local/0]).
 
 %% Meant to be used when doing manual testing.
--ignore_xref([clear/1]).
+-ignore_xref([clear/1, clear_local/0]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
+-define(LOCAL_CACHE_KEY, {?MODULE, local_cache}).
 
 %% API
 
@@ -16,31 +17,46 @@ Equivalent to calling `get/2` with the default application environment config.
 """.
 -spec get(Module :: module()) -> spectra:type_info().
 get(Module) ->
-    UseCache = application:get_env(spectra, use_module_types_cache, false),
-    get(Module, UseCache).
+    CacheMode = application:get_env(spectra, module_types_cache, local),
+    get(Module, CacheMode).
 
 -doc """
 Resolves type information for `Module`.
 
-When `UseCache` is `true` the result is cached in `persistent_term` and
+When `CacheMode` is `persistent` the result is cached in `persistent_term` and
 returned on subsequent calls without re-extracting the abstract code.
+
+When `CacheMode` is `local` the result is cached in the process dictionary
+under a single key `{spectra_module_types, local_cache}` which holds a map of
+`#{module() => type_info()}`. The caller is responsible for clearing the cache
+via `clear_local/0` when the top-level operation completes.
+
+When `CacheMode` is `none` type information is always re-extracted.
 """.
--spec get(Module :: module(), UseCache :: boolean()) -> spectra:type_info().
-get(Module, true) ->
-    cached_type_info(Module);
-get(Module, false) ->
+-spec get(Module :: module(), CacheMode :: spectra:module_types_cache()) -> spectra:type_info().
+get(Module, persistent) ->
+    persistent_cached_type_info(Module);
+get(Module, local) ->
+    local_cached_type_info(Module);
+get(Module, none) ->
     fetch_type_info(Module).
 
+-doc "Removes the persistent cache entry for `Module`.".
 -spec clear(Module :: module()) -> ok.
 clear(Module) ->
     persistent_term:erase({?MODULE, pers_types, Module}),
     ok.
 
+-doc "Removes all local (process-dictionary) cache entries for the calling process.".
+-spec clear_local() -> ok.
+clear_local() ->
+    erlang:erase(?LOCAL_CACHE_KEY),
+    ok.
+
 %% INTERNAL
 
--spec cached_type_info(Module :: module()) ->
-    spectra:type_info().
-cached_type_info(Module) ->
+-spec persistent_cached_type_info(Module :: module()) -> spectra:type_info().
+persistent_cached_type_info(Module) ->
     case pers_type(Module) of
         {ok, TypeInfo} ->
             TypeInfo;
@@ -50,6 +66,23 @@ cached_type_info(Module) ->
             TypeInfo
     end.
 
+-spec local_cached_type_info(Module :: module()) -> spectra:type_info().
+local_cached_type_info(Module) ->
+    Cache =
+        case erlang:get(?LOCAL_CACHE_KEY) of
+            undefined -> #{};
+            Map -> Map
+        end,
+    case Cache of
+        #{Module := TypeInfo} ->
+            TypeInfo;
+        #{} ->
+            TypeInfo = fetch_type_info(Module),
+            erlang:put(?LOCAL_CACHE_KEY, Cache#{Module => TypeInfo}),
+            TypeInfo
+    end.
+
+-spec fetch_type_info(Module :: module()) -> spectra:type_info().
 fetch_type_info(Module) ->
     case code:ensure_loaded(Module) of
         {module, Module} ->

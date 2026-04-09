@@ -690,12 +690,15 @@ It would be interesting to add support for key value lists, but as it isn't a na
 
 You can configure spectra behavior using application environment variables:
 
-#### `use_module_types_cache`
-- **Type**: `boolean()`
-- **Default**: `false`
-- **Description**: When set to `true`, enables caching of extracted type information for modules using persistent terms. This can improve performance when repeatedly processing the same modules.
-- **Note**: The module vsn is used for cache invalidation. When only changing types and not code, the module vsn is not updated, so the types will not be reflected until `spectra_module_types:clear/1` is called or the module is recompiled.
-- **Recommendation**: Enable this in production systems where no hot code reloading is done.
+#### `module_types_cache`
+- **Type**: `persistent | local | none`
+- **Default**: `local`
+- **Description**: Controls caching of extracted type information for modules.
+  - `persistent` — stores type info in `persistent_term`, shared across all processes. Fastest for read-heavy workloads. Writes are expensive and trigger a global GC scan.
+  - `local` — stores type info in the calling process's dictionary for the duration of a single `spectra:decode/encode/schema` call. Automatically cleared on return. Useful for request-scoped caching without the global write cost of `persistent_term`.
+  - `none` — no caching; type info is always re-extracted from BEAM debug info.
+- **Note**: The module vsn is used for cache invalidation. When only changing types and not code, the module vsn is not updated, so the types will not be reflected until `spectra_module_types:clear/1` (for `persistent`) or a new call (for `local`) is made, or the module is recompiled.
+- **Recommendation**: Use `persistent` in production systems where no hot code reloading is done. Use `local` when you want per-call caching without affecting other processes.
 
 #### `check_unicode`
 - **Type**: `boolean()`
@@ -706,7 +709,7 @@ Example configuration in `sys.config`:
 
 ```erlang
 {spectra, [
-    {use_module_types_cache, true},
+    {module_types_cache, local},
     {check_unicode, false}
 ]}.
 ```
