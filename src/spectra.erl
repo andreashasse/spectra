@@ -214,7 +214,7 @@ decode(Format, TypeInfo, TypeOrRef, Data, Options) ->
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 do_decode(Format, TypeInfo, RefAtom, Data, Options, Config) when is_atom(RefAtom) ->
-    TypeRef = spectra_util:normalize_type_ref(TypeInfo, RefAtom),
+    TypeRef = atom_to_type_ref(TypeInfo, RefAtom),
     do_decode(Format, TypeInfo, TypeRef, Data, Options, Config);
 do_decode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
@@ -346,7 +346,7 @@ encode(Format, TypeInfo, TypeOrRef, Data, Options) ->
 ) ->
     {ok, dynamic()} | {error, [error()]}.
 do_encode(Format, TypeInfo, TypeAtom, Data, Options, Config) when is_atom(TypeAtom) ->
-    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    TypeRef = atom_to_type_ref(TypeInfo, TypeAtom),
     do_encode(Format, TypeInfo, TypeRef, Data, Options, Config);
 do_encode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
@@ -537,10 +537,10 @@ maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
         Result -> Result
     end.
 
--spec do_schema(atom(), type_info(), sp_type_or_ref(), [schema_option()], sp_config()) ->
+-spec do_schema(atom(), type_info(), atom() | sp_type_or_ref(), [schema_option()], sp_config()) ->
     iodata() | map().
 do_schema(Format, TypeInfo, TypeAtom, Options, Config) when is_atom(TypeAtom) ->
-    TypeRef = spectra_util:normalize_type_ref(TypeInfo, TypeAtom),
+    TypeRef = atom_to_type_ref(TypeInfo, TypeAtom),
     do_schema_ref(Format, TypeInfo, TypeRef, Options, Config);
 do_schema(Format, TypeInfo, {type, _, _} = TypeRef, Options, Config) ->
     do_schema_ref(Format, TypeInfo, TypeRef, Options, Config);
@@ -577,6 +577,20 @@ type_ref_from_meta(SpType) ->
     case spectra_type:get_meta(SpType) of
         #{name := TypeRef} -> {ok, TypeRef};
         #{} -> error
+    end.
+
+-spec atom_to_type_ref(type_info(), atom()) -> sp_type_reference().
+atom_to_type_ref(TypeInfo, Atom) ->
+    case spectra_type_info:find_type(TypeInfo, Atom, 0) of
+        {ok, _} ->
+            {type, Atom, 0};
+        error ->
+            case spectra_type_info:find_record(TypeInfo, Atom) of
+                {ok, _} ->
+                    {record, Atom};
+                error ->
+                    erlang:error({type_or_record_not_found, Atom})
+            end
     end.
 
 -spec get_config() -> sp_config().
