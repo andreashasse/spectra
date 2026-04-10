@@ -334,7 +334,7 @@ encode_with_type_reference_test() ->
 
 decode_with_type_info_test() ->
     % Get type info once and reuse it
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
 
     % Use it for multiple operations
     Json = <<"123">>,
@@ -351,7 +351,7 @@ decode_with_type_info_test() ->
 
 encode_with_type_info_test() ->
     % Get type info once and reuse it
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
 
     % Use it for multiple operations
     ?assertEqual({ok, <<"123">>}, spectra:encode(json, TypeInfo, user_id, 123)),

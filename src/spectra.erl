@@ -200,7 +200,7 @@ Accepts an options list. Supported options:
     {ok, dynamic()} | {error, [error()]}.
 decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Module, Config),
     try
         do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
     after
@@ -340,7 +340,7 @@ Accepts an options list. Supported options:
     {ok, dynamic()} | {error, [error()]}.
 encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Module, Config),
     try
         do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
     after
@@ -465,7 +465,7 @@ Accepts an options list. Supported options:
     iodata() | dynamic().
 schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
     Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Module, Config),
     try
         do_schema(Format, TypeInfo, TypeOrRef, Options, Config)
     after

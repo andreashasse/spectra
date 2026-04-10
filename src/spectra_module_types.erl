@@ -1,9 +1,11 @@
 -module(spectra_module_types).
 
--export([get/1, get/2, clear/1, clear_local/0]).
+-include("../include/spectra_internal.hrl").
+
+-export([get/2, clear/1, clear_local/0]).
 
 %% Meant to be used when doing manual testing.
--ignore_xref([get/1, clear/1, clear_local/0]).
+-ignore_xref([clear/1, clear_local/0]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 -define(LOCAL_CACHE_KEY, {?MODULE, local_cache}).
@@ -11,34 +13,25 @@
 %% API
 
 -doc """
-Resolves type information for `Module`.
+Resolves type information for `Module` using the cache mode from `Config`.
 
-Equivalent to calling `get/2` with the default application environment config.
-""".
--spec get(Module :: module()) -> spectra:type_info().
-get(Module) ->
-    CacheMode = application:get_env(spectra, module_types_cache, local),
-    get(Module, CacheMode).
+When `Config#sp_config.module_types_cache` is `persistent` the result is
+cached in `persistent_term` and returned on subsequent calls without
+re-extracting the abstract code.
 
--doc """
-Resolves type information for `Module`.
-
-When `CacheMode` is `persistent` the result is cached in `persistent_term` and
-returned on subsequent calls without re-extracting the abstract code.
-
-When `CacheMode` is `local` the result is cached in the process dictionary
+When the cache mode is `local` the result is cached in the process dictionary
 under a single key `{spectra_module_types, local_cache}` which holds a map of
 `#{module() => type_info()}`. The caller is responsible for clearing the cache
 via `clear_local/0` when the top-level operation completes.
 
-When `CacheMode` is `none` type information is always re-extracted.
+When the cache mode is `none` type information is always re-extracted.
 """.
--spec get(Module :: module(), CacheMode :: spectra:module_types_cache()) -> spectra:type_info().
-get(Module, persistent) ->
+-spec get(Module :: module(), Config :: spectra:sp_config()) -> spectra:type_info().
+get(Module, #sp_config{module_types_cache = persistent}) ->
     persistent_cached_type_info(Module);
-get(Module, local) ->
+get(Module, #sp_config{module_types_cache = local}) ->
     local_cached_type_info(Module);
-get(Module, none) ->
+get(Module, #sp_config{module_types_cache = none}) ->
     fetch_type_info(Module).
 
 -doc "Removes the persistent cache entry for `Module`.".

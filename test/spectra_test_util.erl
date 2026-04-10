@@ -9,6 +9,7 @@
 -include("../include/spectra_internal.hrl").
 
 -export([
+    get_module_types/1,
     to_json/3,
     from_json/3,
     to_schema/2,
@@ -17,6 +18,9 @@
     to_binary_string/3,
     from_binary_string/3
 ]).
+
+get_module_types(Module) ->
+    spectra_module_types:get(Module, #sp_config{}).
 
 to_json(TypeInfo, Type, Data) ->
     spectra_json:to_json(TypeInfo, Type, Data, #sp_config{}).

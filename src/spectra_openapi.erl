@@ -719,7 +719,7 @@ generate_response(#{description := Description} = ResponseSpec, Config) when
                 #{description => Description};
             {Schema, Module} ->
                 ModuleTypeInfo = spectra_module_types:get(
-                    Module, Config#sp_config.module_types_cache
+                    Module, Config
                 ),
                 NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
                 SchemaContent =
@@ -787,7 +787,7 @@ copy_if_present(Key, Source, Target) ->
 
 -spec generate_response_header(response_header_spec(), spectra:sp_config()) -> openapi_header().
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Config) ->
-    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
     OpenApiSchema = maps:remove('$schema', InlineSchema),
@@ -797,7 +797,7 @@ generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Con
 
 -spec generate_request_body(request_body_spec(), spectra:sp_config()) -> openapi_request_body().
 generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec, Config) ->
-    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     SchemaContent =
         case NormalizedSchema of
@@ -834,7 +834,7 @@ generate_parameter(
 ) when
     is_binary(Name)
 ->
-    ModuleTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
@@ -922,7 +922,7 @@ collect_parameter_refs(Parameters, Config) ->
 -spec filter_typeref(spectra:sp_type_or_ref(), module(), spectra:sp_config()) ->
     {true, {module(), spectra:sp_type_reference()}} | false.
 filter_typeref(Schema, Module, Config) ->
-    TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(TypeInfo, Schema),
     case NormalizedSchema of
         {type, _, _} = TypeRef ->
@@ -943,7 +943,7 @@ generate_components(SchemaRefs, Config) ->
     Schemas = lists:foldl(
         fun({Module, TypeRef}, Acc) ->
             ModuleTypeInfo = spectra_module_types:get(
-                Module, Config#sp_config.module_types_cache
+                Module, Config
             ),
             Schema = to_inline_schema(ModuleTypeInfo, TypeRef, Config),
             SchemaName = schema_component_name(Module, TypeRef),
@@ -1000,7 +1000,7 @@ type_doc(_TypeInfo, #sp_remote_type{mfargs = {Mod, Name, _}, arity = Arity} = Re
         #{doc := Doc} ->
             maps:remove(examples_function, Doc);
         _ ->
-            RemoteTypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+            RemoteTypeInfo = spectra_module_types:get(Mod, Config),
             type_doc(
                 RemoteTypeInfo, spectra_type_info:get_type(RemoteTypeInfo, Name, Arity), Config
             )

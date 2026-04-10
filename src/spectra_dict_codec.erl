@@ -37,8 +37,6 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 
 -behaviour(spectra_codec).
 
--include("../include/spectra_internal.hrl").
-
 -export([encode/7, decode/7, schema/6]).
 
 -spec encode(
@@ -54,7 +52,7 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
 encode(json, Mod, {type, dict, 2} = TypeRef, Data, SpType, _Params, Config) ->
     try dict:to_list(Data) of
         Pairs ->
-            TypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+            TypeInfo = spectra_module_types:get(Mod, Config),
             [KeyType, ValueType] = spectra_type:type_args(SpType),
             encode_pairs(TypeInfo, KeyType, ValueType, Pairs, [], Config)
     catch
@@ -73,7 +71,7 @@ encode(json, Mod, {type, dict, 2} = TypeRef, Data, SpType, _Params, Config) ->
 ) ->
     spectra:codec_decode_result().
 decode(json, Mod, {type, dict, 2}, Data, SpType, _Params, Config) when is_map(Data) ->
-    TypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Mod, Config),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
     decode_pairs(TypeInfo, KeyType, ValueType, maps:to_list(Data), [], Config);
 decode(json, _Mod, {type, dict, 2} = TypeRef, Data, _SpType, _Params, _Config) ->
@@ -84,7 +82,7 @@ decode(json, _Mod, {type, dict, 2} = TypeRef, Data, _SpType, _Params, _Config) -
 ) ->
     dynamic().
 schema(json_schema, Mod, {type, dict, 2}, SpType, _Params, Config) ->
-    TypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Mod, Config),
     [_KeyType, ValueType] = spectra_type:type_args(SpType),
     ValueSchema = spectra_json_schema:to_schema(TypeInfo, ValueType, Config),
     #{type => <<"object">>, additionalProperties => ValueSchema}.

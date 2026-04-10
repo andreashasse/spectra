@@ -90,7 +90,7 @@ do_to_schema(
     #sp_remote_type{mfargs = {Mod, TypeName, Args}, arity = Arity} = RemoteRef,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Mod, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
     case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType, RemoteRef, Config) of
         continue ->
@@ -448,7 +448,7 @@ expand_to_literals(#sp_literal{} = Literal, _TypeInfo, _Config) ->
 expand_to_literals(
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity}, _TypeInfo, Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config),
     Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
     expand_to_literals(TypeWithoutVars, RemoteTypeInfo, Config);

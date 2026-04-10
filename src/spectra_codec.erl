@@ -53,7 +53,7 @@ recursively encode/decode keys and values:
 
 ```erlang
 encode(json, Mod, _TypeRef, Data, SpType, _Params, Config) ->
-    TypeInfo = spectra_module_types:get(Mod, Config#sp_config.module_types_cache),
+    TypeInfo = spectra_module_types:get(Mod, Config),
     [KeyType, ValueType] = spectra_type:type_args(SpType),
     encode_pairs(TypeInfo, KeyType, ValueType, dict:to_list(Data), #{}, Config).
 ```

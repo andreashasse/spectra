@@ -86,7 +86,7 @@ records_with_spectra() ->
     ]).
 
 prop_schema_consistency_for_types() ->
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
     ?FORALL(
         %% FIXME: instead of these silly types we should generate random types
         %% with -spectra attributes in sp_type_generator
@@ -112,7 +112,7 @@ prop_schema_consistency_for_types() ->
     ).
 
 prop_schema_consistency_for_records() ->
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
     ?FORALL(
         RecordName,
         records_with_spectra(),

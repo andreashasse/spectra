@@ -103,11 +103,11 @@ codec check is needed.
 """.
 -spec find_codec(module(), spectra:sp_type_reference(), spectra:sp_config()) ->
     {ok, module()} | error.
-find_codec(Mod, TypeRef, #sp_config{codecs = Codecs, module_types_cache = CacheMode}) ->
+find_codec(Mod, TypeRef, #sp_config{codecs = Codecs} = Config) ->
     case maps:find({Mod, TypeRef}, Codecs) of
         {ok, CodecMod} ->
             code:ensure_loaded(CodecMod),
             {ok, CodecMod};
         error ->
-            find_local_codec(spectra_module_types:get(Mod, CacheMode))
+            find_local_codec(spectra_module_types:get(Mod, Config))
     end.

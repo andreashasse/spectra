@@ -220,7 +220,7 @@ record_ref_with_own_doc_test() ->
 
 %% Test passing sp_rec{} directly to to_schema
 record_sp_rec_direct_test() ->
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
     {ok, UserRec} = spectra_type_info:find_record(TypeInfo, user),
     SchemaJson = spectra:schema(json_schema, TypeInfo, UserRec),
     Schema = json:decode(iolist_to_binary(SchemaJson)),
@@ -245,7 +245,7 @@ record_sp_rec_direct_test() ->
 
 %% Test passing sp_rec_ref{} directly to to_schema
 record_sp_rec_ref_direct_test() ->
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
     % Get the user_ref type which is #sp_rec_ref{}
     UserRefType = spectra_type_info:get_type(TypeInfo, user_ref, 0),
     SchemaJson = spectra:schema(json_schema, TypeInfo, UserRefType),

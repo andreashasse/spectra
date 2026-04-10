@@ -74,7 +74,7 @@ from_binary_string(
     Opts,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
@@ -214,7 +214,7 @@ to_binary_string(
     Opts,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
