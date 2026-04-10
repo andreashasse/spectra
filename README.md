@@ -144,35 +144,35 @@ Implement the `spectra_codec` behaviour in your module. Codec callbacks receive 
 -module(my_geo_codec).
 -behaviour(spectra_codec).
 
--export([encode/6, decode/6, schema/5]).
+-export([encode/7, decode/7, schema/6]).
 
 %% point() is an opaque type: {X, Y} tuple serialised as a JSON [X, Y] array.
 -type point() :: {float(), float()}.
 -export_type([point/0]).
 
-encode(json, _Mod, {type, point, 0}, {X, Y}, _SpType, _Params) when is_number(X), is_number(Y) ->
+encode(json, _Mod, {type, point, 0}, {X, Y}, _SpType, _Params, _Config) when is_number(X), is_number(Y) ->
     {ok, [X, Y]};
-encode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
+encode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params) ->
+encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params, _Config) ->
     continue.
 
-decode(json, _Mod, {type, point, 0}, [X, Y], _SpType, _Params) when is_number(X), is_number(Y) ->
+decode(json, _Mod, {type, point, 0}, [X, Y], _SpType, _Params, _Config) when is_number(X), is_number(Y) ->
     {ok, {X, Y}};
-decode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params) ->
+decode(_Format, _Mod, {type, point, 0}, Data, _SpType, _Params, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_Format, _Mod, _TypeRef, _Input, _SpType, _Params) ->
+decode(_Format, _Mod, _TypeRef, _Input, _SpType, _Params, _Config) ->
     continue.
 
-schema(json_schema, _Mod, {type, point, 0}, _SpType, _Params) ->
+schema(json_schema, _Mod, {type, point, 0}, _SpType, _Params, _Config) ->
     #{type => <<"array">>, items => #{type => <<"number">>}, minItems => 2, maxItems => 2};
-schema(_Format, _Mod, _TypeRef, _SpType, _Params) ->
+schema(_Format, _Mod, _TypeRef, _SpType, _Params, _Config) ->
     continue.
 ```
 
 For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
 
-The `schema/5` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+The `schema/6` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
 
 ### Types in the Same Module (No Configuration)
 
@@ -312,7 +312,7 @@ Unknown keys in the `type_parameters` map crash with `{invalid_string_constraint
 
 ### Codec Configuration
 
-The `type_parameters` value is passed as `Params` (the 6th argument) to `encode/6`, `decode/6`, and `schema/5`. This lets you reuse a single codec across multiple types that differ only by configuration.
+The `type_parameters` value is passed as `Params` (the 6th argument) to `encode/7`, `decode/7`, and `schema/6`. This lets you reuse a single codec across multiple types that differ only by configuration.
 
 For example, a prefixed-ID codec where each type carries its own expected prefix:
 
@@ -320,7 +320,7 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 -module(prefixed_id_codec).
 -behaviour(spectra_codec).
 
--export([encode/6, decode/6, schema/5]).
+-export([encode/7, decode/7, schema/6]).
 
 %% Only user_id() and org_id() are defined in this module, so spectra will only
 %% ever call this codec for those two types — no continue clause needed.
@@ -335,21 +335,21 @@ For example, a prefixed-ID codec where each type carries its own expected prefix
 -export_type([user_id/0, org_id/0]).
 
 %% Strips the prefix on decode, re-attaches it on encode.
-decode(json, ?MODULE, TypeRef, Data, _SpType, Prefix) when is_binary(Data), is_binary(Prefix) ->
+decode(json, ?MODULE, TypeRef, Data, _SpType, Prefix, _Config) when is_binary(Data), is_binary(Prefix) ->
     PrefixLen = byte_size(Prefix),
     case Data of
         <<Prefix:PrefixLen/binary, Rest/binary>> -> {ok, Rest};
         _ -> {error, [sp_error:type_mismatch(TypeRef, Data)]}
     end;
-decode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix) ->
+decode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix, _Config) ->
     {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
-encode(json, ?MODULE, _TypeRef, Data, _SpType, Prefix) when is_binary(Data), is_binary(Prefix) ->
+encode(json, ?MODULE, _TypeRef, Data, _SpType, Prefix, _Config) when is_binary(Data), is_binary(Prefix) ->
     {ok, <<Prefix/binary, Data/binary>>};
-encode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix) ->
+encode(json, ?MODULE, TypeRef, Data, _SpType, _Prefix, _Config) ->
     {error, [sp_error:type_mismatch(TypeRef, Data)]}.
 
-schema(json_schema, ?MODULE, _TypeRef, _SpType, Prefix) when is_binary(Prefix) ->
+schema(json_schema, ?MODULE, _TypeRef, _SpType, Prefix, _Config) when is_binary(Prefix) ->
     #{type => <<"string">>, pattern => <<"^", Prefix/binary>>}.
 ```
 

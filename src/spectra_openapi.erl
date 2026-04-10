@@ -585,46 +585,46 @@ endpoints_to_openapi(MetaData, Endpoints) ->
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
-    Config = #sp_config{
-        module_types_cache = application:get_env(spectra, module_types_cache, local),
-        check_unicode = application:get_env(spectra, check_unicode, false),
-        codecs = application:get_env(spectra, codecs, #{})
-    },
-    PathGroups = group_endpoints_by_path(Endpoints),
-    Paths =
-        maps:fold(
-            fun(Path, PathEndpoints, Acc) ->
-                PathOps = generate_path_operations(PathEndpoints, Config),
-                Acc#{Path => PathOps}
-            end,
-            #{},
-            PathGroups
-        ),
+    Config = spectra:get_config(),
+    try
+        PathGroups = group_endpoints_by_path(Endpoints),
+        Paths =
+            maps:fold(
+                fun(Path, PathEndpoints, Acc) ->
+                    PathOps = generate_path_operations(PathEndpoints, Config),
+                    Acc#{Path => PathOps}
+                end,
+                #{},
+                PathGroups
+            ),
 
-    SchemaRefs = collect_schema_refs(Endpoints, Config),
-    ComponentsResult = generate_components(SchemaRefs, Config),
-    BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
-    Info = lists:foldl(
-        fun({MetaKey, InfoKey}, Acc) ->
-            case maps:get(MetaKey, MetaData, undefined) of
-                undefined -> Acc;
-                Value -> Acc#{InfoKey => Value}
-            end
-        end,
-        BaseInfo,
-        [
-            {summary, summary},
-            {description, description},
-            {terms_of_service, termsOfService},
-            {contact, contact},
-            {license, license}
-        ]
-    ),
-    BaseSpec = #{
-        openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
-    },
-    OpenAPISpec = copy_if_present(servers, MetaData, BaseSpec),
-    spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options).
+        SchemaRefs = collect_schema_refs(Endpoints, Config),
+        ComponentsResult = generate_components(SchemaRefs, Config),
+        BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
+        Info = lists:foldl(
+            fun({MetaKey, InfoKey}, Acc) ->
+                case maps:get(MetaKey, MetaData, undefined) of
+                    undefined -> Acc;
+                    Value -> Acc#{InfoKey => Value}
+                end
+            end,
+            BaseInfo,
+            [
+                {summary, summary},
+                {description, description},
+                {terms_of_service, termsOfService},
+                {contact, contact},
+                {license, license}
+            ]
+        ),
+        BaseSpec = #{
+            openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
+        },
+        OpenAPISpec = copy_if_present(servers, MetaData, BaseSpec),
+        spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options)
+    after
+        spectra_module_types:clear_local()
+    end.
 
 -spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
 group_endpoints_by_path(Endpoints) ->

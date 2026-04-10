@@ -88,3 +88,15 @@ get_module_with_type_info_fun_with_persistent_cache_test() ->
     ),
     ?assertEqual(TypeInfo1, TypeInfo2),
     spectra_module_types:clear(spectra_test_module_with_spectra).
+
+local_cache_cleared_after_spectra_decode_test() ->
+    %% The local cache is stored in the process dictionary; verify it is
+    %% absent after a spectra:decode/4 call returns (try...after cleanup).
+    spectra_module_types:clear_local(),
+    _ = spectra:decode(json, other, account, <<"null">>),
+    ?assertEqual(undefined, erlang:get({spectra_module_types, local_cache})).
+
+local_cache_cleared_after_spectra_encode_test() ->
+    spectra_module_types:clear_local(),
+    _ = spectra:encode(json, other, account, undefined),
+    ?assertEqual(undefined, erlang:get({spectra_module_types, local_cache})).

@@ -1,8 +1,8 @@
 -module(spectra).
 
--export([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
+-export([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0]).
 
--ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4]).
+-ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
