@@ -49,11 +49,10 @@ from_binary_string(
     Opts,
     Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             binary_string,
             Type,
             BinaryString,
@@ -78,7 +77,7 @@ from_binary_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
-            Module,
+            RemoteTypeInfo,
             binary_string,
             RemoteType,
             BinaryString,
@@ -97,11 +96,10 @@ from_binary_string(
 from_binary_string(
     TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, BinaryString, _Opts, Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             binary_string,
             RecordType,
             BinaryString,
@@ -189,11 +187,10 @@ to_binary_string(
     Opts,
     Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             binary_string,
             Type,
             Data,
@@ -218,7 +215,7 @@ to_binary_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
-            Module,
+            RemoteTypeInfo,
             binary_string,
             RemoteType,
             Data,
@@ -233,11 +230,10 @@ to_binary_string(
             Result
     end;
 to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, _Opts, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             binary_string,
             RecordType,
             Data,

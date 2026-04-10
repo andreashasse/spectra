@@ -92,22 +92,22 @@ find_local_codec(#type_info{implements_codec = true, module = M}) -> {ok, M};
 find_local_codec(#type_info{implements_codec = false}) -> error.
 
 -doc """
-Resolves the codec module for `{Mod, TypeRef}`.
+Resolves the codec module for `{Mod, TypeRef}` using a pre-loaded `TypeInfo`.
 
-Checks the supplied `Codecs` map first, then falls back to the module's own
-`spectra_codec` behaviour if it implements one. Calls `code:ensure_loaded/1`
-on any codec found in the map so it is ready before its callbacks are dispatched.
-
-The `Config` is forwarded to `spectra_module_types:get/2` when a local
-codec check is needed.
+Checks the global codecs map first, then falls back to the module's own
+`spectra_codec` behaviour if it implements one. Uses the already-loaded
+`TypeInfo` to avoid a cache lookup. The caller must ensure that `TypeInfo`
+is the type info for the module that owns `TypeRef`.
 """.
--spec find_codec(module(), spectra:sp_type_reference(), spectra:sp_config()) ->
+-spec find_codec(type_info(), spectra:sp_type_reference(), spectra:sp_config()) ->
     {ok, module()} | error.
-find_codec(Mod, TypeRef, #sp_config{codecs = Codecs} = Config) ->
+find_codec(TypeInfo, TypeRef, #sp_config{codecs = Codecs}) ->
+    Mod = get_module(TypeInfo),
     case maps:find({Mod, TypeRef}, Codecs) of
         {ok, CodecMod} ->
             code:ensure_loaded(CodecMod),
             {ok, CodecMod};
         error ->
-            find_local_codec(spectra_module_types:get(Mod, Config))
+            find_local_codec(TypeInfo)
     end.
+

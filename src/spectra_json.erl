@@ -48,11 +48,10 @@ to_json(
 ) when
     is_atom(TypeName)
 ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             json,
             Type,
             Data,
@@ -76,7 +75,7 @@ to_json(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
-            Module,
+            RemoteTypeInfo,
             json,
             RemoteType,
             Data,
@@ -102,11 +101,10 @@ to_json(
 ) when
     is_atom(RecordName)
 ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             json,
             RecordType,
             Record,
@@ -515,11 +513,10 @@ do_from_json(
 ) when
     is_atom(TypeName)
 ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             json,
             Type,
             Json,
@@ -543,7 +540,7 @@ do_from_json(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
-            Module,
+            RemoteTypeInfo,
             json,
             RemoteType,
             Json,
@@ -569,11 +566,10 @@ do_from_json(
 ) when
     is_atom(RecordName)
 ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             json,
             RecordType,
             Json,

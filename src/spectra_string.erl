@@ -43,11 +43,10 @@ from_string(
     String,
     Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             string,
             Type,
             String,
@@ -62,11 +61,10 @@ from_string(
             Result
     end;
 from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_decode(
-            Mod,
+            TypeInfo,
             string,
             RecordType,
             String,
@@ -87,7 +85,7 @@ from_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_decode(
-            Module,
+            RemoteTypeInfo,
             string,
             RemoteType,
             String,
@@ -172,11 +170,10 @@ to_string(
     Data,
     Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             string,
             Type,
             Data,
@@ -191,11 +188,10 @@ to_string(
             Result
     end;
 to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     case
         spectra_codec:try_codec_encode(
-            Mod,
+            TypeInfo,
             string,
             RecordType,
             Data,
@@ -216,7 +212,7 @@ to_string(
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     case
         spectra_codec:try_codec_encode(
-            Module,
+            RemoteTypeInfo,
             string,
             RemoteType,
             Data,
