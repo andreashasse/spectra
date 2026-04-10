@@ -60,7 +60,7 @@ to_json(
         )
     of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             to_json(TypeInfo, TypeWithoutVars, Data, Config);
         Result ->
             Result
@@ -85,7 +85,7 @@ to_json(
     of
         continue ->
             TypeResolved = spectra_type:propagate_params(
-                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+                RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
             to_json(RemoteTypeInfo, TypeResolved, Data, Config);
         Result ->
@@ -525,7 +525,7 @@ do_from_json(
         )
     of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Json, Config);
         Result ->
             Result
@@ -550,7 +550,7 @@ do_from_json(
     of
         continue ->
             TypeResolved = spectra_type:propagate_params(
-                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+                RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
             do_from_json(RemoteTypeInfo, TypeResolved, Json, Config);
         Result ->
@@ -881,19 +881,6 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, Config, ErrorsAcc) ->
         {error, Errors} ->
             do_first(Fun, TypeInfo, Rest, Json, Config, [{Type, Errors} | ErrorsAcc])
     end.
-
-apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
-    ArgNames = arg_names(Type),
-    NamedTypes =
-        maps:from_list(
-            lists:zip(ArgNames, TypeArgs)
-        ),
-    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
-
-arg_names(#sp_type_with_variables{vars = Args}) ->
-    Args;
-arg_names(_) ->
-    [].
 
 -spec map_from_json(
     spectra:type_info(),

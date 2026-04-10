@@ -79,7 +79,7 @@ do_to_schema(
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
     case spectra_codec:try_codec_schema(TypeInfo, json_schema, Type, UserTypeRef, Config) of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             do_to_schema(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
@@ -96,7 +96,7 @@ do_to_schema(
     of
         continue ->
             TypeResolved = spectra_type:propagate_params(
-                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+                RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
             do_to_schema(RemoteTypeInfo, TypeResolved, Config);
         Schema ->
@@ -264,7 +264,7 @@ can_be_json_key(TypeInfo, #sp_user_type_ref{
     type_name = TypeName, variables = TypeArgs, arity = TypeArity
 }) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, TypeArgs),
     can_be_json_key(TypeInfo, TypeWithoutVars);
 can_be_json_key(_TypeInfo, _Type) ->
     false.
@@ -273,19 +273,6 @@ can_be_json_key(_TypeInfo, _Type) ->
 -spec add_schema_version(json_schema_object()) -> json_schema().
 add_schema_version(Schema) ->
     Schema#{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}.
-
-arg_names(#sp_type_with_variables{vars = Args}) ->
-    Args;
-arg_names(_) ->
-    [].
-
-apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
-    ArgNames = arg_names(Type),
-    NamedTypes =
-        maps:from_list(
-            lists:zip(ArgNames, TypeArgs)
-        ),
-    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
 
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()], spectra:sp_config()) ->
     json_schema_object().
@@ -450,7 +437,7 @@ expand_to_literals(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
+    TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, Type, Args),
     expand_to_literals(TypeWithoutVars, RemoteTypeInfo, Config);
 %% Resolve user type references
 expand_to_literals(
@@ -461,7 +448,7 @@ expand_to_literals(
     TypeInfo =/= undefined
 ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, TypeArgs),
     expand_to_literals(TypeWithoutVars, TypeInfo, Config);
 %% Flatten unions - all members must expand to literals
 expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo, Config) ->

@@ -61,7 +61,7 @@ from_binary_string(
         )
     of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             from_binary_string(TypeInfo, TypeWithoutVars, BinaryString, Opts, Config);
         Result ->
             Result
@@ -87,7 +87,7 @@ from_binary_string(
     of
         continue ->
             TypeResolved = spectra_type:propagate_params(
-                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+                RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
             from_binary_string(RemoteTypeInfo, TypeResolved, BinaryString, Opts, Config);
         Result ->
@@ -199,7 +199,7 @@ to_binary_string(
         )
     of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             to_binary_string(TypeInfo, TypeWithoutVars, Data, Opts, Config);
         Result ->
             Result
@@ -224,7 +224,7 @@ to_binary_string(
         )
     of
         continue ->
-            TypeWithoutVars = apply_args(RemoteTypeInfo, RemoteType, Args),
+            TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args),
             to_binary_string(RemoteTypeInfo, TypeWithoutVars, Data, Opts, Config);
         Result ->
             Result
@@ -446,19 +446,6 @@ do_first(Fun, TypeInfo, [Type | Rest], BinaryString, Opts, Config, ErrorsAcc) ->
         {error, Errors} ->
             do_first(Fun, TypeInfo, Rest, BinaryString, Opts, Config, [{Type, Errors} | ErrorsAcc])
     end.
-
-apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
-    ArgNames = arg_names(Type),
-    NamedTypes =
-        maps:from_list(
-            lists:zip(ArgNames, TypeArgs)
-        ),
-    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
-
-arg_names(#sp_type_with_variables{vars = Args}) ->
-    Args;
-arg_names(_) ->
-    [].
 
 convert_type_to_binary_string(integer, Data) when is_integer(Data) ->
     {ok, integer_to_binary(Data)};

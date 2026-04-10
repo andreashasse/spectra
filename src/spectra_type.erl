@@ -53,12 +53,7 @@ can_be_missing(TypeInfo, Type) ->
         #sp_type_with_variables{type = Type2} ->
             can_be_missing(TypeInfo, Type2);
         #sp_union{types = Types} ->
-            case lists:filtermap(fun(T) -> can_be_missing(TypeInfo, T) end, Types) of
-                [] ->
-                    false;
-                MissingValues ->
-                    {true, lists:last(MissingValues)}
-            end;
+            union_missing_value(TypeInfo, Types, false);
         #sp_literal{value = LiteralValue} when
             LiteralValue =:= nil orelse LiteralValue =:= undefined
         ->
@@ -68,6 +63,21 @@ can_be_missing(TypeInfo, Type) ->
             can_be_missing(TypeInfo, RefType);
         _ ->
             false
+    end.
+
+-spec union_missing_value(
+    TypeInfo :: spectra:type_info(),
+    Types :: [spectra:sp_type()],
+    Acc :: {true, spectra:missing_value()} | false
+) -> {true, spectra:missing_value()} | false.
+union_missing_value(_TypeInfo, [], Acc) ->
+    Acc;
+union_missing_value(TypeInfo, [Type | Rest], Acc) ->
+    case can_be_missing(TypeInfo, Type) of
+        false ->
+            union_missing_value(TypeInfo, Rest, Acc);
+        {true, _} = Missing ->
+            union_missing_value(TypeInfo, Rest, Missing)
     end.
 
 -doc "Extracts the meta map from any `sp_type()` record.".
