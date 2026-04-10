@@ -103,10 +103,9 @@ is the type info for the module that owns `TypeRef`.
     {ok, module()} | error.
 find_codec(TypeInfo, TypeRef, #sp_config{codecs = Codecs}) ->
     Mod = get_module(TypeInfo),
-    case maps:find({Mod, TypeRef}, Codecs) of
-        {ok, CodecMod} ->
-            code:ensure_loaded(CodecMod),
+    case Codecs of
+        #{{Mod, TypeRef} := CodecMod} ->
             {ok, CodecMod};
-        error ->
+        #{} ->
             find_local_codec(TypeInfo)
     end.

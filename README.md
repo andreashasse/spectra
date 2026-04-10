@@ -172,7 +172,7 @@ schema(_Format, _Mod, _TypeRef, _SpType, _Params, _Config) ->
 
 For types your codec owns, return `{error, [sp_error:type_mismatch(TypeRef, Data)]}` when the data does not match — this allows spectra to correctly handle union types like `point() | undefined` by trying the next alternative instead of crashing on structural encoding of an opaque type.
 
-The `schema/6` callback is optional — you do not need to export it. If it is absent, calling `spectra:schema/3,4` for a type owned by that codec raises `{schema_not_implemented, Module, TypeRef}`.
+The `schema/6` callback is optional — you do not need to export it if you only support formats that don't have a schema.
 
 ### Types in the Same Module (No Configuration)
 

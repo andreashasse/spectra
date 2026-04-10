@@ -158,13 +158,12 @@ try_codec_schema(TypeInfo, Format, Type, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
         {ok, M} ->
-            case erlang:function_exported(M, schema, 6) of
-                true ->
-                    M:schema(
-                        Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config
-                    );
-                false ->
-                    erlang:error({schema_not_implemented, M, TypeReference})
+            try
+                M:schema(
+                    Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config
+                )
+            catch
+                error:undef -> erlang:error({schema_not_implemented, M, TypeReference})
             end;
         error ->
             continue
