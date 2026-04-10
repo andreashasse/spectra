@@ -110,4 +110,3 @@ find_codec(TypeInfo, TypeRef, #sp_config{codecs = Codecs}) ->
         error ->
             find_local_codec(TypeInfo)
     end.
-

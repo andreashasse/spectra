@@ -91,7 +91,9 @@ do_to_schema(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Mod, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_schema(RemoteTypeInfo, json_schema, RemoteType, RemoteRef, Config) of
+    case
+        spectra_codec:try_codec_schema(RemoteTypeInfo, json_schema, RemoteType, RemoteRef, Config)
+    of
         continue ->
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
