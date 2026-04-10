@@ -154,7 +154,7 @@ unknown_constraint_key_crashes_test() ->
         {ok, Type} = spectra_type_info:find_type(TypeInfo, my_binary, 0),
         ?assertError(
             {invalid_string_constraint, unknown_key, 1},
-            spectra_json:from_json(TypeInfo, Type, <<"hello">>, #sp_config{})
+            spectra_test_util:from_json(TypeInfo, Type, <<"hello">>)
         )
     after
         code:purge(bad_constraints_module),
