@@ -606,10 +606,18 @@ type_ref_from_meta(SpType) ->
 -spec get_config() -> sp_config().
 get_config() ->
     #sp_config{
-        module_types_cache = application:get_env(spectra, module_types_cache, local),
+        module_types_cache = valid_module_types_cache(
+            application:get_env(spectra, module_types_cache, local)
+        ),
         check_unicode = application:get_env(spectra, check_unicode, false),
         codecs = application:get_env(spectra, codecs, #{})
     }.
+
+-spec valid_module_types_cache(term()) -> module_types_cache().
+valid_module_types_cache(persistent) -> persistent;
+valid_module_types_cache(local) -> local;
+valid_module_types_cache(none) -> none;
+valid_module_types_cache(Value) -> erlang:error({invalid_config, module_types_cache, Value}).
 
 -spec maybe_clear_local_cache(sp_config()) -> ok.
 maybe_clear_local_cache(#sp_config{module_types_cache = local}) ->

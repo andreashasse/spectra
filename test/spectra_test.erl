@@ -733,3 +733,14 @@ get_config_default_check_unicode_test() ->
 get_config_default_codecs_test() ->
     Config = spectra:get_config(),
     ?assertEqual(#{}, Config#sp_config.codecs).
+
+get_config_invalid_module_types_cache_test() ->
+    application:set_env(spectra, module_types_cache, bad_value),
+    try
+        ?assertError(
+            {invalid_config, module_types_cache, bad_value},
+            spectra:get_config()
+        )
+    after
+        application:unset_env(spectra, module_types_cache)
+    end.
