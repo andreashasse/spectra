@@ -1,7 +1,5 @@
 -module(spectra_codec).
 
--include("../include/spectra_internal.hrl").
-
 -doc """
 Behaviour for custom codecs that extend spectra's encoding, decoding, and
 schema generation for specific types and formats.
