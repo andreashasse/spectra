@@ -57,8 +57,7 @@ to_json(
             Type,
             Data,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -82,8 +81,7 @@ to_json(
             RemoteType,
             Data,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -113,8 +111,7 @@ to_json(
             RecordType,
             Record,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
@@ -527,8 +524,7 @@ do_from_json(
             Type,
             Json,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -552,8 +548,7 @@ do_from_json(
             RemoteType,
             Json,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -583,8 +578,7 @@ do_from_json(
             RecordType,
             Json,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);

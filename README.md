@@ -697,7 +697,7 @@ You can configure spectra behavior using application environment variables:
   - `persistent` — stores type info in `persistent_term`, shared across all processes. Fastest for read-heavy workloads. Writes are expensive and trigger a global GC scan.
   - `local` — stores type info in the calling process's dictionary for the duration of a single `spectra:decode/encode/schema` call. Automatically cleared on return. Useful for request-scoped caching without the global write cost of `persistent_term`.
   - `none` — no caching; type info is always re-extracted from BEAM debug info.
-- **Note**: The module vsn is used for cache invalidation. When only changing types and not code, the module vsn is not updated, so the types will not be reflected until `spectra_module_types:clear/1` (for `persistent`) or a new call (for `local`) is made, or the module is recompiled.
+- **Note**: With `persistent`, cached type info remains until you explicitly clear it with `spectra_module_types:clear/1`. With `local`, the cache only exists for a single `spectra:decode/encode/schema` call and is automatically cleared when that call returns, so type changes are picked up on the next call.
 - **Recommendation**: Use `persistent` in production systems where no hot code reloading is done. Use `local` when you want per-call caching without affecting other processes.
 
 #### `check_unicode`

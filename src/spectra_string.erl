@@ -52,8 +52,7 @@ from_string(
             Type,
             String,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -72,8 +71,7 @@ from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String,
             RecordType,
             String,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -94,8 +92,7 @@ from_string(
             RemoteType,
             String,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -184,8 +181,7 @@ to_string(
             Type,
             Data,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -204,8 +200,7 @@ to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Con
             RecordType,
             Data,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -226,8 +221,7 @@ to_string(
             RemoteType,
             Data,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->

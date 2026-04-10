@@ -100,8 +100,8 @@ where the reference node is available.
 -optional_callbacks([schema/6]).
 
 -export([
-    try_codec_encode/7,
-    try_codec_decode/7,
+    try_codec_encode/6,
+    try_codec_decode/6,
     try_codec_schema/5
 ]).
 
@@ -112,13 +112,11 @@ where the reference node is available.
     Type :: spectra:sp_type(),
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
-    Codecs :: #{spectra:codec_key() => module()},
-    CacheMode :: spectra:module_types_cache()
+    Config :: spectra:sp_config()
 ) -> spectra:codec_encode_result().
-try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
-    Config = #sp_config{codecs = Codecs, module_types_cache = CacheMode},
+try_codec_encode(Mod, Format, Type, Data, SpType, Config) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Config) of
         {ok, M} ->
             M:encode(
                 Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
@@ -134,13 +132,11 @@ try_codec_encode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
     Type :: spectra:sp_type(),
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
-    Codecs :: #{spectra:codec_key() => module()},
-    CacheMode :: spectra:module_types_cache()
+    Config :: spectra:sp_config()
 ) -> spectra:codec_decode_result().
-try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
-    Config = #sp_config{codecs = Codecs, module_types_cache = CacheMode},
+try_codec_decode(Mod, Format, Type, Data, SpType, Config) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case spectra_type_info:find_codec(Mod, TypeReference, Codecs, CacheMode) of
+    case spectra_type_info:find_codec(Mod, TypeReference, Config) of
         {ok, M} ->
             M:decode(
                 Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
@@ -159,11 +155,7 @@ try_codec_decode(Mod, Format, Type, Data, SpType, Codecs, CacheMode) ->
 ) -> dynamic() | continue.
 try_codec_schema(Mod, Format, Type, SpType, Config) ->
     #{name := TypeReference} = spectra_type:get_meta(Type),
-    case
-        spectra_type_info:find_codec(
-            Mod, TypeReference, Config#sp_config.codecs, Config#sp_config.module_types_cache
-        )
-    of
+    case spectra_type_info:find_codec(Mod, TypeReference, Config) of
         {ok, M} ->
             case erlang:function_exported(M, schema, 6) of
                 true ->

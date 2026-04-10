@@ -58,8 +58,7 @@ from_binary_string(
             Type,
             BinaryString,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -84,8 +83,7 @@ from_binary_string(
             RemoteType,
             BinaryString,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -108,8 +106,7 @@ from_binary_string(
             RecordType,
             BinaryString,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});
@@ -201,8 +198,7 @@ to_binary_string(
             Type,
             Data,
             UserTypeRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -227,8 +223,7 @@ to_binary_string(
             RemoteType,
             Data,
             RemoteRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue ->
@@ -247,8 +242,7 @@ to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Da
             RecordType,
             Data,
             RecordRef,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> erlang:error({type_not_supported, RecordType});

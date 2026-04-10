@@ -201,14 +201,18 @@ Accepts an options list. Supported options:
 decode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
     TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
-    Result = do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result;
+    try
+        do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end;
 decode(Format, TypeInfo, TypeOrRef, Data, Options) ->
     Config = get_config(),
-    Result = do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result.
+    try
+        do_decode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end.
 
 -spec do_decode(
     Format :: atom(),
@@ -337,14 +341,18 @@ Accepts an options list. Supported options:
 encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
     Config = get_config(),
     TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
-    Result = do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result;
+    try
+        do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end;
 encode(Format, TypeInfo, TypeOrRef, Data, Options) ->
     Config = get_config(),
-    Result = do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result.
+    try
+        do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end.
 
 -spec do_encode(
     Format :: atom(),
@@ -458,14 +466,18 @@ Accepts an options list. Supported options:
 schema(Format, Module, TypeOrRef, Options) when is_atom(Module) ->
     Config = get_config(),
     TypeInfo = spectra_module_types:get(Module, Config#sp_config.module_types_cache),
-    Result = do_schema(Format, TypeInfo, TypeOrRef, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result;
+    try
+        do_schema(Format, TypeInfo, TypeOrRef, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end;
 schema(Format, TypeInfo, TypeOrRef, Options) ->
     Config = get_config(),
-    Result = do_schema(Format, TypeInfo, TypeOrRef, Options, Config),
-    maybe_clear_local_cache(Config),
-    Result.
+    try
+        do_schema(Format, TypeInfo, TypeOrRef, Options, Config)
+    after
+        maybe_clear_local_cache(Config)
+    end.
 
 -spec resolve_type_ref(type_info(), sp_type_reference()) -> sp_type().
 resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
@@ -518,8 +530,7 @@ maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
             SpType,
             Data,
             SpType,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> default_decode(Format, TypeInfo, SpType, Data, Options, Config);
@@ -543,8 +554,7 @@ maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
             SpType,
             Data,
             SpType,
-            Config#sp_config.codecs,
-            Config#sp_config.module_types_cache
+            Config
         )
     of
         continue -> default_encode(Format, TypeInfo, SpType, Data, Options, Config);

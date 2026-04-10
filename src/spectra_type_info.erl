@@ -18,7 +18,7 @@ tracks whether the owning module implements the `spectra_codec` behaviour.
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([find_codec/4]).
+-export([find_codec/3]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -98,15 +98,12 @@ Checks the supplied `Codecs` map first, then falls back to the module's own
 `spectra_codec` behaviour if it implements one. Calls `code:ensure_loaded/1`
 on any codec found in the map so it is ready before its callbacks are dispatched.
 
-The `CacheMode` flag is forwarded to `spectra_module_types:get/2` when a local
+The `Config` is forwarded to `spectra_module_types:get/2` when a local
 codec check is needed.
 """.
--spec find_codec(module(), spectra:sp_type_reference(), Codecs, CacheMode) ->
-    {ok, module()} | error
-when
-    Codecs :: #{spectra:codec_key() => module()},
-    CacheMode :: spectra:module_types_cache().
-find_codec(Mod, TypeRef, Codecs, CacheMode) ->
+-spec find_codec(module(), spectra:sp_type_reference(), spectra:sp_config()) ->
+    {ok, module()} | error.
+find_codec(Mod, TypeRef, #sp_config{codecs = Codecs, module_types_cache = CacheMode}) ->
     case maps:find({Mod, TypeRef}, Codecs) of
         {ok, CodecMod} ->
             code:ensure_loaded(CodecMod),
