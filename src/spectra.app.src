@@ -3,7 +3,7 @@
     {vsn, "git"},
     {registered, []},
     {applications, [kernel, stdlib]},
-    {env, [{check_unicode, false}, {use_module_types_cache, false}]},
+    {env, [{check_unicode, false}, {module_types_cache, local}]},
     {modules, []},
     {licenses, ["Apache-2.0"]},
     {links, [{"GitHub", "https://github.com/andreashasse/spectra"}]}

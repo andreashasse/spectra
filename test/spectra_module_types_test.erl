@@ -5,69 +5,98 @@
 -include("../include/spectra_internal.hrl").
 
 get_module_types_without_cache_test() ->
-    application:set_env(spectra, use_module_types_cache, false),
-    TypeInfo = spectra_module_types:get(other),
+    TypeInfo = spectra_module_types:get(other, #sp_config{module_types_cache = none}),
     ?assert(is_record(TypeInfo, type_info)),
     ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, account, 0)).
 
-get_module_types_with_cache_test() ->
-    application:set_env(spectra, use_module_types_cache, true),
+get_module_types_with_persistent_cache_test() ->
     spectra_module_types:clear(other),
-    TypeInfo1 = spectra_module_types:get(other),
+    TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
     ?assert(is_record(TypeInfo1, type_info)),
-    TypeInfo2 = spectra_module_types:get(other),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
     ?assertEqual(TypeInfo1, TypeInfo2),
-    application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).
+
+get_module_types_with_local_cache_test() ->
+    spectra_module_types:clear_local(),
+    TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    ?assert(is_record(TypeInfo1, type_info)),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    ?assertEqual(TypeInfo1, TypeInfo2),
+    spectra_module_types:clear_local().
 
 cache_clear_test() ->
-    application:set_env(spectra, use_module_types_cache, true),
-    _TypeInfo1 = spectra_module_types:get(other),
+    _TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
     ok = spectra_module_types:clear(other),
-    TypeInfo2 = spectra_module_types:get(other),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
     ?assert(is_record(TypeInfo2, type_info)),
-    application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).
 
+local_cache_clear_test() ->
+    _TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    ok = spectra_module_types:clear_local(),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    ?assert(is_record(TypeInfo2, type_info)),
+    spectra_module_types:clear_local().
+
 get_nonexistent_module_test() ->
-    application:set_env(spectra, use_module_types_cache, false),
     ?assertError(
         {module_types_not_found, nonexistent_module_xyz, nofile},
-        spectra_module_types:get(nonexistent_module_xyz)
+        spectra_module_types:get(nonexistent_module_xyz, #sp_config{module_types_cache = none})
     ).
 
-get_nonexistent_module_with_cache_test() ->
-    application:set_env(spectra, use_module_types_cache, true),
+get_nonexistent_module_with_persistent_cache_test() ->
     ?assertError(
         {module_types_not_found, nonexistent_module_abc, nofile},
-        spectra_module_types:get(nonexistent_module_abc)
-    ),
-    application:set_env(spectra, use_module_types_cache, false).
+        spectra_module_types:get(nonexistent_module_abc, #sp_config{module_types_cache = persistent})
+    ).
 
 cache_consistency_test() ->
-    application:set_env(spectra, use_module_types_cache, true),
     spectra_module_types:clear(other),
-    TypeInfo1 = spectra_module_types:get(other),
-    TypeInfo2 = spectra_module_types:get(other),
-    TypeInfo3 = spectra_module_types:get(other),
+    TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
+    TypeInfo3 = spectra_module_types:get(other, #sp_config{module_types_cache = persistent}),
     ?assertEqual(TypeInfo1, TypeInfo2),
     ?assertEqual(TypeInfo2, TypeInfo3),
     _AccountType = spectra_type_info:get_type(TypeInfo3, account, 0),
-    application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(other).
 
+local_cache_consistency_test() ->
+    spectra_module_types:clear_local(),
+    TypeInfo1 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    TypeInfo2 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    TypeInfo3 = spectra_module_types:get(other, #sp_config{module_types_cache = local}),
+    ?assertEqual(TypeInfo1, TypeInfo2),
+    ?assertEqual(TypeInfo2, TypeInfo3),
+    spectra_module_types:clear_local().
+
 get_module_with_type_info_fun_without_cache_test() ->
-    application:set_env(spectra, use_module_types_cache, false),
-    TypeInfo = spectra_module_types:get(spectra_test_module_with_spectra),
+    TypeInfo = spectra_module_types:get(
+        spectra_test_module_with_spectra, #sp_config{module_types_cache = none}
+    ),
     ?assert(is_record(TypeInfo, type_info)),
     ?assertMatch({ok, _}, spectra_type_info:find_type(TypeInfo, my_type, 0)).
 
-get_module_with_type_info_fun_with_cache_test() ->
-    application:set_env(spectra, use_module_types_cache, true),
+get_module_with_type_info_fun_with_persistent_cache_test() ->
     spectra_module_types:clear(spectra_test_module_with_spectra),
-    TypeInfo1 = spectra_module_types:get(spectra_test_module_with_spectra),
+    TypeInfo1 = spectra_module_types:get(
+        spectra_test_module_with_spectra, #sp_config{module_types_cache = persistent}
+    ),
     ?assert(is_record(TypeInfo1, type_info)),
-    TypeInfo2 = spectra_module_types:get(spectra_test_module_with_spectra),
+    TypeInfo2 = spectra_module_types:get(
+        spectra_test_module_with_spectra, #sp_config{module_types_cache = persistent}
+    ),
     ?assertEqual(TypeInfo1, TypeInfo2),
-    application:set_env(spectra, use_module_types_cache, false),
     spectra_module_types:clear(spectra_test_module_with_spectra).
+
+local_cache_cleared_after_spectra_decode_test() ->
+    %% The local cache is stored in the process dictionary; verify it is
+    %% absent after a spectra:decode/4 call returns (try...after cleanup).
+    spectra_module_types:clear_local(),
+    _ = spectra:decode(json, other, account, <<"null">>),
+    ?assertEqual(undefined, erlang:get({spectra_module_types, local_cache})).
+
+local_cache_cleared_after_spectra_encode_test() ->
+    spectra_module_types:clear_local(),
+    _ = spectra:encode(json, other, account, undefined),
+    ?assertEqual(undefined, erlang:get({spectra_module_types, local_cache})).

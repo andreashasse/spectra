@@ -39,15 +39,15 @@ simple_types_test() ->
     %% integer
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = integer}, "42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = integer}, "42")
     ),
     ?assertEqual(
         {ok, -42},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = integer}, "-42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = integer}, "-42")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = integer},
             "not_a_number"
@@ -55,21 +55,21 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = integer}, "3.14")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = integer}, "3.14")
     ),
 
     %% float
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = float}, "3.14")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = float}, "3.14")
     ),
     ?assertEqual(
         {ok, -3.14},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = float}, "-3.14")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = float}, "-3.14")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = float},
             "not_a_number"
@@ -77,21 +77,21 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = float}, "42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = float}, "42")
     ),
 
     %% number (tries integer first, then float)
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = number}, "42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = number}, "42")
     ),
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = number}, "3.14")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = number}, "3.14")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = number},
             "not_a_number"
@@ -101,29 +101,29 @@ simple_types_test() ->
     %% boolean
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = boolean}, "true")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = boolean}, "true")
     ),
     ?assertEqual(
         {ok, false},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = boolean}, "false")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = boolean}, "false")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = boolean}, "True")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = boolean}, "True")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = boolean}, "1")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = boolean}, "1")
     ),
 
     %% atom
     ?assertEqual(
         {ok, hello},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
     ),
     ?assertEqual(
         {ok, 'hello world'},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = atom},
             "hello world"
@@ -131,7 +131,7 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = atom},
             "non_existing_atom_123456789"
@@ -141,15 +141,15 @@ simple_types_test() ->
     %% string
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = string}, "hello")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = string}, "hello")
     ),
     ?assertEqual(
         {ok, ""},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = string}, "")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = string}, "")
     ),
     ?assertEqual(
         {ok, "hello world 123!"},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = string},
             "hello world 123!"
@@ -159,7 +159,7 @@ simple_types_test() ->
     %% nonempty_string
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_string},
             "hello"
@@ -167,7 +167,7 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_string},
             ""
@@ -177,17 +177,17 @@ simple_types_test() ->
     %% binary
     ?assertEqual(
         {ok, <<"hello">>},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = binary}, "hello")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, "hello")
     ),
     ?assertEqual(
         {ok, <<"">>},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = binary}, "")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, "")
     ),
 
     %% nonempty_binary
     ?assertEqual(
         {ok, <<"hello">>},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_binary},
             "hello"
@@ -195,7 +195,7 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_binary},
             ""
@@ -205,7 +205,7 @@ simple_types_test() ->
     %% non_neg_integer
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = non_neg_integer},
             "42"
@@ -213,7 +213,7 @@ simple_types_test() ->
     ),
     ?assertEqual(
         {ok, 0},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = non_neg_integer},
             "0"
@@ -221,7 +221,7 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = non_neg_integer},
             "-1"
@@ -231,21 +231,21 @@ simple_types_test() ->
     %% pos_integer
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "42")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "0")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "0")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "-1")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = pos_integer}, "-1")
     ),
 
     %% neg_integer
     ?assertEqual(
         {ok, -42},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = neg_integer},
             "-42"
@@ -253,11 +253,11 @@ simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = neg_integer}, "0")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = neg_integer}, "0")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = neg_integer}, "42")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = neg_integer}, "42")
     ),
 
     ok.
@@ -273,32 +273,32 @@ range_test() ->
         },
 
     %% Valid values in range
-    ?assertEqual({ok, 1}, spectra_string:from_string(TypeInfo, Range, "1")),
-    ?assertEqual({ok, 5}, spectra_string:from_string(TypeInfo, Range, "5")),
-    ?assertEqual({ok, 10}, spectra_string:from_string(TypeInfo, Range, "10")),
+    ?assertEqual({ok, 1}, spectra_test_util:from_string(TypeInfo, Range, "1")),
+    ?assertEqual({ok, 5}, spectra_test_util:from_string(TypeInfo, Range, "5")),
+    ?assertEqual({ok, 10}, spectra_test_util:from_string(TypeInfo, Range, "10")),
 
     %% Invalid values outside range
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "0")
+        spectra_test_util:from_string(TypeInfo, Range, "0")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "11")
+        spectra_test_util:from_string(TypeInfo, Range, "11")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "-5")
+        spectra_test_util:from_string(TypeInfo, Range, "-5")
     ),
 
     %% Invalid non-integer strings
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "not_a_number")
+        spectra_test_util:from_string(TypeInfo, Range, "not_a_number")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "5.5")
+        spectra_test_util:from_string(TypeInfo, Range, "5.5")
     ),
 
     ok.
@@ -309,14 +309,14 @@ literal_test() ->
 
     %% Literal atom
     AtomLiteral = #sp_literal{value = hello},
-    ?assertEqual({ok, hello}, spectra_string:from_string(TypeInfo, AtomLiteral, "hello")),
+    ?assertEqual({ok, hello}, spectra_test_util:from_string(TypeInfo, AtomLiteral, "hello")),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, AtomLiteral, "world")
+        spectra_test_util:from_string(TypeInfo, AtomLiteral, "world")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             AtomLiteral,
             "non_existing_atom_123456789"
@@ -325,26 +325,26 @@ literal_test() ->
 
     %% Literal integer
     IntegerLiteral = #sp_literal{value = 42},
-    ?assertEqual({ok, 42}, spectra_string:from_string(TypeInfo, IntegerLiteral, "42")),
+    ?assertEqual({ok, 42}, spectra_test_util:from_string(TypeInfo, IntegerLiteral, "42")),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, IntegerLiteral, "43")
+        spectra_test_util:from_string(TypeInfo, IntegerLiteral, "43")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, IntegerLiteral, "not_a_number")
+        spectra_test_util:from_string(TypeInfo, IntegerLiteral, "not_a_number")
     ),
 
     %% Literal boolean
     BooleanLiteral = #sp_literal{value = true},
-    ?assertEqual({ok, true}, spectra_string:from_string(TypeInfo, BooleanLiteral, "true")),
+    ?assertEqual({ok, true}, spectra_test_util:from_string(TypeInfo, BooleanLiteral, "true")),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, BooleanLiteral, "false")
+        spectra_test_util:from_string(TypeInfo, BooleanLiteral, "false")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, BooleanLiteral, "True")
+        spectra_test_util:from_string(TypeInfo, BooleanLiteral, "True")
     ),
 
     ok.
@@ -356,12 +356,12 @@ union_test() ->
     %% Simple union: integer | boolean
     Union =
         #sp_union{types = [#sp_simple_type{type = integer}, #sp_simple_type{type = boolean}]},
-    ?assertEqual({ok, 42}, spectra_string:from_string(TypeInfo, Union, "42")),
-    ?assertEqual({ok, true}, spectra_string:from_string(TypeInfo, Union, "true")),
-    ?assertEqual({ok, false}, spectra_string:from_string(TypeInfo, Union, "false")),
+    ?assertEqual({ok, 42}, spectra_test_util:from_string(TypeInfo, Union, "42")),
+    ?assertEqual({ok, true}, spectra_test_util:from_string(TypeInfo, Union, "true")),
+    ?assertEqual({ok, false}, spectra_test_util:from_string(TypeInfo, Union, "false")),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:from_string(TypeInfo, Union, "not_matching")
+        spectra_test_util:from_string(TypeInfo, Union, "not_matching")
     ),
 
     %% Complex union with literals: 1 | 2 | true | false
@@ -375,17 +375,17 @@ union_test() ->
                     #sp_literal{value = false}
                 ]
         },
-    ?assertEqual({ok, 1}, spectra_string:from_string(TypeInfo, ComplexUnion, "1")),
-    ?assertEqual({ok, 2}, spectra_string:from_string(TypeInfo, ComplexUnion, "2")),
-    ?assertEqual({ok, true}, spectra_string:from_string(TypeInfo, ComplexUnion, "true")),
-    ?assertEqual({ok, false}, spectra_string:from_string(TypeInfo, ComplexUnion, "false")),
+    ?assertEqual({ok, 1}, spectra_test_util:from_string(TypeInfo, ComplexUnion, "1")),
+    ?assertEqual({ok, 2}, spectra_test_util:from_string(TypeInfo, ComplexUnion, "2")),
+    ?assertEqual({ok, true}, spectra_test_util:from_string(TypeInfo, ComplexUnion, "true")),
+    ?assertEqual({ok, false}, spectra_test_util:from_string(TypeInfo, ComplexUnion, "false")),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:from_string(TypeInfo, ComplexUnion, "3")
+        spectra_test_util:from_string(TypeInfo, ComplexUnion, "3")
     ),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:from_string(TypeInfo, ComplexUnion, "maybe")
+        spectra_test_util:from_string(TypeInfo, ComplexUnion, "maybe")
     ),
 
     ok.
@@ -397,75 +397,79 @@ type_reference_test() ->
     %% Test various type references from the module
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), "42")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), "42")
     ),
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), "3.14")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), "3.14")
     ),
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "42")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "42")
     ),
     ?assertEqual(
         {ok, 3.14},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "3.14")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), "3.14")
     ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), "true")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), "true")
     ),
     ?assertEqual(
         {ok, hello},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), "hello")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), "hello")
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
     ),
     ?assertEqual(
         {ok, <<"test">>},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), "test")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), "test")
     ),
 
     %% Test range type
     ?assertEqual(
-        {ok, 5}, spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "5")
+        {ok, 5}, spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "5")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "15")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), "15")
     ),
 
     %% Test literal types
     ?assertEqual(
         {ok, hello},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), "hello")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), "hello")
     ),
     ?assertEqual(
         {ok, 42},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), "42")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), "42")
     ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), "true")
+        spectra_test_util:from_string(
+            TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), "true"
+        )
     ),
 
     %% Test union types
     ?assertEqual(
-        {ok, 42}, spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "42")
+        {ok, 42}, spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "42")
     ),
     ?assertEqual(
         {ok, true},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "true")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), "true")
     ),
     ?assertEqual(
         {ok, 1},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "1")
+        spectra_test_util:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "1")
     ),
     ?assertEqual(
         {ok, false},
-        spectra_string:from_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "false")
+        spectra_test_util:from_string(
+            TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), "false"
+        )
     ),
 
     ok.
@@ -477,7 +481,7 @@ unsupported_test() ->
     %% Record types are not supported for string conversion
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo, #sp_rec{name = some_record, fields = [], arity = 0}, "test"
         )
     ),
@@ -485,23 +489,23 @@ unsupported_test() ->
     %% Unsupported simple types should error
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = pid}, "test")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = pid}, "test")
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = port}, "test")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = port}, "test")
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = reference}, "test")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = reference}, "test")
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = bitstring}, "test")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = bitstring}, "test")
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_bitstring},
             "test"
@@ -509,14 +513,14 @@ unsupported_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = none}, "test")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = none}, "test")
     ),
 
     %% Unknown type should give type mismatch error
     UnknownType = #sp_tuple{fields = any},
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, UnknownType, "test")
+        spectra_test_util:from_string(TypeInfo, UnknownType, "test")
     ),
 
     ok.
@@ -528,15 +532,15 @@ edge_cases_test() ->
     %% Empty strings
     ?assertEqual(
         {ok, ""},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = string}, "")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = string}, "")
     ),
     ?assertEqual(
         {ok, <<"">>},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = binary}, "")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, "")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_string},
             ""
@@ -544,7 +548,7 @@ edge_cases_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_binary},
             ""
@@ -554,7 +558,7 @@ edge_cases_test() ->
     %% Large numbers
     ?assertEqual(
         {ok, 999999999999},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = integer},
             "999999999999"
@@ -562,7 +566,7 @@ edge_cases_test() ->
     ),
     ?assertEqual(
         {ok, -999999999999},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = integer},
             "-999999999999"
@@ -572,11 +576,11 @@ edge_cases_test() ->
     %% Special float values
     ?assertEqual(
         {ok, 0.0},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = float}, "0.0")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = float}, "0.0")
     ),
     ?assertEqual(
         {ok, -0.0},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = float}, "-0.0")
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = float}, "-0.0")
     ),
 
     %% Boundary values for ranges
@@ -586,15 +590,15 @@ edge_cases_test() ->
             lower_bound = -5,
             upper_bound = 5
         },
-    ?assertEqual({ok, -5}, spectra_string:from_string(TypeInfo, Range, "-5")),
-    ?assertEqual({ok, 5}, spectra_string:from_string(TypeInfo, Range, "5")),
+    ?assertEqual({ok, -5}, spectra_test_util:from_string(TypeInfo, Range, "-5")),
+    ?assertEqual({ok, 5}, spectra_test_util:from_string(TypeInfo, Range, "5")),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "-6")
+        spectra_test_util:from_string(TypeInfo, Range, "-6")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, Range, "6")
+        spectra_test_util:from_string(TypeInfo, Range, "6")
     ),
 
     ok.
@@ -606,15 +610,15 @@ to_string_simple_types_test() ->
     %% integer
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = integer}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = integer}, 42)
     ),
     ?assertEqual(
         {ok, "-42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = integer}, -42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = integer}, -42)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = integer},
             "not_integer"
@@ -624,29 +628,29 @@ to_string_simple_types_test() ->
     %% float
     ?assertEqual(
         {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = float}, 3.14)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = float}, 3.14)
     ),
     ?assertEqual(
         {ok, "-3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = float}, -3.14)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = float}, -3.14)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = float}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = float}, 42)
     ),
 
     %% number
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = number}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = number}, 42)
     ),
     ?assertEqual(
         {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = number}, 3.14)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = number}, 3.14)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = number},
             "not_number"
@@ -656,43 +660,43 @@ to_string_simple_types_test() ->
     %% boolean
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = boolean}, true)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = boolean}, true)
     ),
     ?assertEqual(
         {ok, "false"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = boolean}, false)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = boolean}, false)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = boolean}, "true")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = boolean}, "true")
     ),
 
     %% atom
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = atom}, hello)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = atom}, hello)
     ),
     ?assertEqual(
         {ok, "hello world"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = atom}, 'hello world')
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = atom}, 'hello world')
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
     ),
 
     %% string
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = string}, "hello")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = string}, "hello")
     ),
     ?assertEqual(
         {ok, ""},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = string}, "")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = string}, "")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = string},
             <<"binary">>
@@ -702,7 +706,7 @@ to_string_simple_types_test() ->
     %% nonempty_string
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_string},
             "hello"
@@ -710,27 +714,27 @@ to_string_simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = nonempty_string}, "")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = nonempty_string}, "")
     ),
 
     %% binary
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = binary}, <<"hello">>)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, <<"hello">>)
     ),
     ?assertEqual(
         {ok, ""},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = binary}, <<"">>)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, <<"">>)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = binary}, "string")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, "string")
     ),
 
     %% nonempty_binary
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_binary},
             <<"hello">>
@@ -738,7 +742,7 @@ to_string_simple_types_test() ->
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_binary},
             <<"">>
@@ -748,43 +752,43 @@ to_string_simple_types_test() ->
     %% non_neg_integer
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, 42)
     ),
     ?assertEqual(
         {ok, "0"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, 0)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, 0)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, -1)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = non_neg_integer}, -1)
     ),
 
     %% pos_integer
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, 42)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, 0)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, 0)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, -1)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = pos_integer}, -1)
     ),
 
     %% neg_integer
     ?assertEqual(
         {ok, "-42"},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, -42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, -42)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, 0)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, 0)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, 42)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = neg_integer}, 42)
     ),
 
     ok.
@@ -800,32 +804,32 @@ to_string_range_test() ->
         },
 
     %% Valid values in range
-    ?assertEqual({ok, "1"}, spectra_string:to_string(TypeInfo, Range, 1)),
-    ?assertEqual({ok, "5"}, spectra_string:to_string(TypeInfo, Range, 5)),
-    ?assertEqual({ok, "10"}, spectra_string:to_string(TypeInfo, Range, 10)),
+    ?assertEqual({ok, "1"}, spectra_test_util:to_string(TypeInfo, Range, 1)),
+    ?assertEqual({ok, "5"}, spectra_test_util:to_string(TypeInfo, Range, 5)),
+    ?assertEqual({ok, "10"}, spectra_test_util:to_string(TypeInfo, Range, 10)),
 
     %% Invalid values outside range
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, Range, 0)
+        spectra_test_util:to_string(TypeInfo, Range, 0)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, Range, 11)
+        spectra_test_util:to_string(TypeInfo, Range, 11)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, Range, -5)
+        spectra_test_util:to_string(TypeInfo, Range, -5)
     ),
 
     %% Invalid non-integer values
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, Range, "5")
+        spectra_test_util:to_string(TypeInfo, Range, "5")
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, Range, 5.5)
+        spectra_test_util:to_string(TypeInfo, Range, 5.5)
     ),
 
     ok.
@@ -836,39 +840,39 @@ to_string_literal_test() ->
 
     %% Literal atom
     AtomLiteral = #sp_literal{value = hello},
-    ?assertEqual({ok, "hello"}, spectra_string:to_string(TypeInfo, AtomLiteral, hello)),
+    ?assertEqual({ok, "hello"}, spectra_test_util:to_string(TypeInfo, AtomLiteral, hello)),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, AtomLiteral, world)
+        spectra_test_util:to_string(TypeInfo, AtomLiteral, world)
     ),
 
     %% Literal integer
     IntegerLiteral = #sp_literal{value = 42},
-    ?assertEqual({ok, "42"}, spectra_string:to_string(TypeInfo, IntegerLiteral, 42)),
+    ?assertEqual({ok, "42"}, spectra_test_util:to_string(TypeInfo, IntegerLiteral, 42)),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, IntegerLiteral, 43)
+        spectra_test_util:to_string(TypeInfo, IntegerLiteral, 43)
     ),
 
     %% Literal boolean
     BooleanLiteralTrue = #sp_literal{value = true},
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, BooleanLiteralTrue, true)
+        spectra_test_util:to_string(TypeInfo, BooleanLiteralTrue, true)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, BooleanLiteralTrue, false)
+        spectra_test_util:to_string(TypeInfo, BooleanLiteralTrue, false)
     ),
 
     BooleanLiteralFalse = #sp_literal{value = false},
     ?assertEqual(
         {ok, "false"},
-        spectra_string:to_string(TypeInfo, BooleanLiteralFalse, false)
+        spectra_test_util:to_string(TypeInfo, BooleanLiteralFalse, false)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, BooleanLiteralFalse, true)
+        spectra_test_util:to_string(TypeInfo, BooleanLiteralFalse, true)
     ),
 
     ok.
@@ -880,12 +884,12 @@ to_string_union_test() ->
     %% Simple union: integer | boolean
     Union =
         #sp_union{types = [#sp_simple_type{type = integer}, #sp_simple_type{type = boolean}]},
-    ?assertEqual({ok, "42"}, spectra_string:to_string(TypeInfo, Union, 42)),
-    ?assertEqual({ok, "true"}, spectra_string:to_string(TypeInfo, Union, true)),
-    ?assertEqual({ok, "false"}, spectra_string:to_string(TypeInfo, Union, false)),
+    ?assertEqual({ok, "42"}, spectra_test_util:to_string(TypeInfo, Union, 42)),
+    ?assertEqual({ok, "true"}, spectra_test_util:to_string(TypeInfo, Union, true)),
+    ?assertEqual({ok, "false"}, spectra_test_util:to_string(TypeInfo, Union, false)),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:to_string(TypeInfo, Union, "not_matching")
+        spectra_test_util:to_string(TypeInfo, Union, "not_matching")
     ),
 
     %% Complex union with literals: 1 | 2 | true | false
@@ -899,17 +903,17 @@ to_string_union_test() ->
                     #sp_literal{value = false}
                 ]
         },
-    ?assertEqual({ok, "1"}, spectra_string:to_string(TypeInfo, ComplexUnion, 1)),
-    ?assertEqual({ok, "2"}, spectra_string:to_string(TypeInfo, ComplexUnion, 2)),
-    ?assertEqual({ok, "true"}, spectra_string:to_string(TypeInfo, ComplexUnion, true)),
-    ?assertEqual({ok, "false"}, spectra_string:to_string(TypeInfo, ComplexUnion, false)),
+    ?assertEqual({ok, "1"}, spectra_test_util:to_string(TypeInfo, ComplexUnion, 1)),
+    ?assertEqual({ok, "2"}, spectra_test_util:to_string(TypeInfo, ComplexUnion, 2)),
+    ?assertEqual({ok, "true"}, spectra_test_util:to_string(TypeInfo, ComplexUnion, true)),
+    ?assertEqual({ok, "false"}, spectra_test_util:to_string(TypeInfo, ComplexUnion, false)),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:to_string(TypeInfo, ComplexUnion, 3)
+        spectra_test_util:to_string(TypeInfo, ComplexUnion, 3)
     ),
     ?assertMatch(
         {error, [#sp_error{type = no_match}]},
-        spectra_string:to_string(TypeInfo, ComplexUnion, "maybe")
+        spectra_test_util:to_string(TypeInfo, ComplexUnion, "maybe")
     ),
 
     ok.
@@ -917,7 +921,7 @@ to_string_union_test() ->
 to_string_union_error_accumulation_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     Union = #sp_union{types = [#sp_simple_type{type = integer}, #sp_simple_type{type = boolean}]},
-    {error, [#sp_error{type = no_match, ctx = Ctx}]} = spectra_string:to_string(
+    {error, [#sp_error{type = no_match, ctx = Ctx}]} = spectra_test_util:to_string(
         TypeInfo,
         Union,
         "not_matching"
@@ -941,74 +945,74 @@ to_string_type_reference_test() ->
 
     %% Test various type references from the module
     ?assertEqual(
-        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), 42)
+        {ok, "42"}, spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_integer, 0), 42)
     ),
     ?assertEqual(
         {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), 3.14)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_float, 0), 3.14)
     ),
     ?assertEqual(
-        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 42)
+        {ok, "42"}, spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 42)
     ),
     ?assertEqual(
         {ok, "3.14000000000000012434e+00"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 3.14)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_number, 0), 3.14)
     ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), true)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_boolean, 0), true)
     ),
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), hello)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_atom, 0), hello)
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_string, 0), "test")
     ),
     ?assertEqual(
         {ok, "test"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), <<"test">>)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_binary, 0), <<"test">>)
     ),
 
     %% Test range type
     ?assertEqual(
-        {ok, "5"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 5)
+        {ok, "5"}, spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 5)
     ),
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 15)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_range, 0), 15)
     ),
 
     %% Test literal types
     ?assertEqual(
         {ok, "hello"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), hello)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_atom, 0), hello)
     ),
     ?assertEqual(
         {ok, "42"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), 42)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_integer, 0), 42)
     ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), true)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_literal_boolean, 0), true)
     ),
 
     %% Test union types
     ?assertEqual(
-        {ok, "42"}, spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), 42)
+        {ok, "42"}, spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), 42)
     ),
     ?assertEqual(
         {ok, "true"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), true)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_union, 0), true)
     ),
     ?assertEqual(
         {ok, "1"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), 1)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), 1)
     ),
     ?assertEqual(
         {ok, "false"},
-        spectra_string:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), false)
+        spectra_test_util:to_string(TypeInfo, resolve_type(TypeInfo, my_complex_union, 0), false)
     ),
 
     ok.
@@ -1020,7 +1024,7 @@ to_string_unsupported_test() ->
     %% Record types are not supported for string conversion
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo, #sp_rec{name = some_record, fields = [], arity = 0}, some_value
         )
     ),
@@ -1028,23 +1032,23 @@ to_string_unsupported_test() ->
     %% Unsupported simple types should error
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = pid}, self())
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = pid}, self())
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = port}, test)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = port}, test)
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = reference}, test)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = reference}, test)
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = bitstring}, test)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = bitstring}, test)
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = nonempty_bitstring},
             test
@@ -1052,14 +1056,14 @@ to_string_unsupported_test() ->
     ),
     ?assertError(
         {type_not_supported, _},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = none}, test)
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = none}, test)
     ),
 
     %% Unknown type should give type mismatch error
     UnknownType = #sp_tuple{fields = any},
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, UnknownType, some_value)
+        spectra_test_util:to_string(TypeInfo, UnknownType, some_value)
     ),
 
     ok.
@@ -1072,7 +1076,7 @@ from_string_invalid_input_test() ->
     %% Passing binary instead of string
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(
+        spectra_test_util:from_string(
             TypeInfo,
             #sp_simple_type{type = string},
             <<"binary">>
@@ -1082,13 +1086,13 @@ from_string_invalid_input_test() ->
     %% Passing integer instead of string
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = integer}, 42)
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = integer}, 42)
     ),
 
     %% Passing atom instead of string
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:from_string(TypeInfo, #sp_simple_type{type = atom}, hello)
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = atom}, hello)
     ),
 
     ok.
@@ -1101,7 +1105,7 @@ to_string_invalid_input_test() ->
     %% Passing binary when expecting to convert from string
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(
+        spectra_test_util:to_string(
             TypeInfo,
             #sp_simple_type{type = string},
             <<"binary">>
@@ -1111,19 +1115,19 @@ to_string_invalid_input_test() ->
     %% Passing string when expecting to convert from binary
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = binary}, "string")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, "string")
     ),
 
     %% Passing list when expecting integer
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = integer}, [1, 2, 3])
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = integer}, [1, 2, 3])
     ),
 
     %% Passing string when expecting atom
     ?assertMatch(
         {error, [#sp_error{type = type_mismatch}]},
-        spectra_string:to_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = atom}, "hello")
     ),
 
     ok.

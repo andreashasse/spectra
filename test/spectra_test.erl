@@ -3,6 +3,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -include("../include/spectra.hrl").
+-include("../include/spectra_internal.hrl").
 
 -compile(nowarn_unused_type).
 
@@ -334,7 +335,7 @@ encode_with_type_reference_test() ->
 
 decode_with_type_info_test() ->
     % Get type info once and reuse it
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
 
     % Use it for multiple operations
     Json = <<"123">>,
@@ -351,7 +352,7 @@ decode_with_type_info_test() ->
 
 encode_with_type_info_test() ->
     % Get type info once and reuse it
-    TypeInfo = spectra_module_types:get(?MODULE),
+    TypeInfo = spectra_test_util:get_module_types(?MODULE),
 
     % Use it for multiple operations
     ?assertEqual({ok, <<"123">>}, spectra:encode(json, TypeInfo, user_id, 123)),
@@ -711,3 +712,35 @@ round_trip_string_test() ->
     {ok, Str3} = spectra:encode(string, ?MODULE, status, Data3),
     {ok, Result3} = spectra:decode(string, ?MODULE, status, Str3),
     ?assertEqual(Data3, Result3).
+
+%%====================================================================
+%% get_config/0 tests
+%%====================================================================
+
+get_config_returns_sp_config_test() ->
+    Config = spectra:get_config(),
+    ?assert(is_record(Config, sp_config)).
+
+get_config_default_cache_test() ->
+    %% Default from app.src is local
+    Config = spectra:get_config(),
+    ?assertEqual(local, Config#sp_config.module_types_cache).
+
+get_config_default_check_unicode_test() ->
+    Config = spectra:get_config(),
+    ?assertEqual(false, Config#sp_config.check_unicode).
+
+get_config_default_codecs_test() ->
+    Config = spectra:get_config(),
+    ?assertEqual(#{}, Config#sp_config.codecs).
+
+get_config_invalid_module_types_cache_test() ->
+    application:set_env(spectra, module_types_cache, bad_value),
+    try
+        ?assertError(
+            {invalid_config, module_types_cache, bad_value},
+            spectra:get_config()
+        )
+    after
+        application:unset_env(spectra, module_types_cache)
+    end.

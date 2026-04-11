@@ -14,7 +14,7 @@ prop_hej() ->
             ),
             case from_json(TypeInfo, Type, JsonValue) of
                 {ok, Data} ->
-                    case spectra_json:to_json(TypeInfo, Type, Data) of
+                    case spectra_test_util:to_json(TypeInfo, Type, Data) of
                         {ok, Value} ->
                             Json = iolist_to_binary(json:encode(Value)),
                             ?WHENFAIL(
@@ -39,7 +39,7 @@ prop_hej() ->
 
 from_json(TypeInfo, Type, JsonValue) ->
     try
-        spectra_json:from_json(TypeInfo, Type, JsonValue)
+        spectra_test_util:from_json(TypeInfo, Type, JsonValue)
     catch
         error:{type_not_supported, _} ->
             {error, type_not_supported};

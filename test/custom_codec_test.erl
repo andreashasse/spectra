@@ -155,7 +155,7 @@ animal_decode_unknown_tag_test() ->
     ).
 
 animal_type_ref_forms_test() ->
-    TypeInfo = spectra_module_types:get(codec_animal_codec),
+    TypeInfo = spectra_test_util:get_module_types(codec_animal_codec),
     AnimalSpType = spectra_type_info:get_type(TypeInfo, animal, 0),
 
     Cat = #cat{name = <<"Whiskers">>, indoor = true},
@@ -176,7 +176,7 @@ animal_type_ref_forms_test() ->
     ?assertEqual(DecAtom, DecSpType).
 
 cat_record_ref_forms_test() ->
-    TypeInfo = spectra_module_types:get(codec_animal_codec),
+    TypeInfo = spectra_test_util:get_module_types(codec_animal_codec),
     {ok, CatSpRec} = spectra_type_info:find_record(TypeInfo, cat),
 
     Cat = #cat{name = <<"Whiskers">>, indoor = true},
@@ -234,7 +234,7 @@ union_with_remote_codec_type_decode_test() ->
     ).
 
 schema_type_ref_forms_test() ->
-    TypeInfo = spectra_module_types:get(codec_geo_module),
+    TypeInfo = spectra_test_util:get_module_types(codec_geo_module),
     PointSpType = spectra_type_info:get_type(TypeInfo, point, 0),
 
     SchemaAtom = spectra:schema(json_schema, codec_geo_module, point),
@@ -244,7 +244,7 @@ schema_type_ref_forms_test() ->
     ?assertEqual(SchemaTupleRef, SchemaSpType).
 
 schema_record_ref_forms_test() ->
-    TypeInfo = spectra_module_types:get(record_test),
+    TypeInfo = spectra_test_util:get_module_types(record_test),
     {ok, PersonSpRec} = spectra_type_info:find_record(TypeInfo, person),
 
     SchemaRecordRef = spectra:schema(json_schema, record_test, {record, person}),

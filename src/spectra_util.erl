@@ -2,6 +2,7 @@
 
 -export([
     test_abs_code/1,
+    apply_args/3,
     fold_until_error/3,
     map_until_error/2,
     normalize_type_ref/2,
@@ -55,6 +56,23 @@ test_abs_code(Module) ->
         Class:Reason:Stacktrace ->
             {error, {Class, Reason, Stacktrace}}
     end.
+
+-spec apply_args(spectra:type_info(), spectra:sp_type(), [spectra:sp_type()]) ->
+    spectra:sp_type().
+apply_args(_TypeInfo, Type, []) ->
+    Type;
+apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
+    ArgNames = arg_names(Type),
+    NamedTypes =
+        maps:from_list(
+            lists:zip(ArgNames, TypeArgs)
+        ),
+    type_replace_vars(TypeInfo, Type, NamedTypes).
+
+arg_names(#sp_type_with_variables{vars = Args}) ->
+    Args;
+arg_names(_) ->
+    [].
 
 -spec fold_until_error(
     Fun ::
@@ -228,5 +246,5 @@ type_replace_vars(
     #sp_remote_type{
         mfargs = {Module, TypeName, ResolvedArgs}, arity = length(ResolvedArgs), meta = Meta
     };
-type_replace_vars(_TypeInfo, Type, _NamedTypes) ->
+type_replace_vars(_TypeInfo, Type, #{}) ->
     Type.

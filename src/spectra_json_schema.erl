@@ -1,8 +1,8 @@
 -module(spectra_json_schema).
 
--export([to_schema/2, add_schema_version/1]).
+-export([to_schema/3, add_schema_version/1]).
 
--ignore_xref([to_schema/2, add_schema_version/1]).
+-ignore_xref([to_schema/3, add_schema_version/1]).
 
 -include("../include/spectra_internal.hrl").
 
@@ -53,87 +53,97 @@
 
 %% API
 
--spec to_schema(spectra:type_info(), spectra:sp_type()) -> json_schema_object().
-to_schema(TypeInfo, Type) ->
-    to_schema_for_sp_type(TypeInfo, Type).
+-doc "Generates a JSON Schema object for `Type` using `Config` for codec and cache settings.".
+-spec to_schema(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
+    json_schema_object().
+to_schema(TypeInfo, Type, Config) ->
+    to_schema_for_sp_type(TypeInfo, Type, Config).
 
--spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type()) -> json_schema_object().
-to_schema_for_sp_type(TypeInfo, Type) ->
-    Schema = do_to_schema(TypeInfo, Type),
-    merge_type_doc_into_schema(TypeInfo, Type, Schema).
+-spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
+    json_schema_object().
+to_schema_for_sp_type(TypeInfo, Type, Config) ->
+    Schema = do_to_schema(TypeInfo, Type, Config),
+    merge_type_doc_into_schema(TypeInfo, Type, Schema, Config).
 
 -spec do_to_schema(
     TypeInfo :: spectra:type_info(),
-    Type :: spectra:sp_type()
+    Type :: spectra:sp_type(),
+    Config :: spectra:sp_config()
 ) ->
     json_schema_object().
 do_to_schema(
-    TypeInfo, #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef
+    TypeInfo,
+    #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef,
+    Config
 ) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-    case spectra_codec:try_codec_schema(Mod, json_schema, Type, UserTypeRef) of
+    case spectra_codec:try_codec_schema(TypeInfo, json_schema, Type, UserTypeRef, Config) of
         continue ->
-            TypeWithoutVars = apply_args(TypeInfo, Type, Args),
-            do_to_schema(TypeInfo, TypeWithoutVars);
+            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
+            do_to_schema(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
     end;
-do_to_schema(_TypeInfo, #sp_remote_type{mfargs = {Mod, TypeName, Args}, arity = Arity} = RemoteRef) ->
-    RemoteTypeInfo = spectra_module_types:get(Mod),
+do_to_schema(
+    _TypeInfo,
+    #sp_remote_type{mfargs = {Mod, TypeName, Args}, arity = Arity} = RemoteRef,
+    Config
+) ->
+    RemoteTypeInfo = spectra_module_types:get(Mod, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-    case spectra_codec:try_codec_schema(Mod, json_schema, RemoteType, RemoteRef) of
+    case
+        spectra_codec:try_codec_schema(RemoteTypeInfo, json_schema, RemoteType, RemoteRef, Config)
+    of
         continue ->
             TypeResolved = spectra_type:propagate_params(
-                RemoteRef, apply_args(RemoteTypeInfo, RemoteType, Args)
+                RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
-            do_to_schema(RemoteTypeInfo, TypeResolved);
+            do_to_schema(RemoteTypeInfo, TypeResolved, Config);
         Schema ->
             Schema
     end;
-do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
+do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef, Config) ->
     RecordType = spectra_type_info:get_record(TypeInfo, N),
-    case spectra_codec:try_codec_schema(Mod, json_schema, RecordType, RecordRef) of
+    case spectra_codec:try_codec_schema(TypeInfo, json_schema, RecordType, RecordRef, Config) of
         continue ->
-            Schema = record_to_schema_internal(TypeInfo, RecordType),
-            merge_type_doc_into_schema(TypeInfo, RecordType, Schema);
+            Schema = record_to_schema_internal(TypeInfo, RecordType, Config),
+            merge_type_doc_into_schema(TypeInfo, RecordType, Schema, Config);
         Schema ->
             Schema
     end;
 %% Simple types
-do_to_schema(_TypeInfo, #sp_simple_type{type = integer}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = integer}, _Config) ->
     #{type => <<"integer">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = string} = Type) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = string} = Type, _Config) ->
     apply_string_constraints(#{type => <<"string">>}, Type);
-do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = iodata}, _Config) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = iolist}, _Config) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = boolean}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = boolean}, _Config) ->
     #{type => <<"boolean">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = number}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = number}, _Config) ->
     #{type => <<"number">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = float}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = float}, _Config) ->
     #{type => <<"number">>, format => <<"float">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = atom}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = atom}, _Config) ->
     #{type => <<"string">>};
-do_to_schema(_TypeInfo, #sp_simple_type{type = binary} = Type) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = binary} = Type, _Config) ->
     apply_string_constraints(#{type => <<"string">>}, Type);
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary} = Type) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_binary} = Type, _Config) ->
     apply_string_constraints(#{type => <<"string">>, minLength => 1}, Type);
-do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string} = Type) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = nonempty_string} = Type, _Config) ->
     apply_string_constraints(#{type => <<"string">>, minLength => 1}, Type);
-do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = pos_integer}, _Config) ->
     #{type => <<"integer">>, minimum => 1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = non_neg_integer}, _Config) ->
     #{type => <<"integer">>, minimum => 0};
-do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = neg_integer}, _Config) ->
     #{type => <<"integer">>, maximum => -1};
-do_to_schema(_TypeInfo, #sp_simple_type{type = term}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = term}, _Config) ->
     % any type
     #{};
-do_to_schema(_TypeInfo, #sp_simple_type{type = map}) ->
+do_to_schema(_TypeInfo, #sp_simple_type{type = map}, _Config) ->
     % generic map type - allows any keys and values
     #{type => <<"object">>};
 %% Range types
@@ -143,7 +153,8 @@ do_to_schema(
         type = integer,
         lower_bound = Min,
         upper_bound = Max
-    }
+    },
+    _Config
 ) ->
     #{
         type => <<"integer">>,
@@ -151,35 +162,35 @@ do_to_schema(
         maximum => Max
     };
 %% Literal types
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+do_to_schema(_TypeInfo, #sp_literal{value = Value}, _Config) when
     Value =:= undefined orelse Value =:= nil
 ->
     #{enum => [null]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}) when
+do_to_schema(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, _Config) when
     is_atom(Value)
 ->
     #{enum => [BinaryValue]};
-do_to_schema(_TypeInfo, #sp_literal{value = Value}) when
+do_to_schema(_TypeInfo, #sp_literal{value = Value}, _Config) when
     is_integer(Value)
 ->
     #{enum => [Value]};
-do_to_schema(_TypeInfo, #sp_literal{value = []}) ->
+do_to_schema(_TypeInfo, #sp_literal{value = []}, _Config) ->
     #{enum => [[]]};
-do_to_schema(_TypeInfo, #sp_literal{} = Type) ->
+do_to_schema(_TypeInfo, #sp_literal{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
 %% List types
-do_to_schema(TypeInfo, #sp_list{type = ItemType}) ->
-    ItemSchema = do_to_schema(TypeInfo, ItemType),
+do_to_schema(TypeInfo, #sp_list{type = ItemType}, Config) ->
+    ItemSchema = do_to_schema(TypeInfo, ItemType, Config),
     #{type => <<"array">>, items => ItemSchema};
-do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}) ->
-    ItemSchema = do_to_schema(TypeInfo, ItemType),
+do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}, Config) ->
+    ItemSchema = do_to_schema(TypeInfo, ItemType, Config),
     #{
         type => <<"array">>,
         items => ItemSchema,
         minItems => 1
     };
 %% Union types
-do_to_schema(TypeInfo, #sp_union{types = Types}) ->
+do_to_schema(TypeInfo, #sp_union{types = Types}, Config) ->
     case
         lists:partition(
             fun
@@ -192,30 +203,30 @@ do_to_schema(TypeInfo, #sp_union{types = Types}) ->
         )
     of
         {[_MissingLiteral], [SingleType]} ->
-            do_to_schema(TypeInfo, SingleType);
+            do_to_schema(TypeInfo, SingleType, Config);
         {[], NonMissingTypes} ->
-            case try_generate_enum_schema(NonMissingTypes, TypeInfo) of
+            case try_generate_enum_schema(NonMissingTypes, TypeInfo, Config) of
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, NonMissingTypes);
+                    generate_oneof_schema(TypeInfo, NonMissingTypes, Config);
                 EnumSchema ->
                     EnumSchema
             end;
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
-            case try_generate_enum_schema(OtherTypes, TypeInfo) of
+            case try_generate_enum_schema(OtherTypes, TypeInfo, Config) of
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, Types);
+                    generate_oneof_schema(TypeInfo, Types, Config);
                 EnumSchema ->
                     EnumSchema
             end
     end;
 %% Map types
-do_to_schema(TypeInfo, #sp_map{fields = Fields}) ->
-    map_fields_to_schema(TypeInfo, Fields);
+do_to_schema(TypeInfo, #sp_map{fields = Fields}, Config) ->
+    map_fields_to_schema(TypeInfo, Fields, Config);
 %% Record types
-do_to_schema(TypeInfo, #sp_rec{} = RecordInfo) ->
-    record_to_schema_internal(TypeInfo, RecordInfo);
+do_to_schema(TypeInfo, #sp_rec{} = RecordInfo, Config) ->
+    record_to_schema_internal(TypeInfo, RecordInfo, Config);
 %% Unsupported types
-do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
+do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Config) when
     NotSupported =:= pid orelse
         NotSupported =:= port orelse
         NotSupported =:= reference orelse
@@ -224,13 +235,13 @@ do_to_schema(_TypeInfo, #sp_simple_type{type = NotSupported} = Type) when
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_tuple{} = Type) ->
+do_to_schema(_TypeInfo, #sp_tuple{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_function{} = Type) ->
+do_to_schema(_TypeInfo, #sp_function{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type) ->
+do_to_schema(_TypeInfo, #sp_maybe_improper_list{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
-do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type) ->
+do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Config) ->
     erlang:error({type_not_supported, Type}).
 
 %% Helper functions
@@ -253,7 +264,7 @@ can_be_json_key(TypeInfo, #sp_user_type_ref{
     type_name = TypeName, variables = TypeArgs, arity = TypeArity
 }) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
+    TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, TypeArgs),
     can_be_json_key(TypeInfo, TypeWithoutVars);
 can_be_json_key(_TypeInfo, _Type) ->
     false.
@@ -263,23 +274,12 @@ can_be_json_key(_TypeInfo, _Type) ->
 add_schema_version(Schema) ->
     Schema#{'$schema' => <<"https://json-schema.org/draft/2020-12/schema">>}.
 
-arg_names(#sp_type_with_variables{vars = Args}) ->
-    Args;
-arg_names(_) ->
-    [].
-
-apply_args(TypeInfo, Type, TypeArgs) when is_list(TypeArgs) ->
-    ArgNames = arg_names(Type),
-    NamedTypes =
-        maps:from_list(
-            lists:zip(ArgNames, TypeArgs)
-        ),
-    spectra_util:type_replace_vars(TypeInfo, Type, NamedTypes).
-
--spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()]) ->
+-spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()], spectra:sp_config()) ->
     json_schema_object().
-map_fields_to_schema(TypeInfo, Fields) ->
-    {Properties, Required, HasAdditional} = process_map_fields(TypeInfo, Fields, #{}, [], false),
+map_fields_to_schema(TypeInfo, Fields, Config) ->
+    {Properties, Required, HasAdditional} = process_map_fields(
+        TypeInfo, Fields, #{}, [], false, Config
+    ),
     lists:foldl(
         fun({Key, Value, SkipValue}, Acc) ->
             map_add_if_not_value(Acc, Key, Value, SkipValue)
@@ -293,51 +293,55 @@ map_fields_to_schema(TypeInfo, Fields) ->
     [spectra:map_field()],
     map(),
     [binary()],
-    boolean()
+    boolean(),
+    spectra:sp_config()
 ) ->
     {map(), [binary()], boolean()}.
-process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional) ->
+process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional, _Config) ->
     {Properties, Required, HasAdditional};
 process_map_fields(
     TypeInfo,
     [#literal_map_field{kind = Kind, binary_name = BinaryName, val_type = FieldType} | Rest],
     Properties,
     Required,
-    HasAdditional
+    HasAdditional,
+    Config
 ) ->
-    FieldSchema = do_to_schema(TypeInfo, FieldType),
+    FieldSchema = do_to_schema(TypeInfo, FieldType, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
     NewRequired =
         case Kind of
             exact -> [BinaryName | Required];
             assoc -> Required
         end,
-    process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional);
+    process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional, Config);
 process_map_fields(
     TypeInfo,
     [#typed_map_field{key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
-    _HasAdditional
+    _HasAdditional,
+    Config
 ) ->
     case can_be_json_key(TypeInfo, KeyType) of
         false ->
             erlang:error({type_not_supported, Field});
         true ->
             %% Validate that key and value types can generate JSON schemas (will crash if not)
-            _ = do_to_schema(TypeInfo, KeyType),
-            _ = do_to_schema(TypeInfo, ValType),
-            process_map_fields(TypeInfo, Rest, Properties, Required, true)
+            _ = do_to_schema(TypeInfo, KeyType, Config),
+            _ = do_to_schema(TypeInfo, ValType, Config),
+            process_map_fields(TypeInfo, Rest, Properties, Required, true, Config)
     end.
 
--spec record_to_schema_internal(spectra:type_info(), #sp_rec{}) ->
+-spec record_to_schema_internal(spectra:type_info(), #sp_rec{}, spectra:sp_config()) ->
     json_schema_object().
-record_to_schema_internal(TypeInfo, #sp_rec{} = Record) ->
-    record_fields_to_schema(TypeInfo, Record).
+record_to_schema_internal(TypeInfo, #sp_rec{} = Record, Config) ->
+    record_fields_to_schema(TypeInfo, Record, Config).
 
--spec record_fields_to_schema(spectra:type_info(), #sp_rec{}) -> json_schema_object().
-record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}) ->
-    {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, []),
+-spec record_fields_to_schema(spectra:type_info(), #sp_rec{}, spectra:sp_config()) ->
+    json_schema_object().
+record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}, Config) ->
+    {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, [], Config),
     #{
         type => <<"object">>,
         properties => Properties,
@@ -348,18 +352,20 @@ record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}) ->
     spectra:type_info(),
     [#sp_rec_field{}],
     map(),
-    [binary()]
+    [binary()],
+    spectra:sp_config()
 ) ->
     {map(), [binary()]}.
-process_record_fields(_TypeInfo, [], Properties, Required) ->
+process_record_fields(_TypeInfo, [], Properties, Required, _Config) ->
     {Properties, lists:reverse(Required)};
 process_record_fields(
     TypeInfo,
     [#sp_rec_field{binary_name = BinaryName, type = FieldType} | Rest],
     Properties,
-    Required
+    Required,
+    Config
 ) ->
-    FieldSchema = do_to_schema(TypeInfo, FieldType),
+    FieldSchema = do_to_schema(TypeInfo, FieldType, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
     NewRequired =
         case spectra_type:can_be_missing(TypeInfo, FieldType) of
@@ -368,16 +374,16 @@ process_record_fields(
             false ->
                 [BinaryName | Required]
         end,
-    process_record_fields(TypeInfo, Rest, NewProperties, NewRequired).
+    process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
 %% Helper function to generate oneOf schemas
-generate_oneof_schema(TypeInfo, Types) ->
-    Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T) end, Types),
+generate_oneof_schema(TypeInfo, Types, Config) ->
+    Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T, Config) end, Types),
     #{oneOf => Schemas}.
 
-try_generate_enum_schema(Types, TypeInfo) ->
+try_generate_enum_schema(Types, TypeInfo, Config) ->
     %% First, expand all types to their base forms (resolving references)
-    ExpandResults = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, Types),
+    ExpandResults = lists:map(fun(T) -> expand_to_literals(T, TypeInfo, Config) end, Types),
     %% Check if all types could be expanded to literals
     case
         lists:all(
@@ -419,30 +425,34 @@ try_generate_enum_schema(Types, TypeInfo) ->
     end.
 
 %% Expand a type to a list of literal types, resolving references and unions
--spec expand_to_literals(spectra:sp_type(), spectra:type_info() | undefined) ->
+-spec expand_to_literals(
+    spectra:sp_type(), spectra:type_info() | undefined, spectra:sp_config()
+) ->
     {ok, [spectra:sp_type()]} | {error, not_all_literals}.
-expand_to_literals(#sp_literal{} = Literal, _TypeInfo) ->
+expand_to_literals(#sp_literal{} = Literal, _TypeInfo, _Config) ->
     {ok, [Literal]};
 %% Resolve remote types
 expand_to_literals(
-    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity}, _TypeInfo
+    #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity}, _TypeInfo, Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module),
+    RemoteTypeInfo = spectra_module_types:get(Module, Config),
     Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(RemoteTypeInfo, Type, Args),
-    expand_to_literals(TypeWithoutVars, RemoteTypeInfo);
+    TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, Type, Args),
+    expand_to_literals(TypeWithoutVars, RemoteTypeInfo, Config);
 %% Resolve user type references
 expand_to_literals(
-    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity}, TypeInfo
+    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity},
+    TypeInfo,
+    Config
 ) when
     TypeInfo =/= undefined
 ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
-    TypeWithoutVars = apply_args(TypeInfo, Type, TypeArgs),
-    expand_to_literals(TypeWithoutVars, TypeInfo);
+    TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, TypeArgs),
+    expand_to_literals(TypeWithoutVars, TypeInfo, Config);
 %% Flatten unions - all members must expand to literals
-expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo) ->
-    Results = lists:map(fun(T) -> expand_to_literals(T, TypeInfo) end, UnionTypes),
+expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo, Config) ->
+    Results = lists:map(fun(T) -> expand_to_literals(T, TypeInfo, Config) end, UnionTypes),
     case
         lists:all(
             fun
@@ -465,7 +475,7 @@ expand_to_literals(#sp_union{types = UnionTypes}, TypeInfo) ->
             {error, not_all_literals}
     end;
 %% Anything else cannot be expanded to literals
-expand_to_literals(_Type, _TypeInfo) ->
+expand_to_literals(_Type, _TypeInfo, _Config) ->
     {error, not_all_literals}.
 
 %% Helper to extract literal value from a type (non-recursive, only handles direct literals)
@@ -516,20 +526,22 @@ get_inline_doc(Type) ->
         #{} -> error
     end.
 
--spec merge_type_doc_into_schema(spectra:type_info(), spectra:sp_type(), json_schema_object()) ->
+-spec merge_type_doc_into_schema(
+    spectra:type_info(), spectra:sp_type(), json_schema_object(), spectra:sp_config()
+) ->
     json_schema_object().
-merge_type_doc_into_schema(TypeInfo, Type, Schema) ->
+merge_type_doc_into_schema(TypeInfo, Type, Schema, Config) ->
     case get_inline_doc(Type) of
         {ok, Doc} ->
-            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc));
+            maps:merge(Schema, normalize_doc_for_json_schema(TypeInfo, Type, Doc, Config));
         error ->
             Schema
     end.
 
 -spec normalize_doc_for_json_schema(
-    spectra:type_info(), spectra:sp_type(), spectra:type_doc()
+    spectra:type_info(), spectra:sp_type(), spectra:type_doc(), spectra:sp_config()
 ) -> json_schema_object().
-normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
+normalize_doc_for_json_schema(TypeInfo, Type, Doc, Config) ->
     maps:fold(
         fun
             (title, Value, Acc) when is_binary(Value) ->
@@ -539,10 +551,10 @@ normalize_doc_for_json_schema(TypeInfo, Type, Doc) ->
             (deprecated, Value, Acc) when is_boolean(Value) ->
                 Acc#{deprecated => Value};
             (examples, ExampleTerms, Acc) when is_list(ExampleTerms) ->
-                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms)};
+                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms, Config)};
             (examples_function, {Module, Function, Args}, Acc) ->
                 ExampleTerms = erlang:apply(Module, Function, Args),
-                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms)}
+                Acc#{examples => convert_examples(TypeInfo, Type, ExampleTerms, Config)}
         end,
         #{},
         Doc
@@ -577,10 +589,10 @@ apply_string_params(Base, Params) when is_map(Params) ->
 apply_string_params(_Base, Params) ->
     erlang:error({invalid_string_constraints, Params}).
 
-convert_examples(TypeInfo, Type, ExampleTerms) ->
+convert_examples(TypeInfo, Type, ExampleTerms, Config) ->
     lists:map(
         fun(Term) ->
-            case spectra_json:to_json(TypeInfo, Type, Term) of
+            case spectra_json:to_json(TypeInfo, Type, Term, Config) of
                 {ok, JsonValue} ->
                     JsonValue;
                 {error, Errs} ->

@@ -2,8 +2,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
--include("../include/spectra.hrl").
-
 -compile(nowarn_unused_type).
 
 %% Test types for sp_types testing
@@ -29,29 +27,29 @@ sp_types_to_json_test() ->
 
     %% Test simple types
     IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
-    ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, IntegerType, 42)),
+    ?assertEqual({ok, 42}, spectra_test_util:to_json(TypeInfo, IntegerType, 42)),
 
     StringType = spectra_type_info:get_type(TypeInfo, my_string, 0),
-    ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, StringType, "hello")),
+    ?assertEqual({ok, <<"hello">>}, spectra_test_util:to_json(TypeInfo, StringType, "hello")),
 
     BooleanType = spectra_type_info:get_type(TypeInfo, my_boolean, 0),
-    ?assertEqual({ok, true}, spectra_json:to_json(TypeInfo, BooleanType, true)),
+    ?assertEqual({ok, true}, spectra_test_util:to_json(TypeInfo, BooleanType, true)),
 
     %% Test list types
     ListType = spectra_type_info:get_type(TypeInfo, my_list_of_integers, 0),
-    ?assertEqual({ok, [1, 2, 3]}, spectra_json:to_json(TypeInfo, ListType, [1, 2, 3])),
+    ?assertEqual({ok, [1, 2, 3]}, spectra_test_util:to_json(TypeInfo, ListType, [1, 2, 3])),
 
     %% Test union types
     UnionType = spectra_type_info:get_type(TypeInfo, my_union, 0),
-    ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, UnionType, 42)),
-    ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, UnionType, "hello")),
+    ?assertEqual({ok, 42}, spectra_test_util:to_json(TypeInfo, UnionType, 42)),
+    ?assertEqual({ok, <<"hello">>}, spectra_test_util:to_json(TypeInfo, UnionType, "hello")),
 
     %% Test map types
     MapType = spectra_type_info:get_type(TypeInfo, my_map, 0),
     MapData = #{name => "John", age => 30},
     ?assertEqual(
         {ok, #{<<"name">> => <<"John">>, <<"age">> => 30}},
-        spectra_json:to_json(TypeInfo, MapType, MapData)
+        spectra_test_util:to_json(TypeInfo, MapType, MapData)
     ).
 
 %% Test using sp_types directly with spectra_json:from_json/3
@@ -60,29 +58,29 @@ sp_types_from_json_test() ->
 
     %% Test simple types
     IntegerType = spectra_type_info:get_type(TypeInfo, my_integer, 0),
-    ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, IntegerType, 42)),
+    ?assertEqual({ok, 42}, spectra_test_util:from_json(TypeInfo, IntegerType, 42)),
 
     StringType = spectra_type_info:get_type(TypeInfo, my_string, 0),
-    ?assertEqual({ok, "hello"}, spectra_json:from_json(TypeInfo, StringType, <<"hello">>)),
+    ?assertEqual({ok, "hello"}, spectra_test_util:from_json(TypeInfo, StringType, <<"hello">>)),
 
     BooleanType = spectra_type_info:get_type(TypeInfo, my_boolean, 0),
-    ?assertEqual({ok, true}, spectra_json:from_json(TypeInfo, BooleanType, true)),
+    ?assertEqual({ok, true}, spectra_test_util:from_json(TypeInfo, BooleanType, true)),
 
     %% Test list types
     ListType = spectra_type_info:get_type(TypeInfo, my_list_of_integers, 0),
-    ?assertEqual({ok, [1, 2, 3]}, spectra_json:from_json(TypeInfo, ListType, [1, 2, 3])),
+    ?assertEqual({ok, [1, 2, 3]}, spectra_test_util:from_json(TypeInfo, ListType, [1, 2, 3])),
 
     %% Test union types
     UnionType = spectra_type_info:get_type(TypeInfo, my_union, 0),
-    ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, UnionType, 42)),
-    ?assertEqual({ok, "hello"}, spectra_json:from_json(TypeInfo, UnionType, <<"hello">>)),
+    ?assertEqual({ok, 42}, spectra_test_util:from_json(TypeInfo, UnionType, 42)),
+    ?assertEqual({ok, "hello"}, spectra_test_util:from_json(TypeInfo, UnionType, <<"hello">>)),
 
     %% Test map types
     MapType = spectra_type_info:get_type(TypeInfo, my_map, 0),
     JsonData = #{<<"name">> => <<"John">>, <<"age">> => 30},
     ?assertEqual(
         {ok, #{name => "John", age => 30}},
-        spectra_json:from_json(TypeInfo, MapType, JsonData)
+        spectra_test_util:from_json(TypeInfo, MapType, JsonData)
     ).
 
 %% Test using sp_rec directly with spectra_json functions
@@ -104,7 +102,7 @@ sp_record_types_test() ->
             <<"name">> => <<"Alice">>,
             <<"email">> => <<"alice@example.com">>
         }},
-        spectra_json:to_json(TypeInfo, UserRecord, UserData)
+        spectra_test_util:to_json(TypeInfo, UserRecord, UserData)
     ),
 
     %% Test record deserialization using sp_rec
@@ -114,7 +112,7 @@ sp_record_types_test() ->
             <<"name">> => <<"Alice">>,
             <<"email">> => <<"alice@example.com">>
         },
-    ?assertEqual({ok, UserData}, spectra_json:from_json(TypeInfo, UserRecord, JsonData)).
+    ?assertEqual({ok, UserData}, spectra_test_util:from_json(TypeInfo, UserRecord, JsonData)).
 
 %% Test literal sp_types (extracted from types)
 literal_sp_types_test() ->
@@ -122,16 +120,16 @@ literal_sp_types_test() ->
 
     %% Test literal atom
     AtomLiteralType = spectra_type_info:get_type(TypeInfo, my_literal_atom, 0),
-    ?assertEqual({ok, <<"hello">>}, spectra_json:to_json(TypeInfo, AtomLiteralType, hello)),
+    ?assertEqual({ok, <<"hello">>}, spectra_test_util:to_json(TypeInfo, AtomLiteralType, hello)),
     ?assertEqual(
         {ok, hello},
-        spectra_json:from_json(TypeInfo, AtomLiteralType, <<"hello">>)
+        spectra_test_util:from_json(TypeInfo, AtomLiteralType, <<"hello">>)
     ),
 
     %% Test literal integer
     IntLiteralType = spectra_type_info:get_type(TypeInfo, my_literal_integer, 0),
-    ?assertEqual({ok, 42}, spectra_json:to_json(TypeInfo, IntLiteralType, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(TypeInfo, IntLiteralType, 42)).
+    ?assertEqual({ok, 42}, spectra_test_util:to_json(TypeInfo, IntLiteralType, 42)),
+    ?assertEqual({ok, 42}, spectra_test_util:from_json(TypeInfo, IntLiteralType, 42)).
 
 %% Test range sp_types (extracted from types)
 range_sp_types_test() ->
@@ -139,12 +137,12 @@ range_sp_types_test() ->
 
     %% Test integer range
     RangeType = spectra_type_info:get_type(TypeInfo, my_range, 0),
-    ?assertEqual({ok, 5}, spectra_json:to_json(TypeInfo, RangeType, 5)),
-    ?assertEqual({ok, 5}, spectra_json:from_json(TypeInfo, RangeType, 5)),
+    ?assertEqual({ok, 5}, spectra_test_util:to_json(TypeInfo, RangeType, 5)),
+    ?assertEqual({ok, 5}, spectra_test_util:from_json(TypeInfo, RangeType, 5)),
 
     %% Test out of range values
-    ?assertMatch({error, _}, spectra_json:to_json(TypeInfo, RangeType, 15)),
-    ?assertMatch({error, _}, spectra_json:from_json(TypeInfo, RangeType, 15)).
+    ?assertMatch({error, _}, spectra_test_util:to_json(TypeInfo, RangeType, 15)),
+    ?assertMatch({error, _}, spectra_test_util:from_json(TypeInfo, RangeType, 15)).
 
 %% Test nonempty list sp_types (extracted from types)
 nonempty_list_sp_types_test() ->
@@ -154,16 +152,16 @@ nonempty_list_sp_types_test() ->
     NonEmptyListType = spectra_type_info:get_type(TypeInfo, my_nonempty_list, 0),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:to_json(TypeInfo, NonEmptyListType, [1, 2, 3])
+        spectra_test_util:to_json(TypeInfo, NonEmptyListType, [1, 2, 3])
     ),
     ?assertEqual(
         {ok, [1, 2, 3]},
-        spectra_json:from_json(TypeInfo, NonEmptyListType, [1, 2, 3])
+        spectra_test_util:from_json(TypeInfo, NonEmptyListType, [1, 2, 3])
     ),
 
     %% Test empty list should fail
-    ?assertMatch({error, _}, spectra_json:to_json(TypeInfo, NonEmptyListType, [])),
-    ?assertMatch({error, _}, spectra_json:from_json(TypeInfo, NonEmptyListType, [])).
+    ?assertMatch({error, _}, spectra_test_util:to_json(TypeInfo, NonEmptyListType, [])),
+    ?assertMatch({error, _}, spectra_test_util:from_json(TypeInfo, NonEmptyListType, [])).
 
 %% Test with type info from different module
 cross_module_sp_types_test() ->
@@ -172,8 +170,8 @@ cross_module_sp_types_test() ->
 
     %% Get a type from the other module and use it
     MyIntegerType = spectra_type_info:get_type(OtherModuleTypeInfo, my_integer, 0),
-    ?assertEqual({ok, 42}, spectra_json:to_json(OtherModuleTypeInfo, MyIntegerType, 42)),
-    ?assertEqual({ok, 42}, spectra_json:from_json(OtherModuleTypeInfo, MyIntegerType, 42)).
+    ?assertEqual({ok, 42}, spectra_test_util:to_json(OtherModuleTypeInfo, MyIntegerType, 42)),
+    ?assertEqual({ok, 42}, spectra_test_util:from_json(OtherModuleTypeInfo, MyIntegerType, 42)).
 
 %% Test passing TypeInfo vs passing module directly
 typeinfo_vs_module_test() ->
@@ -182,12 +180,12 @@ typeinfo_vs_module_test() ->
 
     %% These two should give the same result
     Result1 = spectra:encode(json, ?MODULE, IntegerType, 42, [pre_encoded]),
-    Result2 = spectra_json:to_json(TypeInfo, IntegerType, 42),
+    Result2 = spectra_test_util:to_json(TypeInfo, IntegerType, 42),
     ?assertEqual(Result1, Result2),
     ?assertEqual({ok, 42}, Result1),
 
     %% Same for from_json
     JsonResult1 = spectra:decode(json, ?MODULE, IntegerType, 42, [pre_decoded]),
-    JsonResult2 = spectra_json:from_json(TypeInfo, IntegerType, 42),
+    JsonResult2 = spectra_test_util:from_json(TypeInfo, IntegerType, 42),
     ?assertEqual(JsonResult1, JsonResult2),
     ?assertEqual({ok, 42}, JsonResult1).
