@@ -49,10 +49,12 @@ to_json(
     is_atom(TypeName)
 ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    TypeRef = {type, TypeName, Arity},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             json,
+            TypeRef,
             Type,
             Data,
             UserTypeRef,
@@ -73,10 +75,12 @@ to_json(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_encode(
             RemoteTypeInfo,
             json,
+            TypeRef,
             RemoteType,
             Data,
             RemoteRef,
@@ -102,10 +106,12 @@ to_json(
     is_atom(RecordName)
 ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             json,
+            TypeRef,
             RecordType,
             Record,
             RecordRef,
@@ -514,10 +520,12 @@ do_from_json(
     is_atom(TypeName)
 ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    TypeRef = {type, TypeName, Arity},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             json,
+            TypeRef,
             Type,
             Json,
             UserTypeRef,
@@ -538,10 +546,12 @@ do_from_json(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_decode(
             RemoteTypeInfo,
             json,
+            TypeRef,
             RemoteType,
             Json,
             RemoteRef,
@@ -567,10 +577,12 @@ do_from_json(
     is_atom(RecordName)
 ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             json,
+            TypeRef,
             RecordType,
             Json,
             RecordRef,

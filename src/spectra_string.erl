@@ -44,10 +44,12 @@ from_string(
     Config
 ) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    TypeRef = {type, TypeName, Arity},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             string,
+            TypeRef,
             Type,
             String,
             UserTypeRef,
@@ -62,10 +64,12 @@ from_string(
     end;
 from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String, Config) ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             string,
+            TypeRef,
             RecordType,
             String,
             RecordRef,
@@ -83,10 +87,12 @@ from_string(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_decode(
             RemoteTypeInfo,
             string,
+            TypeRef,
             RemoteType,
             String,
             RemoteRef,
@@ -171,10 +177,12 @@ to_string(
     Config
 ) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    TypeRef = {type, TypeName, Arity},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             string,
+            TypeRef,
             Type,
             Data,
             UserTypeRef,
@@ -189,10 +197,12 @@ to_string(
     end;
 to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Config) ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             string,
+            TypeRef,
             RecordType,
             Data,
             RecordRef,
@@ -210,10 +220,12 @@ to_string(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_encode(
             RemoteTypeInfo,
             string,
+            TypeRef,
             RemoteType,
             Data,
             RemoteRef,
