@@ -50,10 +50,12 @@ from_binary_string(
     Config
 ) ->
     Type = spectra_type_info:get_type(TypeInfo, N, Arity),
+    TypeRef = {type, N, Arity},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             binary_string,
+            TypeRef,
             Type,
             BinaryString,
             UserTypeRef,
@@ -75,10 +77,12 @@ from_binary_string(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_decode(
             RemoteTypeInfo,
             binary_string,
+            TypeRef,
             RemoteType,
             BinaryString,
             RemoteRef,
@@ -97,10 +101,12 @@ from_binary_string(
     TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, BinaryString, _Opts, Config
 ) ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             binary_string,
+            TypeRef,
             RecordType,
             BinaryString,
             RecordRef,
@@ -188,10 +194,12 @@ to_binary_string(
     Config
 ) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
+    TypeRef = {type, TypeName, Arity},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             binary_string,
+            TypeRef,
             Type,
             Data,
             UserTypeRef,
@@ -213,10 +221,12 @@ to_binary_string(
 ) ->
     RemoteTypeInfo = spectra_module_types:get(Module, Config),
     RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_encode(
             RemoteTypeInfo,
             binary_string,
+            TypeRef,
             RemoteType,
             Data,
             RemoteRef,
@@ -231,10 +241,12 @@ to_binary_string(
     end;
 to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, _Opts, Config) ->
     RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+    TypeRef = {record, RecordName},
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             binary_string,
+            TypeRef,
             RecordType,
             Data,
             RecordRef,

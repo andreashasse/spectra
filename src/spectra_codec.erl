@@ -98,22 +98,22 @@ where the reference node is available.
 -optional_callbacks([schema/6]).
 
 -export([
-    try_codec_encode/6,
-    try_codec_decode/6,
-    try_codec_schema/5
+    try_codec_encode/7,
+    try_codec_decode/7,
+    try_codec_schema/6
 ]).
 
 -doc "Encodes `Data` via a registered codec for the module owning `TypeInfo`, or returns `continue`.".
 -spec try_codec_encode(
     TypeInfo :: spectra:type_info(),
     Format :: atom(),
+    TypeRef :: spectra:sp_type_reference(),
     Type :: spectra:sp_type(),
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_encode_result().
-try_codec_encode(TypeInfo, Format, Type, Data, SpType, Config) ->
-    #{name := TypeReference} = spectra_type:get_meta(Type),
+try_codec_encode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
         {ok, M} ->
@@ -128,13 +128,13 @@ try_codec_encode(TypeInfo, Format, Type, Data, SpType, Config) ->
 -spec try_codec_decode(
     TypeInfo :: spectra:type_info(),
     Format :: atom(),
+    TypeRef :: spectra:sp_type_reference(),
     Type :: spectra:sp_type(),
     Data :: dynamic(),
     SpType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_decode_result().
-try_codec_decode(TypeInfo, Format, Type, Data, SpType, Config) ->
-    #{name := TypeReference} = spectra_type:get_meta(Type),
+try_codec_decode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
         {ok, M} ->
@@ -149,12 +149,12 @@ try_codec_decode(TypeInfo, Format, Type, Data, SpType, Config) ->
 -spec try_codec_schema(
     TypeInfo :: spectra:type_info(),
     Format :: atom(),
+    TypeRef :: spectra:sp_type_reference(),
     Type :: spectra:sp_type(),
     SpType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> dynamic() | continue.
-try_codec_schema(TypeInfo, Format, Type, SpType, Config) ->
-    #{name := TypeReference} = spectra_type:get_meta(Type),
+try_codec_schema(TypeInfo, Format, TypeReference, Type, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
     case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
         {ok, M} ->

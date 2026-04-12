@@ -228,14 +228,14 @@ do_decode(Format, TypeInfo, RefAtom, Data, Options, Config) when is_atom(RefAtom
     do_decode(Format, TypeInfo, TypeRef, Data, Options, Config);
 do_decode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
-    maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config);
+    maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
 do_decode(Format, TypeInfo, {record, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
-    maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config);
+    maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
 do_decode(Format, TypeInfo, SpType, Data, Options, Config) when is_record(TypeInfo, type_info) ->
     case type_ref_from_meta(SpType) of
-        {ok, _TypeRef} ->
-            maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config);
+        {ok, TypeRef} ->
+            maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
         error ->
             default_decode(Format, TypeInfo, SpType, Data, Options, Config)
     end;
@@ -368,14 +368,14 @@ do_encode(Format, TypeInfo, TypeAtom, Data, Options, Config) when is_atom(TypeAt
     do_encode(Format, TypeInfo, TypeRef, Data, Options, Config);
 do_encode(Format, TypeInfo, {type, _, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
-    maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config);
+    maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
 do_encode(Format, TypeInfo, {record, _} = TypeRef, Data, Options, Config) ->
     SpType = resolve_type_ref(TypeInfo, TypeRef),
-    maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config);
+    maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
 do_encode(Format, TypeInfo, SpType, Data, Options, Config) when is_record(TypeInfo, type_info) ->
     case type_ref_from_meta(SpType) of
-        {ok, _TypeRef} ->
-            maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config);
+        {ok, TypeRef} ->
+            maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config);
         error ->
             default_encode(Format, TypeInfo, SpType, Data, Options, Config)
     end;
@@ -486,11 +486,10 @@ resolve_type_ref(TypeInfo, {type, TypeName, TypeArity}) ->
 resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_type_info:get_record(TypeInfo, RecordName).
 
--spec maybe_codec_schema(atom(), type_info(), sp_type_reference(), sp_config()) ->
+-spec maybe_codec_schema(atom(), type_info(), sp_type_reference(), sp_type(), sp_config()) ->
     spectra_json_schema:json_schema_object().
-maybe_codec_schema(Format, TypeInfo, TypeRef, Config) ->
-    SpType = resolve_type_ref(TypeInfo, TypeRef),
-    case spectra_codec:try_codec_schema(TypeInfo, Format, SpType, SpType, Config) of
+maybe_codec_schema(Format, TypeInfo, TypeRef, SpType, Config) ->
+    case spectra_codec:try_codec_schema(TypeInfo, Format, TypeRef, SpType, SpType, Config) of
         continue -> default_schema(Format, TypeInfo, SpType, Config);
         Schema -> Schema
     end.
@@ -515,16 +514,18 @@ finalize_schema(Format, _SchemaMap, _Options) ->
 -spec maybe_codec_decode(
     Format :: atom(),
     TypeInfo :: type_info(),
+    TypeRef :: sp_type_reference(),
     SpType :: sp_type(),
     Data :: dynamic(),
     Options :: [decode_option()],
     Config :: sp_config()
 ) -> {ok, dynamic()} | {error, [error()]}.
-maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
+maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config) ->
     case
         spectra_codec:try_codec_decode(
             TypeInfo,
             Format,
+            TypeRef,
             SpType,
             Data,
             SpType,
@@ -538,16 +539,18 @@ maybe_codec_decode(Format, TypeInfo, SpType, Data, Options, Config) ->
 -spec maybe_codec_encode(
     Format :: atom(),
     TypeInfo :: type_info(),
+    TypeRef :: sp_type_reference(),
     SpType :: sp_type(),
     Data :: dynamic(),
     Options :: [encode_option()],
     Config :: sp_config()
 ) -> {ok, dynamic()} | {error, [error()]}.
-maybe_codec_encode(Format, TypeInfo, SpType, Data, Options, Config) ->
+maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config) ->
     case
         spectra_codec:try_codec_encode(
             TypeInfo,
             Format,
+            TypeRef,
             SpType,
             Data,
             SpType,
@@ -570,14 +573,14 @@ do_schema(Format, TypeInfo, {record, _} = TypeRef, Options, Config) ->
 do_schema(json_schema, TypeInfo, SpType, Options, Config) ->
     SchemaMap =
         case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef, Config);
+            {ok, TypeRef} -> maybe_codec_schema(json_schema, TypeInfo, TypeRef, SpType, Config);
             error -> default_schema(json_schema, TypeInfo, SpType, Config)
         end,
     finalize_schema(json_schema, spectra_json_schema:add_schema_version(SchemaMap), Options);
 do_schema(Format, TypeInfo, SpType, Options, Config) ->
     SchemaMap =
         case type_ref_from_meta(SpType) of
-            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef, Config);
+            {ok, TypeRef} -> maybe_codec_schema(Format, TypeInfo, TypeRef, SpType, Config);
             error -> default_schema(Format, TypeInfo, SpType, Config)
         end,
     finalize_schema(Format, SchemaMap, Options).
@@ -585,12 +588,14 @@ do_schema(Format, TypeInfo, SpType, Options, Config) ->
 -spec do_schema_ref(atom(), type_info(), sp_type_reference(), [schema_option()], sp_config()) ->
     iodata() | map().
 do_schema_ref(json_schema, TypeInfo, TypeRef, Options, Config) ->
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
     SchemaMap = spectra_json_schema:add_schema_version(
-        maybe_codec_schema(json_schema, TypeInfo, TypeRef, Config)
+        maybe_codec_schema(json_schema, TypeInfo, TypeRef, SpType, Config)
     ),
     finalize_schema(json_schema, SchemaMap, Options);
 do_schema_ref(Format, TypeInfo, TypeRef, Options, Config) ->
-    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef, Config),
+    SpType = resolve_type_ref(TypeInfo, TypeRef),
+    SchemaMap = maybe_codec_schema(Format, TypeInfo, TypeRef, SpType, Config),
     finalize_schema(Format, SchemaMap, Options).
 
 -spec type_ref_from_meta(sp_type()) -> {ok, sp_type_reference()} | error.
