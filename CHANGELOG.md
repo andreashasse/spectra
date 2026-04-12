@@ -17,9 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking**: Custom codec callbacks now receive an extra config argument. `encode` and `decode` move from arity 6 to 7, and `schema` moves from arity 5 to 6.
 - **Breaking**: The old `use_module_types_cache` boolean option is replaced by `module_types_cache`.
 
-### Fixed
-- Codec dispatch now passes type references explicitly, improving codec-backed type handling across encoding, decoding, schema generation, and OpenAPI generation.
-
 ## [0.10.0] - 2026-04-08
 
 ### Added
