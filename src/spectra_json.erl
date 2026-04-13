@@ -299,9 +299,9 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
             },
             {FieldsAcc, ConsumedKeys}
         ) ->
-            Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
             case Data of
                 #{FieldName := FieldData} ->
+                    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
                     case {FieldData, Missing} of
                         {MissingValue, {true, MissingValue}} ->
                             {ok, {FieldsAcc, [FieldName | ConsumedKeys]}};
@@ -380,41 +380,51 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
             TypedFun = fun
                 (
                     #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
-                    {FieldsAcc, _}
+                    {FieldsAcc, CurrentRemainingDataList}
                 ) ->
                     case
                         map_typed_field_to_json_list(
-                            TypeInfo, KeyType, ValueType, RemainingDataList, Config
+                            TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config
                         )
                     of
-                        {ok, {NewFields, _}} ->
-                            {ok, {lists:reverse(NewFields, FieldsAcc), []}};
+                        {ok, {NewFields, NewConsumed}} ->
+                            NextRemainingDataList = lists:filter(
+                                fun({K, _}) -> not lists:member(K, NewConsumed) end,
+                                CurrentRemainingDataList
+                            ),
+                            {ok, {lists:reverse(NewFields, FieldsAcc), NextRemainingDataList}};
                         {error, _} = Err ->
                             Err
                     end;
                 (
                     #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
-                    {FieldsAcc, _}
+                    {FieldsAcc, CurrentRemainingDataList}
                 ) ->
                     case
                         map_typed_field_to_json_list(
-                            TypeInfo, KeyType, ValueType, RemainingDataList, Config
+                            TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config
                         )
                     of
-                        {ok, {NewFields, _}} ->
+                        {ok, {NewFields, NewConsumed}} ->
+                            NextRemainingDataList = lists:filter(
+                                fun({K, _}) -> not lists:member(K, NewConsumed) end,
+                                CurrentRemainingDataList
+                            ),
                             case NewFields of
                                 [] ->
-                                    Remainder = maps:from_list(RemainingDataList),
+                                    Remainder = maps:from_list(CurrentRemainingDataList),
                                     {error, [sp_error:not_matched_fields(Type, Remainder)]};
                                 _ ->
-                                    {ok, {lists:reverse(NewFields, FieldsAcc), []}}
+                                    {ok, {
+                                        lists:reverse(NewFields, FieldsAcc), NextRemainingDataList
+                                    }}
                             end;
                         {error, _} = Err ->
                             Err
                     end
             end,
 
-            case spectra_util:fold_until_error(TypedFun, {[], []}, TypedFields) of
+            case spectra_util:fold_until_error(TypedFun, {[], RemainingDataList}, TypedFields) of
                 {ok, {TypedMapFields, _}} ->
                     {ok, TypedMapFields ++ LiteralMapFields};
                 {error, _} = Err ->
