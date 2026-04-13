@@ -92,7 +92,9 @@ fold_until_error(Fun, Acc, [H | T]) ->
             fold_until_error(Fun, NewAcc, T)
     end;
 fold_until_error(Fun, Acc, []) when is_function(Fun, 2) ->
-    {ok, Acc}.
+    {ok, Acc};
+fold_until_error(Fun, _Acc, ImproperList) when is_function(Fun, 2) ->
+    erlang:error({improper_list, ImproperList}).
 
 -spec map_until_error(
     fun((Elem :: dynamic()) -> {error, Err :: dynamic()} | {ok, ResElem :: dynamic()}),

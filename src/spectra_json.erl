@@ -218,13 +218,13 @@ nonempty_list_to_json(_TypeInfo, Type, Data, _Config) ->
 ) ->
     {ok, [json:encode_value()]} | {error, [spectra:error()]}.
 list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_list(Data) ->
-    case safe_enumerate(Data) of
-        {ok, EnumeratedData} ->
-            spectra_util:map_until_error(
-                fun({Nr, Item}) ->
+    try
+        case
+            spectra_util:fold_until_error(
+                fun(Item, {Nr, Acc}) ->
                     case to_json(TypeInfo, Type, Item, Config) of
                         {ok, Json} ->
-                            {ok, Json};
+                            {ok, {Nr + 1, [Json | Acc]}};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
@@ -234,9 +234,17 @@ list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_l
                             {error, Errs2}
                     end
                 end,
-                EnumeratedData
-            );
-        {error, improper_list} ->
+                {1, []},
+                Data
+            )
+        of
+            {ok, {_Nr, Json}} ->
+                {ok, lists:reverse(Json)};
+            {error, _} = Err ->
+                Err
+        end
+    catch
+        error:{improper_list, Data} ->
             {error, [sp_error:type_mismatch(ListType, Data)]}
     end.
 
@@ -291,7 +299,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                     case to_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
                             {ok, {
-                                [{BinaryFieldName, FieldJson}] ++ FieldsAcc,
+                                [{BinaryFieldName, FieldJson} | FieldsAcc],
                                 NewDataAcc
                             }};
                         {error, Errs} ->
@@ -311,7 +319,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
         ) ->
             case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc, Config) of
                 {ok, {NewFields, NewDataAcc}} ->
-                    {ok, {NewFields ++ FieldsAcc, NewDataAcc}};
+                    {ok, {lists:reverse(NewFields, FieldsAcc), NewDataAcc}};
                 {error, _} = Err ->
                     Err
             end;
@@ -323,7 +331,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                 {ok, {[], _}} ->
                     {error, [sp_error:not_matched_fields(Type, DataAcc)]};
                 {ok, {NewFields, NewDataAcc}} ->
-                    {ok, {NewFields ++ FieldsAcc, NewDataAcc}};
+                    {ok, {lists:reverse(NewFields, FieldsAcc), NewDataAcc}};
                 {error, _} = Err ->
                     Err
             end;
@@ -341,7 +349,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                 {{FieldData, NewDataAcc}, _} ->
                     case to_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
-                            {ok, {[{BinaryFieldName, FieldJson}] ++ FieldsAcc, NewDataAcc}};
+                            {ok, {[{BinaryFieldName, FieldJson} | FieldsAcc], NewDataAcc}};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
@@ -403,7 +411,7 @@ map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data, Config) ->
                         case to_json(TypeInfo, ValueType, Value, Config) of
                             {ok, ValueJson} ->
                                 {ok, {
-                                    FieldsAcc ++ [{KeyJson, ValueJson}], maps:remove(Key, DataAcc)
+                                    [{KeyJson, ValueJson} | FieldsAcc], maps:remove(Key, DataAcc)
                                 }};
                             {error, Errs} ->
                                 Errs2 = lists:map(
@@ -468,7 +476,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
             _ ->
                 case to_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
-                        {ok, [{BinaryFieldName, FieldJson}] ++ FieldsAcc};
+                        {ok, [{BinaryFieldName, FieldJson} | FieldsAcc]};
                     {error, Errors} ->
                         {error,
                             lists:map(
@@ -932,7 +940,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                 {FieldData, NewJsonAcc} ->
                     case do_from_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
-                            {ok, {[{FieldName, FieldJson}] ++ FieldsAcc, NewJsonAcc}};
+                            {ok, {[{FieldName, FieldJson} | FieldsAcc], NewJsonAcc}};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
@@ -954,7 +962,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                 {FieldData, NewJsonAcc} ->
                     case do_from_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
-                            {ok, {[{FieldName, FieldJson}] ++ FieldsAcc, NewJsonAcc}};
+                            {ok, {[{FieldName, FieldJson} | FieldsAcc], NewJsonAcc}};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
@@ -966,7 +974,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                 error ->
                     case spectra_type:can_be_missing(TypeInfo, FieldType) of
                         {true, MissingValue} when Defaults =:= undefined ->
-                            {ok, {[{FieldName, MissingValue}] ++ FieldsAcc, JsonAcc}};
+                            {ok, {[{FieldName, MissingValue} | FieldsAcc], JsonAcc}};
                         {true, _} ->
                             {ok, {FieldsAcc, JsonAcc}};
                         false ->
@@ -1054,7 +1062,7 @@ map_field_type_from_json(TypeInfo, KeyType, ValueType, Json, Config) ->
                 {ok, KeyJson} ->
                     case do_from_json(TypeInfo, ValueType, Value, Config) of
                         {ok, ValueJson} ->
-                            {ok, {FieldsAcc ++ [{KeyJson, ValueJson}], maps:remove(Key, JsonAcc)}};
+                            {ok, {[{KeyJson, ValueJson} | FieldsAcc], maps:remove(Key, JsonAcc)}};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
