@@ -1058,42 +1058,50 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
             TypedFun = fun
                 (
                     #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
-                    {FieldsAcc, _}
+                    {FieldsAcc, CurrentRemainingJsonList}
                 ) ->
                     case
                         map_field_type_from_json_list(
-                            TypeInfo, KeyType, ValueType, RemainingJsonList, Config
+                            TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
                         )
                     of
-                        {ok, {NewFields, _}} ->
-                            {ok, {NewFields ++ FieldsAcc, []}};
+                        {ok, {NewFields, NewConsumed}} ->
+                            NextRemainingJsonList = lists:filter(
+                                fun({K, _}) -> not lists:member(K, NewConsumed) end,
+                                CurrentRemainingJsonList
+                            ),
+                            {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}};
                         {error, Reason} ->
                             {error, Reason}
                     end;
                 (
                     #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
-                    {FieldsAcc, _}
+                    {FieldsAcc, CurrentRemainingJsonList}
                 ) ->
                     case
                         map_field_type_from_json_list(
-                            TypeInfo, KeyType, ValueType, RemainingJsonList, Config
+                            TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
                         )
                     of
-                        {ok, {NewFields, _}} ->
+                        {ok, {NewFields, NewConsumed}} ->
+                            NextRemainingJsonList = lists:filter(
+                                fun({K, _}) -> not lists:member(K, NewConsumed) end,
+                                CurrentRemainingJsonList
+                            ),
                             case NewFields of
                                 [] ->
-                                    Remainder = maps:from_list(RemainingJsonList),
+                                    Remainder = maps:from_list(CurrentRemainingJsonList),
                                     {error, [sp_error:not_matched_fields(Type, Remainder)]};
                                 _ ->
-                                    {ok, {NewFields ++ FieldsAcc, []}}
+                                    {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}}
                             end;
                         {error, _} = Err ->
                             Err
                     end
             end,
 
-            case spectra_util:fold_until_error(TypedFun, {[], []}, TypedFields) of
-                {ok, {TypedMapFields, _}} ->
+            case spectra_util:fold_until_error(TypedFun, {[], RemainingJsonList}, TypedFields) of
+                {ok, {TypedMapFields, _FinalRemainingJsonList}} ->
                     AllFields = TypedMapFields ++ LiteralMapFields,
                     Decoded = maps:from_list(AllFields),
                     Result =
