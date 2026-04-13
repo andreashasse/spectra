@@ -18,6 +18,9 @@ Once that is done, run `make proper`.
   - Add test: Create new test file in test/ directory
   - Run specific test: rebar3 eunit --module=test_module_name
 
+## Lint Rules
+  - When a lint diagnostic includes a code (e.g. W0032) and a link, follow the link to understand the rule before attempting a fix. Do not guess at the meaning of the code.
+
 ## Development Guidelines
   - All changes should come with unit tests (positive and negative if applicable) that cover the change.
   - Don't define types in .hrl files. Types that the user of this library should use should be defined in spectra.erl
