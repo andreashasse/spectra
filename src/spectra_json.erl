@@ -244,7 +244,7 @@ list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_l
                 Err
         end
     catch
-        error:{improper_list, Data} ->
+        error:{improper_list, _ImproperTail} ->
             {error, [sp_error:type_mismatch(ListType, Data)]}
     end.
 
