@@ -12,7 +12,7 @@ validate_schema_2020_12(Schema) ->
 %% @doc Validate a schema using the Python validator script.
 -spec validate_schema(map()) -> ok | {skip, string()} | {error, term()}.
 validate_schema(Schema) ->
-    ScriptPath = filename:join([code:priv_dir(spectra), "validate_json_schema.py"]),
+    ScriptPath = python_validator_helper:script_path("validate_json_schema.py"),
     case python_validator_helper:validate_with_python(ScriptPath, Schema) of
         {skip, Reason} ->
             {skip, Reason};

@@ -12,7 +12,7 @@ validate_openapi_3_1(Spec) ->
 %% @doc Validate an OpenAPI spec using the Python validator script.
 -spec validate_openapi(map()) -> ok | {skip, string()} | {error, term()}.
 validate_openapi(Spec) ->
-    ScriptPath = filename:join([code:priv_dir(spectra), "validate_openapi.py"]),
+    ScriptPath = python_validator_helper:script_path("validate_openapi.py"),
     case python_validator_helper:validate_with_python(ScriptPath, Spec) of
         {skip, Reason} ->
             {skip, Reason};

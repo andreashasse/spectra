@@ -494,11 +494,11 @@ validate_json_serializable(Value) ->
 %% Test Python-based OpenAPI validation
 python_openapi_validation_test() ->
     %% Check if uv is available first
-    case os:cmd("which uv") of
-        "" ->
+    case os:find_executable("uv") of
+        false ->
             %% uv not found, skip test
             ok;
-        _ ->
+        _UvPath ->
             %% uv is available, run the validation test
             run_python_openapi_validation()
     end.
@@ -567,26 +567,13 @@ run_python_openapi_validation() ->
             [pre_encoded]
         ),
 
-    %% Convert to JSON-compatible format and write to file
-    JsonIoList = json:encode(OpenAPISpec),
-    JsonString = iolist_to_binary(JsonIoList),
-
-    %% Write to file for Python validation
-    file:write_file("generated_openapi.json", JsonString),
-
-    %% Run Python validation script
-    ScriptPath = filename:join([code:priv_dir(spectra), "validate_openapi.py"]),
-    Output = os:cmd(lists:flatten(io_lib:format("~s generated_openapi.json", [ScriptPath]))),
-
-    %% Check that validation passed (look for success message in output)
-    case string:find(Output, "is a valid OpenAPI") of
-        nomatch ->
-            %% Format output as a simple string for error reporting
-            OutputStr = io_lib:format("~w", [Output]),
-            ?assert(false, io_lib:format("Python OpenAPI validation failed: ~s", [OutputStr]));
-        _ ->
-            %% Validation passed
-            ok
+    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            {skip, Reason};
+        {error, {validation_failed, Output}} ->
+            ?assert(false, io_lib:format("Python OpenAPI validation failed: ~s", [Output]))
     end.
 
 %% Test that custom content types appear in generated OpenAPI JSON for responses

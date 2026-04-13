@@ -1,6 +1,11 @@
 -module(python_validator_helper).
 
--export([validate_with_python/2]).
+-export([script_path/1, validate_with_python/2]).
+
+-spec script_path(file:name()) -> file:filename_all().
+script_path(ScriptName) ->
+    SourcePath = proplists:get_value(source, ?MODULE:module_info(compile)),
+    filename:join(filename:dirname(SourcePath), ScriptName).
 
 %% @doc Generic function to validate data using a Python script via uv.
 %% Takes a Python script path and data to validate.
