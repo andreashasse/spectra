@@ -115,18 +115,18 @@ to_json_nullable(Binary) ->
 
 type_shaddow_literal_map_test() ->
     ?assertEqual(
-        {ok, #{a1 => pelle, some_atom => some_value}},
+        {error, [
+            sp_error:append_location(
+                sp_error:type_mismatch({sp_literal, 1, <<"1">>, #{}}, pelle),
+                a1
+            )
+        ]},
         to_json_type_shaddow_literal_map(#{a1 => pelle, some_atom => some_value})
     ).
 
 type_shaddow_literal_map_bad_test() ->
     ?assertEqual(
-        {error, [
-            sp_error:append_location(
-                sp_error:type_mismatch(#sp_simple_type{type = atom}, 1),
-                a1
-            )
-        ]},
+        {ok, #{<<"a1">> => 1, some_atom => some_value}},
         to_json_type_shaddow_literal_map(#{a1 => 1, some_atom => some_value})
     ).
 
@@ -208,7 +208,12 @@ from_json_map3_bad_test() ->
 
 from_json_type_shaddow_literal_map_test() ->
     ?assertEqual(
-        {ok, #{a1 => pelle, some_atom => some_value}},
+        {error, [
+            sp_error:append_location(
+                sp_error:type_mismatch({sp_literal, 1, <<"1">>, #{}}, <<"pelle">>),
+                a1
+            )
+        ]},
         from_json_type_shaddow_literal_map(#{
             <<"a1">> => <<"pelle">>,
             <<"some_atom">> => <<"some_value">>
