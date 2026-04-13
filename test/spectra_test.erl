@@ -14,6 +14,7 @@
 -type status() :: active | inactive | pending.
 %% Test types with non-empty lists
 -type tags() :: [string(), ...].
+-type integer_list() :: [integer()].
 
 %% Test records
 -record(user, {id :: user_id(), name :: binary(), age :: age()}).
@@ -208,6 +209,12 @@ encode_type_json_nonempty_list_test() ->
     % Empty list should error
     {error, Errors} = spectra:encode(json, ?MODULE, tags, []),
     ?assertMatch([#sp_error{type = type_mismatch}], Errors).
+
+encode_type_json_list_rejects_improper_list_test() ->
+    ?assertMatch(
+        {error, [#sp_error{type = type_mismatch}]},
+        spectra:encode(json, ?MODULE, integer_list, [1 | 2])
+    ).
 
 encode_type_json_map_test() ->
     Data =
