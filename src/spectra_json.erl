@@ -288,50 +288,61 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
             #literal_map_field{
                 kind = assoc, name = FieldName, binary_name = BinaryFieldName, val_type = FieldType
             },
-            {FieldsAcc, DataAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case
-                {maps:take(FieldName, DataAcc), spectra_type:can_be_missing(TypeInfo, FieldType)}
-            of
-                {{MissingValue, NewDataAcc}, {true, MissingValue}} ->
-                    {ok, {FieldsAcc, NewDataAcc}};
-                {{FieldData, NewDataAcc}, _} ->
-                    case to_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok, {
-                                [{BinaryFieldName, FieldJson} | FieldsAcc],
-                                NewDataAcc
-                            }};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) -> sp_error:append_location(Err, FieldName) end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                {error, _} ->
-                    {ok, {FieldsAcc, DataAcc}}
+            case is_consumed(FieldName, Consumed) of
+                true ->
+                    {ok, {FieldsAcc, Consumed}};
+                false ->
+                    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
+                    case Data of
+                        #{FieldName := FieldData} ->
+                            case {FieldData, Missing} of
+                                {MissingValue, {true, MissingValue}} ->
+                                    {ok, {FieldsAcc, add_consumed(FieldName, Consumed)}};
+                                _ ->
+                                    case to_json(TypeInfo, FieldType, FieldData, Config) of
+                                        {ok, FieldJson} ->
+                                            {ok, {
+                                                [{BinaryFieldName, FieldJson} | FieldsAcc],
+                                                add_consumed(FieldName, Consumed)
+                                            }};
+                                        {error, Errs} ->
+                                            Errs2 =
+                                                lists:map(
+                                                    fun(Err) ->
+                                                        sp_error:append_location(Err, FieldName)
+                                                    end,
+                                                    Errs
+                                                ),
+                                            {error, Errs2}
+                                    end
+                            end;
+                        #{} ->
+                            {ok, {FieldsAcc, Consumed}}
+                    end
             end;
         (
             #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
-            {FieldsAcc, DataAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc, Config) of
-                {ok, {NewFields, NewDataAcc}} ->
-                    {ok, {lists:reverse(NewFields, FieldsAcc), NewDataAcc}};
+            Remainder = maps:without(Consumed, Data),
+            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, Remainder, Config) of
+                {ok, {NewFields, NewConsumed}} ->
+                    {ok, {lists:reverse(NewFields, FieldsAcc), NewConsumed ++ Consumed}};
                 {error, _} = Err ->
                     Err
             end;
         (
             #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
-            {FieldsAcc, DataAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, DataAcc, Config) of
+            Remainder = maps:without(Consumed, Data),
+            case map_typed_field_to_json(TypeInfo, KeyType, ValueType, Remainder, Config) of
                 {ok, {[], _}} ->
-                    {error, [sp_error:not_matched_fields(Type, DataAcc)]};
-                {ok, {NewFields, NewDataAcc}} ->
-                    {ok, {lists:reverse(NewFields, FieldsAcc), NewDataAcc}};
+                    {error, [sp_error:not_matched_fields(Type, Remainder)]};
+                {ok, {NewFields, NewConsumed}} ->
+                    {ok, {lists:reverse(NewFields, FieldsAcc), NewConsumed ++ Consumed}};
                 {error, _} = Err ->
                     Err
             end;
@@ -339,54 +350,59 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
             #literal_map_field{
                 kind = exact, name = FieldName, binary_name = BinaryFieldName, val_type = FieldType
             } = Type,
-            {FieldsAcc, DataAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case
-                {maps:take(FieldName, DataAcc), spectra_type:can_be_missing(TypeInfo, FieldType)}
-            of
-                {{MissingValue, NewDataAcc}, {true, MissingValue}} ->
-                    {ok, {FieldsAcc, NewDataAcc}};
-                {{FieldData, NewDataAcc}, _} ->
-                    case to_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok, {[{BinaryFieldName, FieldJson} | FieldsAcc], NewDataAcc}};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) -> sp_error:append_location(Err, FieldName) end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                {error, _} ->
+            case is_consumed(FieldName, Consumed) of
+                true ->
                     case spectra_type:can_be_missing(TypeInfo, FieldType) of
                         {true, _} ->
-                            {ok, {FieldsAcc, DataAcc}};
+                            {ok, {FieldsAcc, Consumed}};
                         false ->
-                            {error, [sp_error:missing_data(Type, DataAcc, [FieldName])]}
+                            Remainder = maps:without(Consumed, Data),
+                            {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
+                    end;
+                false ->
+                    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
+                    case Data of
+                        #{FieldName := FieldData} ->
+                            case {FieldData, Missing} of
+                                {MissingValue, {true, MissingValue}} ->
+                                    {ok, {FieldsAcc, add_consumed(FieldName, Consumed)}};
+                                _ ->
+                                    case to_json(TypeInfo, FieldType, FieldData, Config) of
+                                        {ok, FieldJson} ->
+                                            {ok, {
+                                                [{BinaryFieldName, FieldJson} | FieldsAcc],
+                                                add_consumed(FieldName, Consumed)
+                                            }};
+                                        {error, Errs} ->
+                                            Errs2 =
+                                                lists:map(
+                                                    fun(Err) ->
+                                                        sp_error:append_location(Err, FieldName)
+                                                    end,
+                                                    Errs
+                                                ),
+                                            {error, Errs2}
+                                    end
+                            end;
+                        #{} ->
+                            case Missing of
+                                {true, _} ->
+                                    {ok, {FieldsAcc, Consumed}};
+                                false ->
+                                    Remainder = maps:without(Consumed, Data),
+                                    {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
+                            end
                     end
             end
     end,
-    case spectra_util:fold_until_error(Fun, {[], Data}, MapFieldTypes) of
-        {ok, {MapFields, _FinalData}} ->
+    case spectra_util:fold_until_error(Fun, {[], []}, MapFieldTypes) of
+        {ok, {MapFields, _FinalConsumed}} ->
             {ok, MapFields};
         % TODO: Add config option to optionally error on extra fields
-        % case maps:to_list(FinalData) of
-        %     [] ->
-        %         {ok, MapFields};
-        %     L ->
-        %         {error,
-        %             lists:map(
-        %                 fun({Key, Value}) ->
-        %                     #sp_error{
-        %                         type = not_matched_fields,
-        %                         location = [],
-        %                         ctx = #{key => Key, value => Value}
-        %                     }
-        %                 end,
-        %                 L
-        %             )}
-        % end;
+        % Remainder = maps:without(FinalConsumed, Data),
+        % case maps:to_list(Remainder) of ...
         {error, _} = Err ->
             Err
     end.
@@ -398,33 +414,36 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
     Data :: map(),
     Config :: spectra:sp_config()
 ) ->
-    {ok, {[{json:encode_value(), json:encode_value()}], map()}}
+    {ok, {[{json:encode_value(), json:encode_value()}], [dynamic()]}}
     | {error, [spectra:error()]}.
 map_typed_field_to_json(TypeInfo, KeyType, ValueType, Data, Config) ->
-    Fun = fun({Key, Value}, {FieldsAcc, DataAcc}) ->
+    Fun = fun({Key, Value}, {FieldsAcc, ConsumedAcc}) ->
         case to_json(TypeInfo, KeyType, Key, Config) of
             {ok, KeyJson} ->
                 case {Value, spectra_type:can_be_missing(TypeInfo, ValueType)} of
                     {MissingValue, {true, MissingValue}} ->
-                        {ok, {FieldsAcc, maps:remove(Key, DataAcc)}};
+                        {ok, {FieldsAcc, [Key | ConsumedAcc]}};
                     _ ->
                         case to_json(TypeInfo, ValueType, Value, Config) of
                             {ok, ValueJson} ->
-                                {ok, {
-                                    [{KeyJson, ValueJson} | FieldsAcc], maps:remove(Key, DataAcc)
-                                }};
+                                {ok,
+                                    {
+                                        [{KeyJson, ValueJson} | FieldsAcc],
+                                        [Key | ConsumedAcc]
+                                    }};
                             {error, Errs} ->
                                 Errs2 = lists:map(
-                                    fun(Err) -> sp_error:append_location(Err, Key) end, Errs
+                                    fun(Err) -> sp_error:append_location(Err, Key) end,
+                                    Errs
                                 ),
                                 {error, Errs2}
                         end
                 end;
             {error, _Errs} ->
-                {ok, {FieldsAcc, DataAcc}}
+                {ok, {FieldsAcc, ConsumedAcc}}
         end
     end,
-    spectra_util:fold_until_error(Fun, {[], Data}, maps:to_list(Data)).
+    spectra_util:fold_until_error(Fun, {[], []}, maps:to_list(Data)).
 
 -spec record_to_json(
     TypeInfo :: spectra:type_info(),
@@ -934,87 +953,125 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
             #literal_map_field{
                 kind = assoc, name = FieldName, binary_name = BinaryName, val_type = FieldType
             },
-            {FieldsAcc, JsonAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case maps:take(BinaryName, JsonAcc) of
-                {FieldData, NewJsonAcc} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok, {[{FieldName, FieldJson} | FieldsAcc], NewJsonAcc}};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) -> sp_error:append_location(Err, FieldName) end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                error ->
-                    {ok, {FieldsAcc, JsonAcc}}
+            case is_consumed(BinaryName, Consumed) of
+                true ->
+                    {ok, {FieldsAcc, Consumed}};
+                false ->
+                    case Json of
+                        #{BinaryName := FieldData} ->
+                            case do_from_json(TypeInfo, FieldType, FieldData, Config) of
+                                {ok, FieldJson} ->
+                                    {ok, {
+                                        [{FieldName, FieldJson} | FieldsAcc],
+                                        add_consumed(BinaryName, Consumed)
+                                    }};
+                                {error, Errs} ->
+                                    Errs2 =
+                                        lists:map(
+                                            fun(Err) ->
+                                                sp_error:append_location(Err, FieldName)
+                                            end,
+                                            Errs
+                                        ),
+                                    {error, Errs2}
+                            end;
+                        #{} ->
+                            {ok, {FieldsAcc, Consumed}}
+                    end
             end;
         (
             #literal_map_field{
                 kind = exact, name = FieldName, binary_name = BinaryName, val_type = FieldType
             } = Type,
-            {FieldsAcc, JsonAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case maps:take(BinaryName, JsonAcc) of
-                {FieldData, NewJsonAcc} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok, {[{FieldName, FieldJson} | FieldsAcc], NewJsonAcc}};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) -> sp_error:append_location(Err, FieldName) end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                error ->
+            case is_consumed(BinaryName, Consumed) of
+                true ->
                     case spectra_type:can_be_missing(TypeInfo, FieldType) of
                         {true, MissingValue} when Defaults =:= undefined ->
-                            {ok, {[{FieldName, MissingValue} | FieldsAcc], JsonAcc}};
+                            {ok, {[{FieldName, MissingValue} | FieldsAcc], Consumed}};
                         {true, _} ->
-                            {ok, {FieldsAcc, JsonAcc}};
+                            {ok, {FieldsAcc, Consumed}};
                         false ->
                             case struct_default_value(Defaults, FieldName) of
                                 {ok, _} ->
-                                    {ok, {FieldsAcc, JsonAcc}};
+                                    {ok, {FieldsAcc, Consumed}};
                                 error ->
-                                    {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
+                                    Remainder = maps:without(Consumed, Json),
+                                    {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
+                            end
+                    end;
+                false ->
+                    case Json of
+                        #{BinaryName := FieldData} ->
+                            case do_from_json(TypeInfo, FieldType, FieldData, Config) of
+                                {ok, FieldJson} ->
+                                    {ok, {
+                                        [{FieldName, FieldJson} | FieldsAcc],
+                                        add_consumed(BinaryName, Consumed)
+                                    }};
+                                {error, Errs} ->
+                                    Errs2 =
+                                        lists:map(
+                                            fun(Err) ->
+                                                sp_error:append_location(Err, FieldName)
+                                            end,
+                                            Errs
+                                        ),
+                                    {error, Errs2}
+                            end;
+                        #{} ->
+                            case spectra_type:can_be_missing(TypeInfo, FieldType) of
+                                {true, MissingValue} when Defaults =:= undefined ->
+                                    {ok, {[{FieldName, MissingValue} | FieldsAcc], Consumed}};
+                                {true, _} ->
+                                    {ok, {FieldsAcc, Consumed}};
+                                false ->
+                                    case struct_default_value(Defaults, FieldName) of
+                                        {ok, _} ->
+                                            {ok, {FieldsAcc, Consumed}};
+                                        error ->
+                                            Remainder = maps:without(Consumed, Json),
+                                            {error, [
+                                                sp_error:missing_data(Type, Remainder, [FieldName])
+                                            ]}
+                                    end
                             end
                     end
             end;
         (
             #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
-            {FieldsAcc, JsonAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc, Config) of
-                {ok, {NewFields, NewJsonAcc}} ->
-                    {ok, {NewFields ++ FieldsAcc, NewJsonAcc}};
+            Remainder = maps:without(Consumed, Json),
+            case map_field_type_from_json(TypeInfo, KeyType, ValueType, Remainder, Config) of
+                {ok, {NewFields, NewConsumed}} ->
+                    {ok, {NewFields ++ FieldsAcc, NewConsumed ++ Consumed}};
                 {error, Reason} ->
                     {error, Reason}
             end;
         (
             #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
-            {FieldsAcc, JsonAcc}
+            {FieldsAcc, Consumed}
         ) ->
-            case map_field_type_from_json(TypeInfo, KeyType, ValueType, JsonAcc, Config) of
-                {ok, {NewFields, NewJsonAcc}} ->
+            Remainder = maps:without(Consumed, Json),
+            case map_field_type_from_json(TypeInfo, KeyType, ValueType, Remainder, Config) of
+                {ok, {NewFields, NewConsumed}} ->
                     case NewFields of
                         [] ->
-                            {error, [sp_error:not_matched_fields(Type, JsonAcc)]};
+                            {error, [sp_error:not_matched_fields(Type, Remainder)]};
                         _ ->
-                            {ok, {NewFields ++ FieldsAcc, NewJsonAcc}}
+                            {ok, {NewFields ++ FieldsAcc, NewConsumed ++ Consumed}}
                     end;
                 {error, _} = Err ->
                     Err
             end
     end,
 
-    case spectra_util:fold_until_error(Fun, {[], Json}, SortedFields) of
-        {ok, {Fields, _NotMapped}} ->
+    case spectra_util:fold_until_error(Fun, {[], []}, SortedFields) of
+        {ok, {Fields, _FinalConsumed}} ->
             Decoded = maps:from_list(Fields),
             Result =
                 case Defaults of
@@ -1023,22 +1080,8 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                 end,
             {ok, Result};
         % TODO: Add config option to optionally error on extra fields
-        % case maps:size(NotMapped) of
-        %     0 ->
-        %         {ok, maps:from_list(Fields)};
-        %     _ ->
-        %         {error,
-        %             lists:map(
-        %                 fun({Key, Value}) ->
-        %                     #sp_error{
-        %                         type = not_matched_fields,
-        %                         location = [],
-        %                         ctx = #{key => Key, value => Value}
-        %                     }
-        %                 end,
-        %                 maps:to_list(NotMapped)
-        %             )}
-        % end;
+        % Remainder = maps:without(FinalConsumed, Json),
+        % case maps:size(Remainder) of ...
         {error, _} = Err ->
             Err
     end;
@@ -1057,30 +1100,31 @@ struct_default_value(Defaults, FieldName) ->
 
 map_field_type_from_json(TypeInfo, KeyType, ValueType, Json, Config) ->
     spectra_util:fold_until_error(
-        fun({Key, Value}, {FieldsAcc, JsonAcc}) ->
+        fun({Key, Value}, {FieldsAcc, ConsumedAcc}) ->
             case do_from_json(TypeInfo, KeyType, Key, Config) of
                 {ok, KeyJson} ->
                     case do_from_json(TypeInfo, ValueType, Value, Config) of
                         {ok, ValueJson} ->
-                            {ok, {[{KeyJson, ValueJson} | FieldsAcc], maps:remove(Key, JsonAcc)}};
+                            {ok,
+                                {
+                                    [{KeyJson, ValueJson} | FieldsAcc],
+                                    [Key | ConsumedAcc]
+                                }};
                         {error, Errs} ->
                             Errs2 =
                                 lists:map(
                                     fun(Err) ->
-                                        sp_error:append_location(
-                                            Err,
-                                            Key
-                                        )
+                                        sp_error:append_location(Err, Key)
                                     end,
                                     Errs
                                 ),
                             {error, Errs2}
                     end;
                 {error, _Errs} ->
-                    {ok, {FieldsAcc, JsonAcc}}
+                    {ok, {FieldsAcc, ConsumedAcc}}
             end
         end,
-        {[], Json},
+        {[], []},
         maps:to_list(Json)
     ).
 
@@ -1111,13 +1155,13 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
 ->
     Fun = fun(
         #sp_rec_field{name = FieldName, binary_name = BinaryName, type = FieldType} = Type,
-        {FieldsAcc, JsonAcc}
+        FieldsAcc
     ) ->
-        case maps:take(BinaryName, JsonAcc) of
-            {RecordFieldData, NewJsonAcc} ->
+        case Json of
+            #{BinaryName := RecordFieldData} ->
                 case do_from_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
-                        {ok, {[FieldJson | FieldsAcc], NewJsonAcc}};
+                        {ok, [FieldJson | FieldsAcc]};
                     {error, Errs} ->
                         Errs2 =
                             lists:map(
@@ -1126,37 +1170,32 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
                             ),
                         {error, Errs2}
                 end;
-            error ->
+            #{} ->
                 case spectra_type:can_be_missing(TypeInfo, FieldType) of
                     {true, MissingValue} ->
-                        {ok, {[MissingValue | FieldsAcc], JsonAcc}};
+                        {ok, [MissingValue | FieldsAcc]};
                     false ->
-                        {error, [sp_error:missing_data(Type, JsonAcc, [FieldName])]}
+                        {error, [sp_error:missing_data(Type, Json, [FieldName])]}
                 end
         end
     end,
-    case spectra_util:fold_until_error(Fun, {[], Json}, RecordInfo) of
-        {ok, {Fields, _NotMapped}} ->
+    case spectra_util:fold_until_error(Fun, [], RecordInfo) of
+        {ok, Fields} ->
             {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
         % TODO: Add config option to optionally error on extra fields
-        % case maps:size(NotMapped) of
-        %     0 ->
-        %         {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
-        %     _ ->
-        %         {error,
-        %             lists:map(
-        %                 fun({Key, Value}) ->
-        %                     #sp_error{
-        %                         type = not_matched_fields,
-        %                         location = [],
-        %                         ctx = #{key => Key, value => Value}
-        %                     }
-        %                 end,
-        %                 maps:to_list(NotMapped)
-        %             )}
-        % end;
         {error, Errs} ->
             {error, Errs}
     end;
 do_record_from_json(_TypeInfo, Type, Json, _Config) ->
     {error, [sp_error:type_mismatch(Type, Json)]}.
+
+%% --- Consumed-key helpers for map fold optimisation ---
+%%
+%% Consumed keys are tracked as a simple list and used directly with
+%% maps:without/2 when typed fields need the current remainder.
+
+-spec is_consumed(dynamic(), [dynamic()]) -> boolean().
+is_consumed(Key, Consumed) -> lists:member(Key, Consumed).
+
+-spec add_consumed(dynamic(), [dynamic()]) -> [dynamic()].
+add_consumed(Key, Consumed) -> [Key | Consumed].
