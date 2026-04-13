@@ -126,7 +126,7 @@ type_shaddow_literal_map_test() ->
 
 type_shaddow_literal_map_bad_test() ->
     ?assertEqual(
-        {ok, #{<<"a1">> => 1, some_atom => some_value}},
+        {ok, #{some_atom => some_value, <<"a1">> => 1}},
         to_json_type_shaddow_literal_map(#{a1 => 1, some_atom => some_value})
     ).
 
