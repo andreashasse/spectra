@@ -1,5 +1,5 @@
 -record(sp_error, {
-    location :: [string() | atom()],
+    location :: [string() | atom() | integer()],
     type :: decode_error | type_mismatch | no_match | missing_data | not_matched_fields,
     ctx :: #{
         type => spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
