@@ -115,7 +115,7 @@ where the reference node is available.
 ) -> spectra:codec_encode_result().
 try_codec_encode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
+    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
         {ok, M} ->
             M:encode(
                 Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
@@ -136,7 +136,7 @@ try_codec_encode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
 ) -> spectra:codec_decode_result().
 try_codec_decode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
+    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
         {ok, M} ->
             M:decode(
                 Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
@@ -156,7 +156,7 @@ try_codec_decode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
 ) -> dynamic() | continue.
 try_codec_schema(TypeInfo, Format, TypeReference, Type, SpType, Config) ->
     Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Config) of
+    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
         {ok, M} ->
             try
                 M:schema(

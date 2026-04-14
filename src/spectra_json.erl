@@ -738,20 +738,33 @@ nonempty_list_from_json(_TypeInfo, Type, Data, _Config) ->
     {error, [sp_error:type_mismatch(Type, Data)]}.
 
 list_from_json(TypeInfo, Type, Data, ListType, Config) when is_list(Data) ->
-    case safe_enumerate(Data) of
-        {ok, EnumeratedData} ->
-            Fun = fun({Nr, Item}) ->
-                case do_from_json(TypeInfo, Type, Item, Config) of
-                    {ok, Json} ->
-                        {ok, Json};
-                    {error, Errs} ->
-                        Errs2 = lists:map(fun(Err) -> sp_error:append_location(Err, Nr) end, Errs),
-
-                        {error, Errs2}
-                end
-            end,
-            spectra_util:map_until_error(Fun, EnumeratedData);
-        {error, improper_list} ->
+    try
+        case
+            spectra_util:fold_until_error(
+                fun(Item, {Nr, Acc}) ->
+                    case do_from_json(TypeInfo, Type, Item, Config) of
+                        {ok, Json} ->
+                            {ok, {Nr + 1, [Json | Acc]}};
+                        {error, Errs} ->
+                            Errs2 =
+                                lists:map(
+                                    fun(Err) -> sp_error:append_location(Err, Nr) end,
+                                    Errs
+                                ),
+                            {error, Errs2}
+                    end
+                end,
+                {1, []},
+                Data
+            )
+        of
+            {ok, {_Nr, Json}} ->
+                {ok, lists:reverse(Json)};
+            {error, _} = Err ->
+                Err
+        end
+    catch
+        error:{improper_list, _ImproperTail} ->
             %% Improper lists cannot be decoded from JSON
             {error, [sp_error:type_mismatch(ListType, Data)]}
     end;
@@ -898,13 +911,6 @@ to_binary_for_pattern(Type, Pat, V) when is_list(V) ->
     case unicode:characters_to_binary(V) of
         Bin when is_binary(Bin) -> {ok, Bin};
         _ -> {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
-    end.
-
-safe_enumerate(List) ->
-    try lists:enumerate(List) of
-        EnumeratedList -> {ok, EnumeratedList}
-    catch
-        error:function_clause -> {error, improper_list}
     end.
 
 union(Fun, TypeInfo, #sp_union{types = Types} = T, Json, Config) ->
