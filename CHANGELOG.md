@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-04-14
+
+### Changed
+- Optimized JSON traversal performance in `spectra_json` encoding and decoding
+- Improved internal consumed keys handling using map matching and list-based structures
+
 ## [0.11.0] - 2026-04-12
 
 ### Added
