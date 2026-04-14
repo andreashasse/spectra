@@ -45,7 +45,7 @@ type_mismatch(Type, Value, Ctx) ->
 -spec missing_data(
     spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
     dynamic(),
-    [string() | atom()]
+    [string() | atom() | integer()]
 ) -> #sp_error{}.
 missing_data(Type, Value, Location) ->
     #sp_error{
@@ -85,6 +85,6 @@ Prepends `FieldName` to the error's location path.
 Called as the traversal unwinds so the final location reads
 outermost-to-innermost (e.g. `[user, address, street]`).
 """.
--spec append_location(#sp_error{}, string() | atom()) -> #sp_error{}.
+-spec append_location(#sp_error{}, string() | atom() | integer()) -> #sp_error{}.
 append_location(Err, FieldName) ->
     Err#sp_error{location = [FieldName | Err#sp_error.location]}.

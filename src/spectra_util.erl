@@ -4,6 +4,7 @@
     test_abs_code/1,
     apply_args/3,
     fold_until_error/3,
+    fold_until_error/4,
     map_until_error/2,
     normalize_type_ref/2,
     type_replace_vars/3,
@@ -94,6 +95,29 @@ fold_until_error(Fun, Acc, [H | T]) ->
 fold_until_error(Fun, Acc, []) when is_function(Fun, 2) ->
     {ok, Acc};
 fold_until_error(Fun, _Acc, ImproperList) when is_function(Fun, 2) ->
+    erlang:error({improper_list, ImproperList}).
+
+-spec fold_until_error(
+    Fun ::
+        fun(
+            (Context :: dynamic(), Elem :: dynamic(), Acc :: dynamic()) ->
+                {error, Err :: dynamic()} | {ok, Acc :: dynamic()}
+        ),
+    Context :: dynamic(),
+    Acc :: dynamic(),
+    List :: [Elem :: dynamic()]
+) ->
+    {ok, Acc :: dynamic()} | {error, Err :: dynamic()}.
+fold_until_error(Fun, Context, Acc, [H | T]) ->
+    case Fun(Context, H, Acc) of
+        {error, _} = Error ->
+            Error;
+        {ok, NewAcc} ->
+            fold_until_error(Fun, Context, NewAcc, T)
+    end;
+fold_until_error(Fun, _Context, Acc, []) when is_function(Fun, 3) ->
+    {ok, Acc};
+fold_until_error(Fun, _Context, _Acc, ImproperList) when is_function(Fun, 3) ->
     erlang:error({improper_list, ImproperList}).
 
 -spec map_until_error(

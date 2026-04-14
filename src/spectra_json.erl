@@ -292,84 +292,14 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
         MapFieldTypes
     ),
 
-    LiteralFun = fun
-        (
-            #literal_map_field{
-                kind = assoc, name = FieldName, binary_name = BinaryFieldName, val_type = FieldType
-            },
-            {FieldsAcc, ConsumedKeys}
-        ) ->
-            case Data of
-                #{FieldName := FieldData} ->
-                    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
-                    case {FieldData, Missing} of
-                        {MissingValue, {true, MissingValue}} ->
-                            {ok, {FieldsAcc, [FieldName | ConsumedKeys]}};
-                        _ ->
-                            case to_json(TypeInfo, FieldType, FieldData, Config) of
-                                {ok, FieldJson} ->
-                                    {ok,
-                                        {
-                                            [{BinaryFieldName, FieldJson} | FieldsAcc],
-                                            [FieldName | ConsumedKeys]
-                                        }};
-                                {error, Errs} ->
-                                    Errs2 =
-                                        lists:map(
-                                            fun(Err) ->
-                                                sp_error:append_location(Err, FieldName)
-                                            end,
-                                            Errs
-                                        ),
-                                    {error, Errs2}
-                            end
-                    end;
-                #{} ->
-                    {ok, {FieldsAcc, ConsumedKeys}}
-            end;
-        (
-            #literal_map_field{
-                kind = exact, name = FieldName, binary_name = BinaryFieldName, val_type = FieldType
-            } = Type,
-            {FieldsAcc, ConsumedKeys}
-        ) ->
-            Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
-            case Data of
-                #{FieldName := FieldData} ->
-                    case {FieldData, Missing} of
-                        {MissingValue, {true, MissingValue}} ->
-                            {ok, {FieldsAcc, [FieldName | ConsumedKeys]}};
-                        _ ->
-                            case to_json(TypeInfo, FieldType, FieldData, Config) of
-                                {ok, FieldJson} ->
-                                    {ok,
-                                        {
-                                            [{BinaryFieldName, FieldJson} | FieldsAcc],
-                                            [FieldName | ConsumedKeys]
-                                        }};
-                                {error, Errs} ->
-                                    Errs2 =
-                                        lists:map(
-                                            fun(Err) ->
-                                                sp_error:append_location(Err, FieldName)
-                                            end,
-                                            Errs
-                                        ),
-                                    {error, Errs2}
-                            end
-                    end;
-                #{} ->
-                    case Missing of
-                        {true, _} ->
-                            {ok, {FieldsAcc, ConsumedKeys}};
-                        false ->
-                            Remainder = maps:without(ConsumedKeys, Data),
-                            {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
-                    end
-            end
-    end,
-
-    case spectra_util:fold_until_error(LiteralFun, {[], []}, LiteralFields) of
+    case
+        spectra_util:fold_until_error(
+            fun map_literal_field_to_json/3,
+            {TypeInfo, Data, Config},
+            {[], []},
+            LiteralFields
+        )
+    of
         {ok, {LiteralMapFields, ConsumedKeys}} ->
             case TypedFields of
                 [] ->
@@ -381,56 +311,12 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                         fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
                         maps:to_list(Data)
                     ),
-
-                    TypedFun = fun
-                        (
-                            #typed_map_field{
-                                kind = assoc, key_type = KeyType, val_type = ValueType
-                            },
-                            {FieldsAcc, CurrentRemainingDataList}
-                        ) ->
-                            case
-                                map_typed_field_to_json_list(
-                                    TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config
-                                )
-                            of
-                                {ok, {NewFields, NextRemainingDataList}} ->
-                                    {ok, {
-                                        lists:reverse(NewFields, FieldsAcc),
-                                        NextRemainingDataList
-                                    }};
-                                {error, _} = Err ->
-                                    Err
-                            end;
-                        (
-                            #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} =
-                                Type,
-                            {FieldsAcc, CurrentRemainingDataList}
-                        ) ->
-                            case
-                                map_typed_field_to_json_list(
-                                    TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config
-                                )
-                            of
-                                {ok, {NewFields, NextRemainingDataList}} ->
-                                    case NewFields of
-                                        [] ->
-                                            Remainder = maps:from_list(CurrentRemainingDataList),
-                                            {error, [sp_error:not_matched_fields(Type, Remainder)]};
-                                        _ ->
-                                            {ok, {
-                                                lists:reverse(NewFields, FieldsAcc),
-                                                NextRemainingDataList
-                                            }}
-                                    end;
-                                {error, _} = Err ->
-                                    Err
-                            end
-                    end,
-
                     case
                         spectra_util:fold_until_error(
-                            TypedFun, {[], RemainingDataList}, TypedFields
+                            fun map_typed_field_to_json/3,
+                            {TypeInfo, Config},
+                            {[], RemainingDataList},
+                            TypedFields
                         )
                     of
                         {ok, {TypedMapFields, _}} ->
@@ -438,6 +324,93 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                         {error, _} = Err ->
                             Err
                     end
+            end;
+        {error, _} = Err ->
+            Err
+    end.
+
+-spec map_literal_field_to_json(
+    {spectra:type_info(), map(), spectra:sp_config()},
+    #literal_map_field{},
+    {[{binary(), json:encode_value()}], [atom() | integer()]}
+) ->
+    {ok, {[{binary(), json:encode_value()}], [atom() | integer()]}} | {error, [spectra:error()]}.
+map_literal_field_to_json(
+    {TypeInfo, Data, Config},
+    #literal_map_field{
+        kind = Kind,
+        name = FieldName,
+        binary_name = BinaryFieldName,
+        val_type = FieldType
+    } =
+        Type,
+    {FieldsAcc, ConsumedKeys}
+) ->
+    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
+    case Data of
+        #{FieldName := FieldData} ->
+            case {FieldData, Missing} of
+                {MissingValue, {true, MissingValue}} ->
+                    {ok, {FieldsAcc, [FieldName | ConsumedKeys]}};
+                _ ->
+                    case to_json(TypeInfo, FieldType, FieldData, Config) of
+                        {ok, FieldJson} ->
+                            {ok,
+                                {
+                                    [{BinaryFieldName, FieldJson} | FieldsAcc],
+                                    [FieldName | ConsumedKeys]
+                                }};
+                        {error, Errs} ->
+                            {error, append_error_location(Errs, FieldName)}
+                    end
+            end;
+        #{} ->
+            case {Kind, Missing} of
+                {assoc, _} ->
+                    {ok, {FieldsAcc, ConsumedKeys}};
+                {exact, {true, _}} ->
+                    {ok, {FieldsAcc, ConsumedKeys}};
+                {exact, false} ->
+                    Remainder = maps:without(ConsumedKeys, Data),
+                    {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
+            end
+    end.
+
+-spec map_typed_field_to_json(
+    {spectra:type_info(), spectra:sp_config()},
+    #typed_map_field{},
+    {[{json:encode_value(), json:encode_value()}], [{dynamic(), dynamic()}]}
+) ->
+    {ok, {[{json:encode_value(), json:encode_value()}], [{dynamic(), dynamic()}]}}
+    | {error, [spectra:error()]}.
+map_typed_field_to_json(
+    {TypeInfo, Config},
+    #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
+    {FieldsAcc, CurrentRemainingDataList}
+) ->
+    case
+        map_typed_field_to_json_list(TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config)
+    of
+        {ok, {NewFields, NextRemainingDataList}} ->
+            {ok, {lists:reverse(NewFields, FieldsAcc), NextRemainingDataList}};
+        {error, _} = Err ->
+            Err
+    end;
+map_typed_field_to_json(
+    {TypeInfo, Config},
+    #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
+    {FieldsAcc, CurrentRemainingDataList}
+) ->
+    case
+        map_typed_field_to_json_list(TypeInfo, KeyType, ValueType, CurrentRemainingDataList, Config)
+    of
+        {ok, {NewFields, NextRemainingDataList}} ->
+            case NewFields of
+                [] ->
+                    Remainder = maps:from_list(CurrentRemainingDataList),
+                    {error, [sp_error:not_matched_fields(Type, Remainder)]};
+                _ ->
+                    {ok, {lists:reverse(NewFields, FieldsAcc), NextRemainingDataList}}
             end;
         {error, _} = Err ->
             Err
@@ -981,90 +954,22 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
         MapFieldType
     ),
 
-    LiteralFun = fun
-        (
-            #literal_map_field{
-                kind = assoc, name = FieldName, binary_name = BinaryName, val_type = FieldType
-            },
-            {FieldsAcc, ConsumedKeys}
-        ) ->
-            case Json of
-                #{BinaryName := FieldData} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok,
-                                {
-                                    [{FieldName, FieldJson} | FieldsAcc],
-                                    [BinaryName | ConsumedKeys]
-                                }};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) ->
-                                        sp_error:append_location(Err, FieldName)
-                                    end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                #{} ->
-                    {ok, {FieldsAcc, ConsumedKeys}}
-            end;
-        (
-            #literal_map_field{
-                kind = exact, name = FieldName, binary_name = BinaryName, val_type = FieldType
-            } = Type,
-            {FieldsAcc, ConsumedKeys}
-        ) ->
-            case Json of
-                #{BinaryName := FieldData} ->
-                    case do_from_json(TypeInfo, FieldType, FieldData, Config) of
-                        {ok, FieldJson} ->
-                            {ok,
-                                {
-                                    [{FieldName, FieldJson} | FieldsAcc],
-                                    [BinaryName | ConsumedKeys]
-                                }};
-                        {error, Errs} ->
-                            Errs2 =
-                                lists:map(
-                                    fun(Err) ->
-                                        sp_error:append_location(Err, FieldName)
-                                    end,
-                                    Errs
-                                ),
-                            {error, Errs2}
-                    end;
-                #{} ->
-                    case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                        {true, MissingValue} when Defaults =:= undefined ->
-                            {ok, {[{FieldName, MissingValue} | FieldsAcc], ConsumedKeys}};
-                        {true, _} ->
-                            {ok, {FieldsAcc, ConsumedKeys}};
-                        false ->
-                            case struct_default_value(Defaults, FieldName) of
-                                {ok, _} ->
-                                    {ok, {FieldsAcc, ConsumedKeys}};
-                                error ->
-                                    Remainder = maps:without(ConsumedKeys, Json),
-                                    {error, [
-                                        sp_error:missing_data(Type, Remainder, [FieldName])
-                                    ]}
-                            end
-                    end
-            end
+    BuildResult = fun(AllFields) ->
+        Decoded = maps:from_list(AllFields),
+        case Defaults of
+            undefined -> {ok, Decoded};
+            _ -> {ok, maps:merge(Defaults, Decoded)}
+        end
     end,
-
-    case spectra_util:fold_until_error(LiteralFun, {[], []}, LiteralFields) of
+    case
+        spectra_util:fold_until_error(
+            fun map_literal_field_from_json/3,
+            {TypeInfo, Json, Defaults, Config},
+            {[], []},
+            LiteralFields
+        )
+    of
         {ok, {LiteralMapFields, ConsumedKeys}} ->
-            BuildResult = fun(AllFields) ->
-                Decoded = maps:from_list(AllFields),
-                case Defaults of
-                    undefined -> {ok, Decoded};
-                    _ -> {ok, maps:merge(Defaults, Decoded)}
-                end
-            end,
-
             case TypedFields of
                 [] ->
                     BuildResult(LiteralMapFields);
@@ -1075,50 +980,12 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                         fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
                         maps:to_list(Json)
                     ),
-
-                    TypedFun = fun
-                        (
-                            #typed_map_field{
-                                kind = assoc, key_type = KeyType, val_type = ValueType
-                            },
-                            {FieldsAcc, CurrentRemainingJsonList}
-                        ) ->
-                            case
-                                map_field_type_from_json_list(
-                                    TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
-                                )
-                            of
-                                {ok, {NewFields, NextRemainingJsonList}} ->
-                                    {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}};
-                                {error, Reason} ->
-                                    {error, Reason}
-                            end;
-                        (
-                            #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} =
-                                Type,
-                            {FieldsAcc, CurrentRemainingJsonList}
-                        ) ->
-                            case
-                                map_field_type_from_json_list(
-                                    TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
-                                )
-                            of
-                                {ok, {NewFields, NextRemainingJsonList}} ->
-                                    case NewFields of
-                                        [] ->
-                                            Remainder = maps:from_list(CurrentRemainingJsonList),
-                                            {error, [sp_error:not_matched_fields(Type, Remainder)]};
-                                        _ ->
-                                            {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}}
-                                    end;
-                                {error, _} = Err ->
-                                    Err
-                            end
-                    end,
-
                     case
                         spectra_util:fold_until_error(
-                            TypedFun, {[], RemainingJsonList}, TypedFields
+                            fun map_typed_field_from_json/3,
+                            {TypeInfo, Config},
+                            {[], RemainingJsonList},
+                            TypedFields
                         )
                     of
                         {ok, {TypedMapFields, _FinalRemainingJsonList}} ->
@@ -1134,7 +1001,95 @@ map_from_json(_TypeInfo, MapType, Json, _Config) ->
     %% Return error when Json is not a map
     {error, [sp_error:type_mismatch(MapType, Json)]}.
 
--spec struct_default_value(undefined | map(), atom()) -> {ok, term()} | error.
+-spec map_literal_field_from_json(
+    {spectra:type_info(), map(), undefined | map(), spectra:sp_config()},
+    #literal_map_field{},
+    {[{atom() | integer(), dynamic()}], [binary()]}
+) ->
+    {ok, {[{atom() | integer(), dynamic()}], [binary()]}} | {error, [spectra:error()]}.
+map_literal_field_from_json(
+    {TypeInfo, Json, Defaults, Config},
+    #literal_map_field{
+        kind = Kind,
+        name = FieldName,
+        binary_name = BinaryName,
+        val_type = FieldType
+    } =
+        Type,
+    {FieldsAcc, ConsumedKeys}
+) ->
+    case Json of
+        #{BinaryName := FieldData} ->
+            case do_from_json(TypeInfo, FieldType, FieldData, Config) of
+                {ok, FieldJson} ->
+                    {ok, {[{FieldName, FieldJson} | FieldsAcc], [BinaryName | ConsumedKeys]}};
+                {error, Errs} ->
+                    {error, append_error_location(Errs, FieldName)}
+            end;
+        #{} ->
+            case {Kind, spectra_type:can_be_missing(TypeInfo, FieldType)} of
+                {assoc, _} ->
+                    {ok, {FieldsAcc, ConsumedKeys}};
+                {exact, {true, MissingValue}} when Defaults =:= undefined ->
+                    {ok, {[{FieldName, MissingValue} | FieldsAcc], ConsumedKeys}};
+                {exact, {true, _}} ->
+                    {ok, {FieldsAcc, ConsumedKeys}};
+                {exact, false} ->
+                    case struct_default_value(Defaults, FieldName) of
+                        {ok, _} ->
+                            {ok, {FieldsAcc, ConsumedKeys}};
+                        error ->
+                            Remainder = maps:without(ConsumedKeys, Json),
+                            {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
+                    end
+            end
+    end.
+
+-spec map_typed_field_from_json(
+    {spectra:type_info(), spectra:sp_config()},
+    #typed_map_field{},
+    {[{dynamic(), dynamic()}], [{json:encode_value(), json:decode_value()}]}
+) ->
+    {ok, {[{dynamic(), dynamic()}], [{json:encode_value(), json:decode_value()}]}}
+    | {error, [spectra:error()]}.
+map_typed_field_from_json(
+    {TypeInfo, Config},
+    #typed_map_field{kind = assoc, key_type = KeyType, val_type = ValueType},
+    {FieldsAcc, CurrentRemainingJsonList}
+) ->
+    case
+        map_field_type_from_json_list(
+            TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
+        )
+    of
+        {ok, {NewFields, NextRemainingJsonList}} ->
+            {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}};
+        {error, Reason} ->
+            {error, Reason}
+    end;
+map_typed_field_from_json(
+    {TypeInfo, Config},
+    #typed_map_field{kind = exact, key_type = KeyType, val_type = ValueType} = Type,
+    {FieldsAcc, CurrentRemainingJsonList}
+) ->
+    case
+        map_field_type_from_json_list(
+            TypeInfo, KeyType, ValueType, CurrentRemainingJsonList, Config
+        )
+    of
+        {ok, {NewFields, NextRemainingJsonList}} ->
+            case NewFields of
+                [] ->
+                    Remainder = maps:from_list(CurrentRemainingJsonList),
+                    {error, [sp_error:not_matched_fields(Type, Remainder)]};
+                _ ->
+                    {ok, {NewFields ++ FieldsAcc, NextRemainingJsonList}}
+            end;
+        {error, _} = Err ->
+            Err
+    end.
+
+-spec struct_default_value(undefined | map(), atom() | integer()) -> {ok, term()} | error.
 struct_default_value(undefined, _FieldName) ->
     error;
 struct_default_value(Defaults, FieldName) ->
@@ -1142,6 +1097,10 @@ struct_default_value(Defaults, FieldName) ->
         {ok, V} when V =/= nil, V =/= undefined -> {ok, V};
         _ -> error
     end.
+
+-spec append_error_location([spectra:error()], atom() | integer()) -> [spectra:error()].
+append_error_location(Errors, FieldName) ->
+    lists:map(fun(Err) -> sp_error:append_location(Err, FieldName) end, Errors).
 
 map_field_type_from_json_list(TypeInfo, KeyType, ValueType, JsonList, Config) ->
     spectra_util:fold_until_error(
