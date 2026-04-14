@@ -113,18 +113,21 @@ to_json_optional_nullable(Binary) ->
 to_json_nullable(Binary) ->
     spectra:decode(json, ?MODULE, nullable, Binary).
 
-type_shaddow_literal_map_test() ->
+type_shaddow_literal_map_bad_test() ->
     ?assertEqual(
         {error, [
             sp_error:append_location(
-                sp_error:type_mismatch({sp_literal, 1, <<"1">>, #{}}, pelle),
+                sp_error:type_mismatch(
+                    #sp_literal{value = 1, binary_value = <<"1">>},
+                    pelle
+                ),
                 a1
             )
         ]},
         to_json_type_shaddow_literal_map(#{a1 => pelle, some_atom => some_value})
     ).
 
-type_shaddow_literal_map_bad_test() ->
+type_shaddow_literal_map_ok_test() ->
     ?assertEqual(
         {ok, #{some_atom => some_value, <<"a1">> => 1}},
         to_json_type_shaddow_literal_map(#{a1 => 1, some_atom => some_value})
@@ -210,7 +213,10 @@ from_json_type_shaddow_literal_map_test() ->
     ?assertEqual(
         {error, [
             sp_error:append_location(
-                sp_error:type_mismatch({sp_literal, 1, <<"1">>, #{}}, <<"pelle">>),
+                sp_error:type_mismatch(
+                    #sp_literal{value = 1, binary_value = <<"1">>},
+                    <<"pelle">>
+                ),
                 a1
             )
         ]},

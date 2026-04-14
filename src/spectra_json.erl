@@ -335,17 +335,13 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
     {[{binary(), json:encode_value()}], [atom() | integer()]}
 ) ->
     {ok, {[{binary(), json:encode_value()}], [atom() | integer()]}} | {error, [spectra:error()]}.
-map_literal_field_to_json(
-    {TypeInfo, Data, Config},
+map_literal_field_to_json({TypeInfo, Data, Config}, Type, {FieldsAcc, ConsumedKeys}) ->
     #literal_map_field{
         kind = Kind,
         name = FieldName,
         binary_name = BinaryFieldName,
         val_type = FieldType
-    } =
-        Type,
-    {FieldsAcc, ConsumedKeys}
-) ->
+    } = Type,
     Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
     case Data of
         #{FieldName := FieldData} ->
@@ -1158,13 +1154,13 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
 ->
     Fun = fun(
         #sp_rec_field{name = FieldName, binary_name = BinaryName, type = FieldType} = Type,
-        FieldsAcc
+        {FieldsAcc, ConsumedFields}
     ) ->
         case Json of
             #{BinaryName := RecordFieldData} ->
                 case do_from_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
-                        {ok, [FieldJson | FieldsAcc]};
+                        {ok, {[FieldJson | FieldsAcc], [BinaryName | ConsumedFields]}};
                     {error, Errs} ->
                         Errs2 =
                             lists:map(
@@ -1176,14 +1172,15 @@ do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, J
             #{} ->
                 case spectra_type:can_be_missing(TypeInfo, FieldType) of
                     {true, MissingValue} ->
-                        {ok, [MissingValue | FieldsAcc]};
+                        {ok, {[MissingValue | FieldsAcc], ConsumedFields}};
                     false ->
-                        {error, [sp_error:missing_data(Type, Json, [FieldName])]}
+                        RemainingJson = maps:without(ConsumedFields, Json),
+                        {error, [sp_error:missing_data(Type, RemainingJson, [FieldName])]}
                 end
         end
     end,
-    case spectra_util:fold_until_error(Fun, [], RecordInfo) of
-        {ok, Fields} ->
+    case spectra_util:fold_until_error(Fun, {[], []}, RecordInfo) of
+        {ok, {Fields, _}} ->
             {ok, list_to_tuple([RecordName | lists:reverse(Fields)])};
         % TODO: Add config option to optionally error on extra fields
         {error, Errs} ->
