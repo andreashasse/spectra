@@ -376,8 +376,9 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                     {ok, LiteralMapFields};
                 _ ->
                     %% Phase 2: Process typed fields with remaining data entries
+                    ConsumedKeysSet = sets:from_list(ConsumedKeys),
                     RemainingDataList = lists:filter(
-                        fun({K, _}) -> not lists:member(K, ConsumedKeys) end,
+                        fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
                         maps:to_list(Data)
                     ),
 
@@ -1069,8 +1070,9 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                     BuildResult(LiteralMapFields);
                 _ ->
                     %% Phase 2: Process typed fields with remaining JSON entries
+                    ConsumedKeysSet = sets:from_list(ConsumedKeys),
                     RemainingJsonList = lists:filter(
-                        fun({K, _}) -> not lists:member(K, ConsumedKeys) end,
+                        fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
                         maps:to_list(Json)
                     ),
 
