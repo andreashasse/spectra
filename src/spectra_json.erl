@@ -881,15 +881,10 @@ check_string_params(Type, Params, Value) when is_map(Params) ->
             ({pattern, Pat}, V) when is_binary(Pat) ->
                 case to_binary_for_pattern(Type, Pat, V) of
                     {ok, Bin} ->
-                        try
-                            case re:run(Bin, Pat, [{capture, none}, unicode, ucp]) of
-                                match ->
-                                    {ok, V};
-                                nomatch ->
-                                    {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
-                            end
-                        catch
-                            error:badarg ->
+                        case re:run(Bin, Pat, [{capture, none}, unicode, ucp]) of
+                            match ->
+                                {ok, V};
+                            nomatch ->
                                 {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
                         end;
                     {error, _} = Err ->
@@ -912,8 +907,11 @@ check_string_params(_Type, Params, _Value) when not is_map(Params) ->
     Pat :: binary(),
     Value :: dynamic()
 ) -> {ok, binary()} | {error, [spectra:error()]}.
-to_binary_for_pattern(_Type, _Pat, V) when is_binary(V) ->
-    {ok, V};
+to_binary_for_pattern(Type, Pat, V) when is_binary(V) ->
+    case unicode:characters_to_binary(V) of
+        Bin when is_binary(Bin) -> {ok, Bin};
+        _ -> {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
+    end;
 to_binary_for_pattern(Type, Pat, V) when is_list(V) ->
     case unicode:characters_to_binary(V) of
         Bin when is_binary(Bin) -> {ok, Bin};

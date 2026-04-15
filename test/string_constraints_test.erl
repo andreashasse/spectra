@@ -313,3 +313,23 @@ encode_pattern_invalid_utf8_returns_error_test() ->
             json, string_constraints_module, {type, lowercase_binary, 0}, InvalidUtf8, [pre_encoded]
         )
     ).
+
+decode_pattern_invalid_regex_crashes_test() ->
+    ?assertError(
+        _,
+        spectra:decode(
+            json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
+                pre_decoded
+            ]
+        )
+    ).
+
+encode_pattern_invalid_regex_crashes_test() ->
+    ?assertError(
+        _,
+        spectra:encode(
+            json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
+                pre_encoded
+            ]
+        )
+    ).
