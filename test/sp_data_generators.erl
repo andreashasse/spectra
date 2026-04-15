@@ -43,9 +43,9 @@ gen_data(_TypeInfo, #sp_simple_type{type = pid}) ->
 gen_data(_TypeInfo, #sp_simple_type{type = port}) ->
     ?LET(_, integer(), hd(erlang:ports()));
 gen_data(_TypeInfo, #sp_simple_type{type = iolist}) ->
-    oneof([list(oneof([byte(), binary(), list(byte())])), binary()]);
+    iolist_gen(3);
 gen_data(_TypeInfo, #sp_simple_type{type = iodata}) ->
-    oneof([list(oneof([byte(), binary()])), binary()]);
+    iodata_gen(3);
 gen_data(_TypeInfo, #sp_simple_type{type = none}) ->
     ?LET(_, integer(), throw(none_type_cannot_generate_data));
 gen_data(_TypeInfo, #sp_simple_type{type = map}) ->
@@ -99,6 +99,41 @@ gen_data(_TypeInfo, #sp_remote_type{mfargs = {_Module, _Function, _Args}}) ->
 gen_data(TypeInfo, #sp_rec{name = Name, fields = Fields, arity = _Arity}) ->
     FieldValues = [gen_data(TypeInfo, FieldType) || {_FieldName, FieldType} <- Fields],
     list_to_tuple([Name | FieldValues]).
+
+iolist_gen(N) ->
+    case N of
+        0 -> binary();
+        _ ->
+            oneof([
+                binary(),
+                non_empty(
+                    list(
+                        oneof([
+                            byte(),
+                            binary(),
+                            iolist_gen(N - 1)
+                        ])
+                    )
+                )
+            ])
+    end.
+
+iodata_gen(N) ->
+    case N of
+        0 -> binary();
+        _ ->
+            oneof([
+                binary(),
+                non_empty(
+                    list(
+                        oneof([
+                            byte(),
+                            binary()
+                        ])
+                    )
+                )
+            ])
+    end.
 
 %% Helper function to generate map data from map fields
 gen_map_data(TypeInfo, Fields) ->
