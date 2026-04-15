@@ -289,3 +289,27 @@ encode_remote_too_short_test() ->
             pre_encoded
         ])
     ).
+
+%% -----------------------------------------------------------------------
+%% Error handling — invalid UTF-8 and invalid regex patterns
+%% -----------------------------------------------------------------------
+
+decode_pattern_invalid_utf8_returns_error_test() ->
+    %% Bare 0xFF is not valid UTF-8; should return {error, [...]}, not crash
+    InvalidUtf8 = <<255>>,
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json, string_constraints_module, {type, lowercase_binary, 0}, InvalidUtf8, [pre_decoded]
+        )
+    ).
+
+encode_pattern_invalid_utf8_returns_error_test() ->
+    %% Bare 0xFF is not valid UTF-8; should return {error, [...]}, not crash
+    InvalidUtf8 = <<255>>,
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(
+            json, string_constraints_module, {type, lowercase_binary, 0}, InvalidUtf8, [pre_encoded]
+        )
+    ).
