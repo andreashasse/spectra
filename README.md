@@ -269,7 +269,7 @@ For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types y
 |---|---|---|---|
 | `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
 | `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
-| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
+| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style, fully compatible with OpenAPI ECMA-262 via `unicode` & `ucp`) |
 | `format` | `format` | no | Schema annotation only |
 
 ```erlang

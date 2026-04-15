@@ -39,3 +39,11 @@
 
 -spectra(#{type_parameters => #{pattern => <<"^[a-z]+$">>}}).
 -type pattern_remote() :: string_alias_module:t().
+
+%% binary() testing unicode behavior in regex
+-spectra(#{type_parameters => #{pattern => <<"^.$">>}}).
+-type single_char_binary() :: binary().
+
+%% binary() testing unicode character properties behavior in regex (\w matches unicode letters)
+-spectra(#{type_parameters => #{pattern => <<"^\\w+$">>}}).
+-type ucp_word_binary() :: binary().
