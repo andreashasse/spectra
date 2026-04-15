@@ -48,6 +48,6 @@
 -spectra(#{type_parameters => #{pattern => <<"^\\w+$">>}}).
 -type ucp_word_binary() :: binary().
 
-%% binary() with an invalid/unbalanced regex pattern (tests error handling)
+%% binary() with an invalid/unbalanced regex pattern (developer error; raises {invalid_string_pattern, _, _})
 -spectra(#{type_parameters => #{pattern => <<"[invalid">>}}).
 -type invalid_pattern_binary() :: binary().

@@ -314,9 +314,9 @@ encode_pattern_invalid_utf8_returns_error_test() ->
         )
     ).
 
-decode_pattern_invalid_regex_crashes_test() ->
+decode_pattern_invalid_regex_returns_specific_error_test() ->
     ?assertError(
-        _,
+        {invalid_string_pattern, <<"[invalid">>, _},
         spectra:decode(
             json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
                 pre_decoded
@@ -324,9 +324,9 @@ decode_pattern_invalid_regex_crashes_test() ->
         )
     ).
 
-encode_pattern_invalid_regex_crashes_test() ->
+encode_pattern_invalid_regex_returns_specific_error_test() ->
     ?assertError(
-        _,
+        {invalid_string_pattern, <<"[invalid">>, _},
         spectra:encode(
             json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
                 pre_encoded

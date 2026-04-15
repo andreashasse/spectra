@@ -881,11 +881,18 @@ check_string_params(Type, Params, Value) when is_map(Params) ->
             ({pattern, Pat}, V) when is_binary(Pat) ->
                 case to_binary_for_pattern(Type, Pat, V) of
                     {ok, Bin} ->
-                        case re:run(Bin, Pat, [{capture, none}, unicode, ucp]) of
-                            match ->
-                                {ok, V};
-                            nomatch ->
-                                {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]}
+                        try
+                            case re:run(Bin, Pat, [{capture, none}, unicode, ucp]) of
+                                match ->
+                                    {ok, V};
+                                nomatch ->
+                                    {error, [sp_error:type_mismatch(Type, V, #{pattern => Pat})]};
+                                {error, Reason} ->
+                                    erlang:error({invalid_string_pattern, Pat, Reason})
+                            end
+                        catch
+                            error:badarg ->
+                                erlang:error({invalid_string_pattern, Pat, badarg})
                         end;
                     {error, _} = Err ->
                         Err
