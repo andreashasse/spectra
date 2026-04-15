@@ -12,13 +12,13 @@ tracks whether the owning module implements the `spectra_codec` behaviour.
 
 -include("../include/spectra_internal.hrl").
 
--ignore_xref([find_function/3, new/2]).
+-ignore_xref([find_codec/3, find_function/3, new/2]).
 
 -export([new/2, get_module/1]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([find_codec/3]).
+-export([find_codec/4]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -99,10 +99,9 @@ Checks the global codecs map first, then falls back to the module's own
 `TypeInfo` to avoid a cache lookup. The caller must ensure that `TypeInfo`
 is the type info for the module that owns `TypeRef`.
 """.
--spec find_codec(type_info(), spectra:sp_type_reference(), spectra:sp_config()) ->
+-spec find_codec(type_info(), spectra:sp_type_reference(), module(), spectra:sp_config()) ->
     {ok, module()} | error.
-find_codec(TypeInfo, TypeRef, #sp_config{codecs = Codecs}) ->
-    Mod = get_module(TypeInfo),
+find_codec(TypeInfo, TypeRef, Mod, #sp_config{codecs = Codecs}) ->
     case Codecs of
         #{{Mod, TypeRef} := CodecMod} ->
             {ok, CodecMod};
