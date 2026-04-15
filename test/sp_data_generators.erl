@@ -102,7 +102,8 @@ gen_data(TypeInfo, #sp_rec{name = Name, fields = Fields, arity = _Arity}) ->
 
 iolist_gen(N) ->
     case N of
-        0 -> binary();
+        0 ->
+            binary();
         _ ->
             oneof([
                 binary(),
@@ -120,7 +121,8 @@ iolist_gen(N) ->
 
 iodata_gen(N) ->
     case N of
-        0 -> binary();
+        0 ->
+            binary();
         _ ->
             oneof([
                 binary(),
