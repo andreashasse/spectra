@@ -90,6 +90,26 @@ decode_ucp_pattern_match_test() ->
         )
     ).
 
+encode_unicode_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"ä"/utf8>>},
+        spectra:encode(
+            json, string_constraints_module, {type, single_char_binary, 0}, <<"ä"/utf8>>, [
+                pre_encoded
+            ]
+        )
+    ).
+
+encode_ucp_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"münchen"/utf8>>},
+        spectra:encode(
+            json, string_constraints_module, {type, ucp_word_binary, 0}, <<"münchen"/utf8>>, [
+                pre_encoded
+            ]
+        )
+    ).
+
 %% -----------------------------------------------------------------------
 %% Decode — min/max length validation
 %% -----------------------------------------------------------------------

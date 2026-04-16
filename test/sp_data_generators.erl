@@ -107,14 +107,12 @@ iolist_gen(N) ->
         _ ->
             oneof([
                 binary(),
-                non_empty(
-                    list(
-                        oneof([
-                            byte(),
-                            binary(),
-                            iolist_gen(N - 1)
-                        ])
-                    )
+                list(
+                    oneof([
+                        byte(),
+                        binary(),
+                        iolist_gen(N - 1)
+                    ])
                 )
             ])
     end.
@@ -126,13 +124,11 @@ iodata_gen(N) ->
         _ ->
             oneof([
                 binary(),
-                non_empty(
-                    list(
-                        oneof([
-                            byte(),
-                            binary()
-                        ])
-                    )
+                list(
+                    oneof([
+                        byte(),
+                        binary()
+                    ])
                 )
             ])
     end.
