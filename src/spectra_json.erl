@@ -306,11 +306,7 @@ map_fields_to_json(TypeInfo, MapFieldTypes, Data, Config) ->
                     {ok, LiteralMapFields};
                 _ ->
                     %% Phase 2: Process typed fields with remaining data entries
-                    ConsumedKeysSet = sets:from_list(ConsumedKeys, [{version, 2}]),
-                    RemainingDataList = lists:filter(
-                        fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
-                        maps:to_list(Data)
-                    ),
+                    RemainingDataList = maps:without(ConsumedKeys, Data),
                     case
                         spectra_util:fold_until_error(
                             fun map_typed_field_to_json/3,
@@ -989,11 +985,7 @@ map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}
                     BuildResult(LiteralMapFields);
                 _ ->
                     %% Phase 2: Process typed fields with remaining JSON entries
-                    ConsumedKeysSet = sets:from_list(ConsumedKeys, [{version, 2}]),
-                    RemainingJsonList = lists:filter(
-                        fun({K, _}) -> not sets:is_element(K, ConsumedKeysSet) end,
-                        maps:to_list(Json)
-                    ),
+                    RemainingJsonList = maps:without(ConsumedKeys, Json),
                     case
                         spectra_util:fold_until_error(
                             fun map_typed_field_from_json/3,
