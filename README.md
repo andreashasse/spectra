@@ -269,8 +269,10 @@ For `binary()`, `nonempty_binary()`, `string()`, and `nonempty_string()` types y
 |---|---|---|---|
 | `min_length` | `minLength` | yes | Codepoint count (Unicode), not byte count |
 | `max_length` | `maxLength` | yes | Codepoint count (Unicode), not byte count |
-| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax) |
+| `pattern` | `pattern` | yes | Erlang `re` regular expression (PCRE-style syntax; `unicode`/`ucp` enabled for Unicode character properties) |
 | `format` | `format` | no | Schema annotation only |
+
+The `pattern` constraint uses PCRE-style syntax and enables `unicode` and `ucp` options for Unicode character properties (e.g., `\w` matches letters beyond ASCII). An invalid or unbalanced regex pattern is a **developer error** and raises `{invalid_string_pattern, Pattern, Reason}` at runtime — this is not a validation error but a bug in the type definition.
 
 ```erlang
 -spectra(#{type_parameters => #{min_length => 2, max_length => 64}}).

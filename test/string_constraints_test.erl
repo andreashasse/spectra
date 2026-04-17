@@ -70,6 +70,46 @@ decode_pattern_no_match_test() ->
         ])
     ).
 
+decode_unicode_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"ä"/utf8>>},
+        spectra:decode(
+            json, string_constraints_module, {type, single_char_binary, 0}, <<"ä"/utf8>>, [
+                pre_decoded
+            ]
+        )
+    ).
+
+decode_ucp_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"münchen"/utf8>>},
+        spectra:decode(
+            json, string_constraints_module, {type, ucp_word_binary, 0}, <<"münchen"/utf8>>, [
+                pre_decoded
+            ]
+        )
+    ).
+
+encode_unicode_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"ä"/utf8>>},
+        spectra:encode(
+            json, string_constraints_module, {type, single_char_binary, 0}, <<"ä"/utf8>>, [
+                pre_encoded
+            ]
+        )
+    ).
+
+encode_ucp_pattern_match_test() ->
+    ?assertEqual(
+        {ok, <<"münchen"/utf8>>},
+        spectra:encode(
+            json, string_constraints_module, {type, ucp_word_binary, 0}, <<"münchen"/utf8>>, [
+                pre_encoded
+            ]
+        )
+    ).
+
 %% -----------------------------------------------------------------------
 %% Decode — min/max length validation
 %% -----------------------------------------------------------------------
@@ -268,4 +308,48 @@ encode_remote_too_short_test() ->
         spectra:encode(json, string_constraints_module, {type, bounded_remote, 0}, <<"a">>, [
             pre_encoded
         ])
+    ).
+
+%% -----------------------------------------------------------------------
+%% Error handling — invalid UTF-8 and invalid regex patterns
+%% -----------------------------------------------------------------------
+
+decode_pattern_invalid_utf8_returns_error_test() ->
+    %% Bare 0xFF is not valid UTF-8; should return {error, [...]}, not crash
+    InvalidUtf8 = <<255>>,
+    ?assertMatch(
+        {error, [_]},
+        spectra:decode(
+            json, string_constraints_module, {type, lowercase_binary, 0}, InvalidUtf8, [pre_decoded]
+        )
+    ).
+
+encode_pattern_invalid_utf8_returns_error_test() ->
+    %% Bare 0xFF is not valid UTF-8; should return {error, [...]}, not crash
+    InvalidUtf8 = <<255>>,
+    ?assertMatch(
+        {error, [_]},
+        spectra:encode(
+            json, string_constraints_module, {type, lowercase_binary, 0}, InvalidUtf8, [pre_encoded]
+        )
+    ).
+
+decode_pattern_invalid_regex_returns_specific_error_test() ->
+    ?assertError(
+        {invalid_string_pattern, <<"[invalid">>, _},
+        spectra:decode(
+            json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
+                pre_decoded
+            ]
+        )
+    ).
+
+encode_pattern_invalid_regex_returns_specific_error_test() ->
+    ?assertError(
+        {invalid_string_pattern, <<"[invalid">>, _},
+        spectra:encode(
+            json, string_constraints_module, {type, invalid_pattern_binary, 0}, <<"anything">>, [
+                pre_encoded
+            ]
+        )
     ).

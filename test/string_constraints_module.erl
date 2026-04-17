@@ -39,3 +39,15 @@
 
 -spectra(#{type_parameters => #{pattern => <<"^[a-z]+$">>}}).
 -type pattern_remote() :: string_alias_module:t().
+
+%% binary() testing unicode behavior in regex
+-spectra(#{type_parameters => #{pattern => <<"^.$">>}}).
+-type single_char_binary() :: binary().
+
+%% binary() testing unicode character properties behavior in regex (\w matches unicode letters)
+-spectra(#{type_parameters => #{pattern => <<"^\\w+$">>}}).
+-type ucp_word_binary() :: binary().
+
+%% binary() with an invalid/unbalanced regex pattern (developer error; raises {invalid_string_pattern, ..., _})
+-spectra(#{type_parameters => #{pattern => <<"[invalid">>}}).
+-type invalid_pattern_binary() :: binary().
