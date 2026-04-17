@@ -115,7 +115,7 @@ run_benchmark(Fun, Operation) ->
     _ = [Fun() || _ <- lists:seq(1, 5)],
 
     % Run benchmark
-    Iterations = 1000,
+    Iterations = 5000,
     io:format("Running benchmark (~p iterations)...~n", [Iterations]),
 
     Times = [
