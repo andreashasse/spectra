@@ -4,11 +4,15 @@
 -include("../include/spectra_internal.hrl").
 
 %% Property: for types whose JSON encoding is structurally round-trip safe,
-%% encode(decode) returns the original Erlang term bit-for-bit.
+%% encode(decode) returns the original Erlang term bit-for-bit, AND
+%% re-encoding that term produces byte-identical JSON (encoder idempotence).
 %%
 %% This complements prop_json_decode_encode, which starts from a random
 %% JSON value. Starting from a generated type + generated matching data
 %% exercises the encoder on inputs the decoder produces and vice versa.
+%% The idempotence check would catch nondeterministic output (e.g. if
+%% map iteration order ever stopped being stable for structurally equal
+%% terms).
 
 prop_json_encode_decode_roundtrip() ->
     ?FORALL(
@@ -26,16 +30,18 @@ prop_json_encode_decode_roundtrip() ->
                         {ok, Json} ->
                             case safe_decode(TypeInfo, Type, Json) of
                                 {ok, Data2} ->
+                                    {ok, Json2} = safe_encode(TypeInfo, Type, Data2),
                                     ?WHENFAIL(
                                         io:format(
-                                            "~nRoundtrip mismatch~n"
-                                            "  Type:    ~p~n"
-                                            "  Data in: ~p~n"
-                                            "  Json:    ~s~n"
-                                            "  Data out:~p~n",
-                                            [Type, Data, Json, Data2]
+                                            "~nRoundtrip / idempotence mismatch~n"
+                                            "  Type:     ~p~n"
+                                            "  Data in:  ~p~n"
+                                            "  Json:     ~s~n"
+                                            "  Data out: ~p~n"
+                                            "  Json2:    ~s~n",
+                                            [Type, Data, Json, Data2, Json2]
                                         ),
-                                        Data =:= Data2
+                                        Data =:= Data2 andalso Json =:= Json2
                                     );
                                 Other ->
                                     ?WHENFAIL(
