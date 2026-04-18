@@ -130,11 +130,21 @@ sp_map(Size) ->
         Len,
         choose(0, Size),
         ?LET(
-            Fields,
+            Fields0,
             vector(Len, map_field(Size)),
-            shrink_map_gen(Fields)
+            %% Dedupe literal-keyed fields on their name; without this
+            %% the small atom pool (my_atom/0) frequently produces
+            %% structurally invalid maps where one key has multiple
+            %% field definitions.
+            shrink_map_gen(dedupe_by(fun map_field_key/1, Fields0))
         )
     ).
+
+%% Key used for deduping map fields. Typed map fields key on the
+%% unresolved key-type record — collisions are rare in practice and
+%% deduping them would over-restrict generation.
+map_field_key(#literal_map_field{name = Name}) -> {literal, Name};
+map_field_key(#typed_map_field{key_type = KT}) -> {typed, KT}.
 
 %% Generator for maps with shrinking support
 shrink_map_gen([]) ->
@@ -166,16 +176,38 @@ sp_rec(Size) ->
         Len,
         choose(1, max(1, Size)),
         ?LET(
-            {Name, Fields},
+            {Name, Fields0},
             {my_atom(), non_empty(vector(Len, sp_rec_field(Size)))},
-            #sp_rec{
-                name = Name,
-                fields = Fields,
-                % Arity is number of fields + 1 for the tag
-                arity = length(Fields) + 1
-            }
+            begin
+                %% The atom pool is small; dedupe field names so we
+                %% don't produce structurally invalid records (duplicate
+                %% keys encode to one JSON property but two schema
+                %% entries, etc).
+                Fields = dedupe_by(fun(#sp_rec_field{name = FN}) -> FN end, Fields0),
+                #sp_rec{
+                    name = Name,
+                    fields = Fields,
+                    % Arity is number of fields + 1 for the tag
+                    arity = length(Fields) + 1
+                }
+            end
         )
     ).
+
+dedupe_by(KeyFun, List) ->
+    {Unique, _Seen} =
+        lists:foldl(
+            fun(Item, {Acc, Seen}) ->
+                Key = KeyFun(Item),
+                case sets:is_element(Key, Seen) of
+                    true -> {Acc, Seen};
+                    false -> {[Item | Acc], sets:add_element(Key, Seen)}
+                end
+            end,
+            {[], sets:new()},
+            List
+        ),
+    lists:reverse(Unique).
 
 %% Type with variables generator
 sp_type_with_variables() ->
