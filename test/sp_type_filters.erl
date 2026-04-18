@@ -2,7 +2,12 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([json_roundtrip_safe/1, binary_string_roundtrip_safe/1]).
+-export([
+    json_roundtrip_safe/1,
+    json_schema_roundtrip_safe/1,
+    binary_string_roundtrip_safe/1,
+    string_roundtrip_safe/1
+]).
 
 %% @doc True if the given sp_type() can be expected to round-trip
 %% identically through JSON encode/decode for all data matching the type.
@@ -79,6 +84,35 @@ json_simple_safe(string) -> true;
 json_simple_safe(nonempty_string) -> true;
 json_simple_safe(_) -> false.
 
+%% @doc Stricter variant of json_roundtrip_safe/1 for the
+%% schema-validates-encoded test. Spectra emits `oneOf` for unions,
+%% which requires exactly one member schema to validate — overlapping
+%% members (e.g. two integer ranges that share a value) cause jesse to
+%% reject valid data. Restrict unions to literal-only unions so members
+%% are disjoint by construction.
+-spec json_schema_roundtrip_safe(spectra:sp_type()) -> boolean().
+json_schema_roundtrip_safe(#sp_union{types = Types}) ->
+    lists:all(fun(T) -> is_record(T, sp_literal) end, Types) andalso
+        lists:all(fun json_schema_roundtrip_safe/1, Types);
+json_schema_roundtrip_safe(#sp_list{type = E}) ->
+    json_schema_roundtrip_safe(E);
+json_schema_roundtrip_safe(#sp_nonempty_list{type = E}) ->
+    json_schema_roundtrip_safe(E);
+json_schema_roundtrip_safe(#sp_map{fields = Fields}) ->
+    lists:all(fun json_schema_map_field_safe/1, Fields);
+json_schema_roundtrip_safe(#sp_rec{fields = Fields}) ->
+    lists:all(
+        fun(#sp_rec_field{type = T}) -> json_schema_roundtrip_safe(T) end,
+        Fields
+    );
+json_schema_roundtrip_safe(Other) ->
+    json_roundtrip_safe(Other).
+
+json_schema_map_field_safe(#literal_map_field{val_type = V}) ->
+    json_schema_roundtrip_safe(V);
+json_schema_map_field_safe(#typed_map_field{key_type = K, val_type = V}) ->
+    json_map_key_safe(K) andalso json_schema_roundtrip_safe(V).
+
 %% @doc True if the given sp_type() is supported by spectra_binary_string
 %% and can be expected to round-trip identically.
 -spec binary_string_roundtrip_safe(spectra:sp_type()) -> boolean().
@@ -91,7 +125,13 @@ binary_string_roundtrip_safe(#sp_literal{value = V}) ->
 binary_string_roundtrip_safe(#sp_range{}) ->
     true;
 binary_string_roundtrip_safe(#sp_union{types = Types}) ->
-    lists:all(fun binary_string_roundtrip_safe/1, Types);
+    %% Decoding a union picks the first matching member, so unions only
+    %% roundtrip reliably when members can't overlap on wire format.
+    %% Restrict to literal-only unions (the enum case) — a generic
+    %% `string | integer` union is ambiguous: `0` encodes to <<"0">>
+    %% which decodes back as the string "0".
+    lists:all(fun(T) -> is_record(T, sp_literal) end, Types) andalso
+        lists:all(fun binary_string_roundtrip_safe/1, Types);
 binary_string_roundtrip_safe(_) ->
     false.
 
@@ -108,3 +148,10 @@ bs_simple_safe(nonempty_binary) -> true;
 bs_simple_safe(string) -> true;
 bs_simple_safe(nonempty_string) -> true;
 bs_simple_safe(_) -> false.
+
+%% @doc True if the given sp_type() is supported by spectra_string
+%% and can be expected to round-trip identically. The supported type
+%% set currently matches spectra_binary_string.
+-spec string_roundtrip_safe(spectra:sp_type()) -> boolean().
+string_roundtrip_safe(Type) ->
+    binary_string_roundtrip_safe(Type).

@@ -64,6 +64,7 @@ ignore_modules = [
     "prop_json_roundtrip_from_data",
     "prop_json_schema_validates_encoded",
     "prop_schema_consistency",
+    "prop_string_roundtrip",
     "python_validator_helper",
     "record_arg_type_test",
     "record_test",
