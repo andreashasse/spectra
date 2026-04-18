@@ -1250,3 +1250,33 @@ string_codepoint_out_of_range_reports_context_test() ->
         #sp_error{ctx = #{reason := invalid_codepoints}},
         Err
     ).
+
+%% Codepoint lists roundtrip unchanged through the string type. Locks
+%% in the contract that the string path performs no transformation so
+%% non-ASCII codepoints survive intact.
+string_type_non_ascii_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    %% é, λ, 😀
+    Codepoints = [16#E9, 16#3BB, 16#1F600],
+    ?assertEqual(
+        {ok, Codepoints},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = string}, Codepoints)
+    ),
+    ?assertEqual(
+        {ok, Codepoints},
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = string}, Codepoints)
+    ).
+
+%% With check_unicode enabled, encode should reject data that isn't a
+%% valid Unicode character list (e.g. an iolist containing an invalid
+%% UTF-8 binary).
+string_type_invalid_unicode_with_check_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Config = #sp_config{module_types_cache = none, check_unicode = true},
+    InvalidIolist = [16#41, <<255, 254>>],
+    ?assertMatch(
+        {error, [#sp_error{}]},
+        spectra_string:to_string(
+            TypeInfo, #sp_simple_type{type = string}, InvalidIolist, Config
+        )
+    ).
