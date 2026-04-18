@@ -246,8 +246,12 @@ sp_literal(_Size) ->
             my_atom(),
             []
         ]),
-        #sp_literal{value = Value}
+        #sp_literal{value = Value, binary_value = literal_binary_value(Value)}
     ).
+
+literal_binary_value(V) when is_atom(V) -> atom_to_binary(V, utf8);
+literal_binary_value(V) when is_integer(V) -> integer_to_binary(V);
+literal_binary_value([]) -> <<"[]">>.
 
 %% Record reference generator
 record_field(Size) ->
