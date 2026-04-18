@@ -305,6 +305,31 @@ convert_binary_string_to_type(Type, BinaryString) when is_binary(BinaryString) -
 convert_binary_string_to_type(Type, NonBinary) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, NonBinary)]}.
 
+%% Inverse of unicode:characters_to_binary/1 used on the encode side.
+-spec decode_utf8_string(string | nonempty_string, binary()) ->
+    {ok, string()} | {error, [spectra:error()]}.
+decode_utf8_string(Type, BinaryString) ->
+    case unicode:characters_to_list(BinaryString, utf8) of
+        Chars when is_list(Chars) ->
+            {ok, Chars};
+        {error, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    BinaryString,
+                    #{reason => invalid_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    BinaryString,
+                    #{reason => incomplete_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]}
+    end.
+
 -spec do_convert_binary_string_to_type(Type :: spectra:simple_types(), BinaryString :: binary()) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
 do_convert_binary_string_to_type(integer, BinaryString) ->
@@ -342,11 +367,11 @@ do_convert_binary_string_to_type(atom, BinaryString) ->
             {error, [sp_error:type_mismatch(#sp_simple_type{type = atom}, BinaryString)]}
     end;
 do_convert_binary_string_to_type(string, BinaryString) ->
-    {ok, binary_to_list(BinaryString)};
+    decode_utf8_string(string, BinaryString);
 do_convert_binary_string_to_type(nonempty_string, BinaryString) when
     BinaryString =/= <<>>
 ->
-    {ok, binary_to_list(BinaryString)};
+    decode_utf8_string(nonempty_string, BinaryString);
 do_convert_binary_string_to_type(nonempty_string, <<>>) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, <<>>)]};
 do_convert_binary_string_to_type(binary, BinaryString) ->

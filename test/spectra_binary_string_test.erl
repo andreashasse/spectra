@@ -1758,3 +1758,43 @@ binary_string_codec_record_continue_encode_test() ->
         {type_not_supported, _},
         spectra:encode(binary_string, codec_animal_codec, {record, cat}, any_value)
     ).
+
+%% Encoding a string of Unicode code points and decoding the result must
+%% return the original code points. Regression: the decoder used
+%% binary_to_list/1 (latin1), which was asymmetric with the encoder's
+%% unicode:characters_to_binary/1 (UTF-8).
+binary_string_utf8_string_roundtrip_test() ->
+    %% Code point U+0080 encodes to <<194, 128>> in UTF-8. Latin1 decoding
+    %% would return [194, 128] instead of [128].
+    Data = [128, 16#1F600, 16#4E2D],
+    {ok, Bin} = spectra:encode(binary_string, ?MODULE, my_string, Data),
+    ?assertEqual({ok, Data}, spectra:decode(binary_string, ?MODULE, my_string, Bin)).
+
+binary_string_utf8_nonempty_string_roundtrip_test() ->
+    Data = [16#1F600, 16#4E2D],
+    {ok, Bin} = spectra:encode(binary_string, ?MODULE, my_nonempty_string, Data),
+    ?assertEqual({ok, Data}, spectra:decode(binary_string, ?MODULE, my_nonempty_string, Bin)).
+
+binary_string_invalid_utf8_string_reports_context_test() ->
+    %% <<192, 0>> is an overlong/invalid UTF-8 lead byte.
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{reason := invalid_utf8, rest := <<192, 0>>}
+            }
+        ]},
+        spectra:decode(binary_string, ?MODULE, my_string, <<192, 0>>)
+    ).
+
+binary_string_incomplete_utf8_string_reports_context_test() ->
+    %% <<194>> is a truncated 2-byte UTF-8 sequence.
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{reason := incomplete_utf8, rest := <<194>>}
+            }
+        ]},
+        spectra:decode(binary_string, ?MODULE, my_string, <<194>>)
+    ).
