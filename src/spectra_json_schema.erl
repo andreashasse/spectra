@@ -17,7 +17,7 @@
     enum => [null | binary() | integer() | boolean() | []],
     items => json_schema_object(),
     minItems => pos_integer(),
-    oneOf => [json_schema_object()],
+    anyOf => [json_schema_object()],
     properties => #{binary() => json_schema_object()},
     required => [binary()],
     additionalProperties => boolean(),
@@ -43,7 +43,7 @@
     enum => [null | binary() | integer() | boolean() | []],
     items => json_schema_object(),
     minItems => pos_integer(),
-    oneOf => [json_schema_object()],
+    anyOf => [json_schema_object()],
     properties => #{binary() => json_schema_object()},
     required => [binary()],
     additionalProperties => boolean()
@@ -218,14 +218,14 @@ do_to_schema(TypeInfo, #sp_union{types = Types}, Config) ->
         {[], NonMissingTypes} ->
             case try_generate_enum_schema(NonMissingTypes, TypeInfo, Config) of
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, NonMissingTypes, Config);
+                    generate_anyof_schema(TypeInfo, NonMissingTypes, Config);
                 EnumSchema ->
                     EnumSchema
             end;
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
             case try_generate_enum_schema(OtherTypes, TypeInfo, Config) of
                 not_all_literals ->
-                    generate_oneof_schema(TypeInfo, Types, Config);
+                    generate_anyof_schema(TypeInfo, Types, Config);
                 EnumSchema ->
                     EnumSchema
             end
@@ -387,10 +387,10 @@ process_record_fields(
         end,
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
-%% Helper function to generate oneOf schemas
-generate_oneof_schema(TypeInfo, Types, Config) ->
+%% Helper function to generate anyOf schemas
+generate_anyof_schema(TypeInfo, Types, Config) ->
     Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T, Config) end, Types),
-    #{oneOf => Schemas}.
+    #{anyOf => Schemas}.
 
 try_generate_enum_schema(Types, TypeInfo, Config) ->
     %% First, expand all types to their base forms (resolving references)

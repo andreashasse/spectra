@@ -270,12 +270,12 @@ list_types_test() ->
 
 %% Test union type mappings
 union_types_test() ->
-    %% Simple union of non-literals (should use oneOf)
+    %% Simple union of non-literals (should use anyOf)
     UnionSchema = spectra:schema(json_schema, ?MODULE, {type, my_union, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            oneOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
         },
         UnionSchema
     ),

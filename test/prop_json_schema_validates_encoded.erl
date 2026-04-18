@@ -19,7 +19,7 @@
 prop_schema_validates_encoded_data() ->
     ?FORALL(
         Type,
-        ?SUCHTHAT(T, sp_type_generators:sp_type(), sp_type_filters:json_schema_roundtrip_safe(T)),
+        ?SUCHTHAT(T, sp_type_generators:sp_type(), sp_type_filters:json_roundtrip_safe(T)),
         begin
             TypeInfo = spectra_type_info:add_type(
                 spectra_type_info:new(?MODULE, false), test_type, 0, Type

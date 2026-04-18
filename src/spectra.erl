@@ -423,7 +423,7 @@ Equivalent to calling schema/4 with an empty options list.
 <<"{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"},...}}">>
 
 2> spectra:schema(json_schema, my_module, status).
-<<"{\"oneOf\":[{\"enum\":[\"active\"]},{\"enum\":[\"inactive\"]},{\"enum\":[\"pending\"]}]}">>
+<<"{\"anyOf\":[{\"enum\":[\"active\"]},{\"enum\":[\"inactive\"]},{\"enum\":[\"pending\"]}]}">>
 
 3> spectra:schema(json_schema, my_module, {type, user_id, 0}).
 <<"{\"type\":\"integer\",\"minimum\":1}">>
