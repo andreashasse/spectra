@@ -331,9 +331,9 @@ do_convert_string_to_type(nonempty_string, String) when String =/= [] ->
 do_convert_string_to_type(nonempty_string, []) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, [])]};
 do_convert_string_to_type(binary, String) ->
-    {ok, list_to_binary(String)};
+    encode_utf8_binary(binary, String);
 do_convert_string_to_type(nonempty_binary, String) when String =/= [] ->
-    {ok, list_to_binary(String)};
+    encode_utf8_binary(nonempty_binary, String);
 do_convert_string_to_type(nonempty_binary, []) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, [])]};
 do_convert_string_to_type(non_neg_integer, String) ->
@@ -476,11 +476,11 @@ convert_type_to_string(nonempty_string, Data, Config) when is_list(Data), Data =
 convert_type_to_string(nonempty_string, Data, _Config) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, Data)]};
 convert_type_to_string(binary, Data, _Config) when is_binary(Data) ->
-    {ok, binary_to_list(Data)};
+    decode_utf8_binary(binary, Data);
 convert_type_to_string(binary, Data, _Config) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = binary}, Data)]};
 convert_type_to_string(nonempty_binary, Data, _Config) when is_binary(Data), Data =/= <<>> ->
-    {ok, binary_to_list(Data)};
+    decode_utf8_binary(nonempty_binary, Data);
 convert_type_to_string(nonempty_binary, Data, _Config) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, Data)]};
 convert_type_to_string(non_neg_integer, Data, _Config) when is_integer(Data), Data >= 0 ->
@@ -497,6 +497,56 @@ convert_type_to_string(neg_integer, Data, _Config) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = neg_integer}, Data)]};
 convert_type_to_string(Type, Data, _Config) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
+
+%% Decode a binary as UTF-8 into a codepoint list. Used when encoding
+%% a binary-typed value into its string representation so that callers
+%% get a proper Unicode list, not a latin1 byte sequence dressed up as
+%% codepoints.
+decode_utf8_binary(Type, Data) ->
+    case unicode:characters_to_list(Data, utf8) of
+        Chars when is_list(Chars) ->
+            {ok, Chars};
+        {error, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => invalid_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => incomplete_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]}
+    end.
+
+%% Encode a codepoint list as a UTF-8 binary. Used when decoding a
+%% string into a binary-typed value.
+encode_utf8_binary(Type, String) ->
+    case unicode:characters_to_binary(String, utf8) of
+        Bin when is_binary(Bin) ->
+            {ok, Bin};
+        {error, Encoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    String,
+                    #{reason => invalid_codepoints, encoded => Encoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Encoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    String,
+                    #{reason => incomplete_codepoints, encoded => Encoded, rest => Rest}
+                )
+            ]}
+    end.
 
 list_to_charlist(Data, #sp_config{check_unicode = true}) ->
     case unicode:characters_to_list(Data) of

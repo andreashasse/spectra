@@ -1200,3 +1200,53 @@ string_union_codec_encode_test() ->
     after
         application:unset_env(spectra, codecs)
     end.
+
+%% Binary-typed values are UTF-8 encoded/decoded, so <<"é"/utf8>> (two
+%% bytes) becomes the single-codepoint list [233] — not the latin1
+%% byte list [195, 169].
+string_utf8_binary_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Bin = <<"é"/utf8>>,
+    ?assertEqual(
+        {ok, [16#E9]},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, Bin)
+    ),
+    ?assertEqual(
+        {ok, Bin},
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, [16#E9])
+    ).
+
+string_utf8_nonempty_binary_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Bin = <<"é"/utf8>>,
+    ?assertEqual(
+        {ok, [16#E9]},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = nonempty_binary}, Bin)
+    ),
+    ?assertEqual(
+        {ok, Bin},
+        spectra_test_util:from_string(
+            TypeInfo, #sp_simple_type{type = nonempty_binary}, [16#E9]
+        )
+    ).
+
+string_invalid_utf8_binary_reports_context_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    InvalidBin = <<255, 254>>,
+    {error, [Err]} =
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, InvalidBin),
+    ?assertMatch(
+        #sp_error{ctx = #{reason := invalid_utf8}},
+        Err
+    ).
+
+string_codepoint_out_of_range_reports_context_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    %% 0x110000 is above the max valid Unicode codepoint (0x10FFFF).
+    InvalidString = [16#110000],
+    {error, [Err]} =
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, InvalidString),
+    ?assertMatch(
+        #sp_error{ctx = #{reason := invalid_codepoints}},
+        Err
+    ).
