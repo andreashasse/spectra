@@ -57,7 +57,7 @@ ignore_modules = [
     "parameterized_remote_type_test",
     "perf_benchmark",
     "pr45_comment_issues_test",
-    "prop_base",
+    "prop_json_decode_encode",
     "prop_json_encode_schema_consistency",
     "prop_json_generator",
     "prop_schema_consistency",

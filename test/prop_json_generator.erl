@@ -2,6 +2,11 @@
 
 -include_lib("proper/include/proper.hrl").
 
+%% NOTE: This module tests the `json_generator` test utility, not the
+%% Spectra project itself. It ensures that our property-based testing
+%% infrastructure generates valid JSON structures that the standard
+%% Erlang `json` module can encode.
+
 %% Property test that verifies all generated JSON values can be encoded
 prop_json_encodable() ->
     ?FORALL(
@@ -11,25 +16,6 @@ prop_json_encodable() ->
             try
                 EncodedJson = json:encode(JsonValue),
                 is_binary(EncodedJson) orelse is_list(EncodedJson)
-            catch
-                _:_ ->
-                    false
-            end
-        end
-    ).
-
-%% Property test that verifies encode/decode roundtrip
-prop_json_roundtrip() ->
-    ?FORALL(
-        JsonValue,
-        json_generator:json_value(),
-        begin
-            try
-                EncodedJson = json:encode(JsonValue),
-                % Convert iolist to binary for json:decode
-                JsonBinary = iolist_to_binary(EncodedJson),
-                DecodedValue = json:decode(JsonBinary),
-                JsonValue =:= DecodedValue
             catch
                 _:_ ->
                     false

@@ -27,7 +27,7 @@ prop_json_encode_schema_consistency_filtered() ->
             % Generate data matching this type
             ?FORALL(
                 Data,
-                prop_base:gen_data(TypeInfo, Type),
+                sp_data_generators:gen_data(TypeInfo, Type),
                 begin
                     % Safely call all three operations
                     ToJsonResult = safe_to_json(TypeInfo, Type, Data),

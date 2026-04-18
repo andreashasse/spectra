@@ -1,10 +1,10 @@
--module(prop_base).
+-module(prop_json_decode_encode).
 
 -include_lib("proper/include/proper.hrl").
 
 -export([gen_data/2]).
 
-prop_hej() ->
+prop_json_decode_encode_roundtrip() ->
     ?FORALL(
         {{TypeName, Type}, JsonValue},
         {test_type(), json_generator:json_value()},
