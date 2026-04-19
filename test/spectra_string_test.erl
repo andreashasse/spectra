@@ -1200,3 +1200,69 @@ string_union_codec_encode_test() ->
     after
         application:unset_env(spectra, codecs)
     end.
+
+string_utf8_binary_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Bin = <<"é"/utf8>>,
+    ?assertEqual(
+        {ok, [16#E9]},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, Bin)
+    ),
+    ?assertEqual(
+        {ok, Bin},
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, [16#E9])
+    ).
+
+string_utf8_nonempty_binary_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Bin = <<"é"/utf8>>,
+    ?assertEqual(
+        {ok, [16#E9]},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = nonempty_binary}, Bin)
+    ),
+    ?assertEqual(
+        {ok, Bin},
+        spectra_test_util:from_string(
+            TypeInfo, #sp_simple_type{type = nonempty_binary}, [16#E9]
+        )
+    ).
+
+string_invalid_utf8_binary_reports_context_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    InvalidBin = <<255, 254>>,
+    {error, [Err]} =
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = binary}, InvalidBin),
+    ?assertMatch(
+        #sp_error{ctx = #{reason := invalid_utf8}},
+        Err
+    ).
+
+string_codepoint_out_of_range_reports_context_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    InvalidString = [16#110000],
+    {error, [Err]} =
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = binary}, InvalidString),
+    ?assertMatch(
+        #sp_error{ctx = #{reason := invalid_codepoints}},
+        Err
+    ).
+
+string_type_non_ascii_roundtrip_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Codepoints = [16#E9, 16#3BB, 16#1F600],
+    ?assertEqual(
+        {ok, Codepoints},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = string}, Codepoints)
+    ),
+    ?assertEqual(
+        {ok, Codepoints},
+        spectra_test_util:from_string(TypeInfo, #sp_simple_type{type = string}, Codepoints)
+    ).
+
+string_type_invalid_unicode_rejected_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    InvalidIolist = [16#41, <<255, 254>>],
+    ?assertMatch(
+        {error, [#sp_error{}]},
+        spectra_test_util:to_string(TypeInfo, #sp_simple_type{type = string}, InvalidIolist)
+    ).

@@ -247,8 +247,8 @@ to_string(_TypeInfo, #sp_simple_type{type = NotSupported} = T, _Data, _Config) w
         NotSupported =:= none
 ->
     erlang:error({type_not_supported, T});
-to_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data, Config) ->
-    convert_type_to_string(PrimaryType, Data, Config);
+to_string(_TypeInfo, #sp_simple_type{type = PrimaryType}, Data, _Config) ->
+    convert_type_to_string(PrimaryType, Data);
 to_string(
     _TypeInfo,
     #sp_range{
@@ -260,7 +260,7 @@ to_string(
     Data,
     _Config
 ) ->
-    case convert_type_to_string(integer, Data, undefined) of
+    case convert_type_to_string(integer, Data) of
         {ok, String} when Min =< Data, Data =< Max ->
             {ok, String};
         {ok, _String} when is_integer(Data) ->
@@ -331,9 +331,9 @@ do_convert_string_to_type(nonempty_string, String) when String =/= [] ->
 do_convert_string_to_type(nonempty_string, []) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, [])]};
 do_convert_string_to_type(binary, String) ->
-    {ok, list_to_binary(String)};
+    encode_utf8_binary(binary, String);
 do_convert_string_to_type(nonempty_binary, String) when String =/= [] ->
-    {ok, list_to_binary(String)};
+    encode_utf8_binary(nonempty_binary, String);
 do_convert_string_to_type(nonempty_binary, []) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, [])]};
 do_convert_string_to_type(non_neg_integer, String) ->
@@ -436,77 +436,137 @@ do_first(Fun, TypeInfo, [Type | Rest], String, Config, ErrorsAcc) ->
             do_first(Fun, TypeInfo, Rest, String, Config, [{Type, Errors} | ErrorsAcc])
     end.
 
--spec convert_type_to_string(
-    Type :: spectra:simple_types(), Data :: dynamic(), Config :: spectra:sp_config() | undefined
-) ->
+-spec convert_type_to_string(Type :: spectra:simple_types(), Data :: dynamic()) ->
     {ok, string()} | {error, [spectra:error()]}.
-convert_type_to_string(integer, Data, _Config) when is_integer(Data) ->
+convert_type_to_string(integer, Data) when is_integer(Data) ->
     {ok, integer_to_list(Data)};
-convert_type_to_string(integer, Data, _Config) ->
+convert_type_to_string(integer, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = integer}, Data)]};
-convert_type_to_string(float, Data, _Config) when is_float(Data) ->
+convert_type_to_string(float, Data) when is_float(Data) ->
     {ok, float_to_list(Data)};
-convert_type_to_string(float, Data, _Config) ->
+convert_type_to_string(float, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = float}, Data)]};
-convert_type_to_string(number, Data, _Config) when is_number(Data) ->
+convert_type_to_string(number, Data) when is_number(Data) ->
     if
         is_integer(Data) ->
             {ok, integer_to_list(Data)};
         is_float(Data) ->
             {ok, float_to_list(Data)}
     end;
-convert_type_to_string(number, Data, _Config) ->
+convert_type_to_string(number, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = number}, Data)]};
-convert_type_to_string(boolean, true, _Config) ->
+convert_type_to_string(boolean, true) ->
     {ok, "true"};
-convert_type_to_string(boolean, false, _Config) ->
+convert_type_to_string(boolean, false) ->
     {ok, "false"};
-convert_type_to_string(boolean, Data, _Config) ->
+convert_type_to_string(boolean, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = boolean}, Data)]};
-convert_type_to_string(atom, Data, _Config) when is_atom(Data) ->
+convert_type_to_string(atom, Data) when is_atom(Data) ->
     {ok, atom_to_list(Data)};
-convert_type_to_string(atom, Data, _Config) ->
+convert_type_to_string(atom, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = atom}, Data)]};
-convert_type_to_string(string, Data, Config) when is_list(Data) ->
-    list_to_charlist(Data, Config);
-convert_type_to_string(string, Data, _Config) ->
+convert_type_to_string(string, Data) when is_list(Data) ->
+    list_to_charlist(string, Data);
+convert_type_to_string(string, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = string}, Data)]};
-convert_type_to_string(nonempty_string, Data, Config) when is_list(Data), Data =/= [] ->
-    list_to_charlist(Data, Config);
-convert_type_to_string(nonempty_string, Data, _Config) ->
+convert_type_to_string(nonempty_string, Data) when is_list(Data), Data =/= [] ->
+    list_to_charlist(nonempty_string, Data);
+convert_type_to_string(nonempty_string, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_string}, Data)]};
-convert_type_to_string(binary, Data, _Config) when is_binary(Data) ->
-    {ok, binary_to_list(Data)};
-convert_type_to_string(binary, Data, _Config) ->
+convert_type_to_string(binary, Data) when is_binary(Data) ->
+    decode_utf8_binary(binary, Data);
+convert_type_to_string(binary, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = binary}, Data)]};
-convert_type_to_string(nonempty_binary, Data, _Config) when is_binary(Data), Data =/= <<>> ->
-    {ok, binary_to_list(Data)};
-convert_type_to_string(nonempty_binary, Data, _Config) ->
+convert_type_to_string(nonempty_binary, Data) when is_binary(Data), Data =/= <<>> ->
+    decode_utf8_binary(nonempty_binary, Data);
+convert_type_to_string(nonempty_binary, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = nonempty_binary}, Data)]};
-convert_type_to_string(non_neg_integer, Data, _Config) when is_integer(Data), Data >= 0 ->
+convert_type_to_string(non_neg_integer, Data) when is_integer(Data), Data >= 0 ->
     {ok, integer_to_list(Data)};
-convert_type_to_string(non_neg_integer, Data, _Config) ->
+convert_type_to_string(non_neg_integer, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = non_neg_integer}, Data)]};
-convert_type_to_string(pos_integer, Data, _Config) when is_integer(Data), Data > 0 ->
+convert_type_to_string(pos_integer, Data) when is_integer(Data), Data > 0 ->
     {ok, integer_to_list(Data)};
-convert_type_to_string(pos_integer, Data, _Config) ->
+convert_type_to_string(pos_integer, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = pos_integer}, Data)]};
-convert_type_to_string(neg_integer, Data, _Config) when is_integer(Data), Data < 0 ->
+convert_type_to_string(neg_integer, Data) when is_integer(Data), Data < 0 ->
     {ok, integer_to_list(Data)};
-convert_type_to_string(neg_integer, Data, _Config) ->
+convert_type_to_string(neg_integer, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = neg_integer}, Data)]};
-convert_type_to_string(Type, Data, _Config) ->
+convert_type_to_string(Type, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
 
-list_to_charlist(Data, #sp_config{check_unicode = true}) ->
+-spec decode_utf8_binary(binary | nonempty_binary, binary()) ->
+    {ok, string()} | {error, [spectra:error()]}.
+decode_utf8_binary(Type, Data) ->
+    case unicode:characters_to_list(Data, utf8) of
+        Chars when is_list(Chars) ->
+            {ok, Chars};
+        {error, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => invalid_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => incomplete_utf8, decoded => Decoded, rest => Rest}
+                )
+            ]}
+    end.
+
+-spec encode_utf8_binary(binary | nonempty_binary, string()) ->
+    {ok, binary()} | {error, [spectra:error()]}.
+encode_utf8_binary(Type, String) ->
+    case unicode:characters_to_binary(String, utf8) of
+        Bin when is_binary(Bin) ->
+            {ok, Bin};
+        {error, Encoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    String,
+                    #{reason => invalid_codepoints, encoded => Encoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Encoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    String,
+                    #{reason => incomplete_codepoints, encoded => Encoded, rest => Rest}
+                )
+            ]}
+    end.
+
+-spec list_to_charlist(string | nonempty_string, list()) ->
+    {ok, string()} | {error, [spectra:error()]}.
+list_to_charlist(Type, Data) ->
     case unicode:characters_to_list(Data) of
-        DataList when is_list(DataList) ->
-            {ok, DataList};
-        _Other ->
-            {error, [sp_error:type_mismatch(#sp_simple_type{type = string}, Data)]}
-    end;
-list_to_charlist(Data, _Config) ->
-    {ok, Data}.
+        Chars when is_list(Chars) ->
+            {ok, Chars};
+        {error, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => invalid_unicode, decoded => Decoded, rest => Rest}
+                )
+            ]};
+        {incomplete, Decoded, Rest} ->
+            {error, [
+                sp_error:type_mismatch(
+                    #sp_simple_type{type = Type},
+                    Data,
+                    #{reason => incomplete_unicode, decoded => Decoded, rest => Rest}
+                )
+            ]}
+    end.
 
 -spec try_convert_literal_to_string(Literal :: spectra:literal_value(), Data :: dynamic()) ->
     {ok, string()} | {error, [spectra:error()]}.

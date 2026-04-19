@@ -105,7 +105,6 @@
 %% threaded through all format modules to avoid repeated application:get_env calls.
 -record(sp_config, {
     module_types_cache = local :: spectra:module_types_cache(),
-    check_unicode = false :: boolean(),
     codecs = #{} :: #{spectra:codec_key() => module()}
 }).
 

@@ -1758,3 +1758,35 @@ binary_string_codec_record_continue_encode_test() ->
         {type_not_supported, _},
         spectra:encode(binary_string, codec_animal_codec, {record, cat}, any_value)
     ).
+
+binary_string_utf8_string_roundtrip_test() ->
+    Data = [128, 16#1F600, 16#4E2D],
+    {ok, Bin} = spectra:encode(binary_string, ?MODULE, my_string, Data),
+    ?assertEqual({ok, Data}, spectra:decode(binary_string, ?MODULE, my_string, Bin)).
+
+binary_string_utf8_nonempty_string_roundtrip_test() ->
+    Data = [16#1F600, 16#4E2D],
+    {ok, Bin} = spectra:encode(binary_string, ?MODULE, my_nonempty_string, Data),
+    ?assertEqual({ok, Data}, spectra:decode(binary_string, ?MODULE, my_nonempty_string, Bin)).
+
+binary_string_invalid_utf8_string_reports_context_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{reason := invalid_utf8, rest := <<192, 0>>}
+            }
+        ]},
+        spectra:decode(binary_string, ?MODULE, my_string, <<192, 0>>)
+    ).
+
+binary_string_incomplete_utf8_string_reports_context_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{reason := incomplete_utf8, rest := <<194>>}
+            }
+        ]},
+        spectra:decode(binary_string, ?MODULE, my_string, <<194>>)
+    ).
