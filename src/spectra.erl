@@ -611,7 +611,6 @@ get_config() ->
         module_types_cache = valid_module_types_cache(
             application:get_env(spectra, module_types_cache, local)
         ),
-        check_unicode = application:get_env(spectra, check_unicode, false),
         codecs = application:get_env(spectra, codecs, #{})
     }.
 
