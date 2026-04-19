@@ -130,11 +130,14 @@ sp_map(Size) ->
         Len,
         choose(0, Size),
         ?LET(
-            Fields,
+            Fields0,
             vector(Len, map_field(Size)),
-            shrink_map_gen(Fields)
+            shrink_map_gen(dedupe_by(fun map_field_key/1, Fields0))
         )
     ).
+
+map_field_key(#literal_map_field{name = Name}) -> {literal, Name};
+map_field_key(#typed_map_field{key_type = KT}) -> {typed, KT}.
 
 %% Generator for maps with shrinking support
 shrink_map_gen([]) ->
@@ -166,16 +169,34 @@ sp_rec(Size) ->
         Len,
         choose(1, max(1, Size)),
         ?LET(
-            {Name, Fields},
+            {Name, Fields0},
             {my_atom(), non_empty(vector(Len, sp_rec_field(Size)))},
-            #sp_rec{
-                name = Name,
-                fields = Fields,
-                % Arity is number of fields + 1 for the tag
-                arity = length(Fields) + 1
-            }
+            begin
+                Fields = dedupe_by(fun(#sp_rec_field{name = FN}) -> FN end, Fields0),
+                #sp_rec{
+                    name = Name,
+                    fields = Fields,
+                    % Arity is number of fields + 1 for the tag
+                    arity = length(Fields) + 1
+                }
+            end
         )
     ).
+
+dedupe_by(KeyFun, List) ->
+    {Unique, _Seen} =
+        lists:foldl(
+            fun(Item, {Acc, Seen}) ->
+                Key = KeyFun(Item),
+                case sets:is_element(Key, Seen) of
+                    true -> {Acc, Seen};
+                    false -> {[Item | Acc], sets:add_element(Key, Seen)}
+                end
+            end,
+            {[], sets:new()},
+            List
+        ),
+    lists:reverse(Unique).
 
 %% Type with variables generator
 sp_type_with_variables() ->
@@ -246,8 +267,12 @@ sp_literal(_Size) ->
             my_atom(),
             []
         ]),
-        #sp_literal{value = Value}
+        #sp_literal{value = Value, binary_value = literal_binary_value(Value)}
     ).
+
+literal_binary_value(V) when is_atom(V) -> atom_to_binary(V, utf8);
+literal_binary_value(V) when is_integer(V) -> integer_to_binary(V);
+literal_binary_value([]) -> <<"[]">>.
 
 %% Record reference generator
 record_field(Size) ->

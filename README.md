@@ -702,17 +702,11 @@ You can configure spectra behavior using application environment variables:
 - **Note**: With `persistent`, cached type info remains until you explicitly clear it with `spectra_module_types:clear/1`. With `local`, the cache only exists for a single `spectra:decode/encode/schema` call and is automatically cleared when that call returns, so type changes are picked up on the next call.
 - **Recommendation**: Use `persistent` in production systems where no hot code reloading is done. Use `local` when you want per-call caching without affecting other processes.
 
-#### `check_unicode`
-- **Type**: `boolean()`
-- **Default**: `false`
-- **Description**: When set to `true`, enables additional Unicode validation for list-type string data. Disable for better performance when Unicode validity is guaranteed by other means.
-
 Example configuration in `sys.config`:
 
 ```erlang
 {spectra, [
-    {module_types_cache, local},
-    {check_unicode, false}
+    {module_types_cache, local}
 ]}.
 ```
 

@@ -2,6 +2,13 @@
 - [ ] Test error message path better
 - [ ] Support otp 28
   - [ ] -nominal my_nominal_type() :: Type.
+- [ ] Align `spectra_json` string error ctx with the structured form used in `spectra_binary_string` / `spectra_string` (`#{reason, decoded, rest}` instead of `#{message => "..."}`)
+- [ ] Generate random types with `-spectra` metadata attributes in `prop_schema_consistency` instead of the hand-picked list (see `FIXME` in `test/prop_schema_consistency.erl:92`)
+- [ ] Relax `binary_string` / `string` union restriction beyond literal-only
+  - Context: `spectra_binary_string` and `spectra_string` decode unions by trying members in order and returning the first match. The wire format is untagged (just a binary / charlist), so overlapping members are ambiguous: e.g. for `string() | integer()`, the value `0` encodes to `<<"0">>` which decodes back as the string `"0"` — the original integer is lost.
+  - Current state: `sp_type_filters:binary_string_roundtrip_safe/1` admits unions only when every member is an `#sp_literal{}` (enum case), where distinct literal values cannot collide. The property test `prop_binary_string_roundtrip` is therefore blind to any bug involving non-literal unions.
+  - Possible directions: (1) detect disjoint wire shapes at decode time (e.g. "looks like an integer" vs "looks like arbitrary text") and pick accordingly; (2) require a tag/discriminator for non-literal unions and refuse to encode without one; (3) leave as-is and document that untagged formats don't support ambiguous unions.
+  - Files: `src/spectra_binary_string.erl` (`union/6`, `do_first/7`), `src/spectra_string.erl` (`union/5`, `do_first/6`), `test/sp_type_filters.erl:binary_string_roundtrip_safe/1`.
 
 ## TODO Performance improvements
 - [ ] For each literal atom, convert to binary in spectra_abstract_code, so that we don't have to do binary_to_existing_atom so see that the values match

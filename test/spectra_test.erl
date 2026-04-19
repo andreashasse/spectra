@@ -733,10 +733,6 @@ get_config_default_cache_test() ->
     Config = spectra:get_config(),
     ?assertEqual(local, Config#sp_config.module_types_cache).
 
-get_config_default_check_unicode_test() ->
-    Config = spectra:get_config(),
-    ?assertEqual(false, Config#sp_config.check_unicode).
-
 get_config_default_codecs_test() ->
     Config = spectra:get_config(),
     ?assertEqual(#{}, Config#sp_config.codecs).

@@ -97,7 +97,7 @@ gen_data(_TypeInfo, #sp_remote_type{mfargs = {_Module, _Function, _Args}}) ->
     %% For remote types, we'd need to resolve them - for now, generate term()
     term();
 gen_data(TypeInfo, #sp_rec{name = Name, fields = Fields, arity = _Arity}) ->
-    FieldValues = [gen_data(TypeInfo, FieldType) || {_FieldName, FieldType} <- Fields],
+    FieldValues = [gen_data(TypeInfo, F#sp_rec_field.type) || F <- Fields],
     list_to_tuple([Name | FieldValues]).
 
 iolist_gen(N) ->

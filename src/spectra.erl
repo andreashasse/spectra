@@ -423,7 +423,7 @@ Equivalent to calling schema/4 with an empty options list.
 <<"{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"},...}}">>
 
 2> spectra:schema(json_schema, my_module, status).
-<<"{\"oneOf\":[{\"enum\":[\"active\"]},{\"enum\":[\"inactive\"]},{\"enum\":[\"pending\"]}]}">>
+<<"{\"type\":\"string\",\"enum\":[\"active\",\"inactive\",\"pending\"]}">>
 
 3> spectra:schema(json_schema, my_module, {type, user_id, 0}).
 <<"{\"type\":\"integer\",\"minimum\":1}">>
@@ -611,7 +611,6 @@ get_config() ->
         module_types_cache = valid_module_types_cache(
             application:get_env(spectra, module_types_cache, local)
         ),
-        check_unicode = application:get_env(spectra, check_unicode, false),
         codecs = application:get_env(spectra, codecs, #{})
     }.
 

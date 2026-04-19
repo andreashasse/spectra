@@ -152,7 +152,7 @@ remote_type_in_list_test() ->
 
 remote_type_in_union_test() ->
     Schema = spectra:schema(json_schema, ?MODULE, {type, account_or_string, 0}, [pre_encoded]),
-    #{oneOf := OneOf} = Schema,
-    Types = lists:sort([maps:get(type, S) || S <- OneOf]),
+    #{anyOf := AnyOf} = Schema,
+    Types = lists:sort([maps:get(type, S) || S <- AnyOf]),
     ?assertEqual([<<"object">>, <<"string">>], Types),
     validate_with_python(Schema).

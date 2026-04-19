@@ -36,8 +36,8 @@ validate_with_python(Schema) ->
 %% should be handled in enum schema generation
 remote_enum_type_in_union_test() ->
     Schema = spectra:schema(json_schema, ?MODULE, {type, status_or_priority, 0}, [pre_encoded]),
-    %% This test will fail if we get oneOf instead of a unified enum
-    ?assertNot(maps:is_key(oneOf, Schema)),
+    %% This test will fail if we get anyOf instead of a unified enum
+    ?assertNot(maps:is_key(anyOf, Schema)),
     %% Should generate a single enum with all literal values
     ?assertMatch(#{enum := _}, Schema),
     #{enum := EnumValues} = Schema,
@@ -71,7 +71,7 @@ user_type_ref_enum_test() ->
 extended_status_enum_test() ->
     Schema = spectra:schema(json_schema, ?MODULE, {type, extended_status, 0}, [pre_encoded]),
     %% Should combine remote enum literals with local literal
-    ?assertNot(maps:is_key(oneOf, Schema)),
+    ?assertNot(maps:is_key(anyOf, Schema)),
     ?assertMatch(#{enum := _}, Schema),
     #{enum := EnumValues} = Schema,
     ?assertEqual(4, length(EnumValues)),
