@@ -3,19 +3,6 @@
 -include_lib("proper/include/proper.hrl").
 -include("../include/spectra_internal.hrl").
 
-%% Property: JSON output of spectra:encode/4 validates against the
-%% JSON schema produced by spectra:schema/3 for the same type.
-%%
-%% This pins down that the encoder and schema generator agree on what
-%% valid JSON for a type looks like. A drift between them (e.g. encoder
-%% emits a field the schema marks as additionalProperties: false) would
-%% be caught here.
-%%
-%% Uses jesse for validation. jesse targets JSON Schema draft-04, so we
-%% strip the `$schema` field (Spectra emits 2020-12). Schema features
-%% that are 2020-12-only may cause false negatives — narrow the type
-%% filter if that becomes a problem.
-
 prop_schema_validates_encoded_data() ->
     ?FORALL(
         Type,
@@ -61,8 +48,8 @@ prop_schema_validates_encoded_data() ->
     ).
 
 validate(Type, Data, PreEncoded, Schema) ->
-    %% Normalise to binary keys and strip the $schema field; jesse targets
-    %% draft-04 and rejects explicit 2020-12 schemas.
+    %% jesse targets JSON Schema draft-04 and rejects an explicit
+    %% 2020-12 $schema; strip it before validating.
     SchemaWithoutVersion = maps:remove('$schema', Schema),
     JesseSchema = json:decode(iolist_to_binary(json:encode(SchemaWithoutVersion))),
     JesseData = json:decode(iolist_to_binary(json:encode(PreEncoded))),

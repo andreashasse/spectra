@@ -3,17 +3,6 @@
 -include_lib("proper/include/proper.hrl").
 -include("../include/spectra_internal.hrl").
 
-%% Property: for types whose JSON encoding is structurally round-trip safe,
-%% encode(decode) returns the original Erlang term bit-for-bit, AND
-%% re-encoding that term produces byte-identical JSON (encoder idempotence).
-%%
-%% This complements prop_json_decode_encode, which starts from a random
-%% JSON value. Starting from a generated type + generated matching data
-%% exercises the encoder on inputs the decoder produces and vice versa.
-%% The idempotence check would catch nondeterministic output (e.g. if
-%% map iteration order ever stopped being stable for structurally equal
-%% terms).
-
 prop_json_encode_decode_roundtrip() ->
     ?FORALL(
         Type,
@@ -57,8 +46,6 @@ prop_json_encode_decode_roundtrip() ->
                                     )
                             end;
                         Other ->
-                            %% Encode failing on data that matches the type is
-                            %% a real bug; fail the property.
                             ?WHENFAIL(
                                 io:format(
                                     "~nEncode failed on generated data~n"

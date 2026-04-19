@@ -132,17 +132,10 @@ sp_map(Size) ->
         ?LET(
             Fields0,
             vector(Len, map_field(Size)),
-            %% Dedupe literal-keyed fields on their name; without this
-            %% the small atom pool (my_atom/0) frequently produces
-            %% structurally invalid maps where one key has multiple
-            %% field definitions.
             shrink_map_gen(dedupe_by(fun map_field_key/1, Fields0))
         )
     ).
 
-%% Key used for deduping map fields. Typed map fields key on the
-%% unresolved key-type record — collisions are rare in practice and
-%% deduping them would over-restrict generation.
 map_field_key(#literal_map_field{name = Name}) -> {literal, Name};
 map_field_key(#typed_map_field{key_type = KT}) -> {typed, KT}.
 
@@ -179,10 +172,6 @@ sp_rec(Size) ->
             {Name, Fields0},
             {my_atom(), non_empty(vector(Len, sp_rec_field(Size)))},
             begin
-                %% The atom pool is small; dedupe field names so we
-                %% don't produce structurally invalid records (duplicate
-                %% keys encode to one JSON property but two schema
-                %% entries, etc).
                 Fields = dedupe_by(fun(#sp_rec_field{name = FN}) -> FN end, Fields0),
                 #sp_rec{
                     name = Name,

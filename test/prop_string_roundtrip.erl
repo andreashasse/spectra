@@ -3,9 +3,6 @@
 -include_lib("proper/include/proper.hrl").
 -include("../include/spectra_internal.hrl").
 
-%% Property: for types supported by spectra_string, encoding Erlang
-%% data to a string and decoding it back yields the original value.
-
 prop_string_encode_decode_roundtrip() ->
     ?FORALL(
         Type,

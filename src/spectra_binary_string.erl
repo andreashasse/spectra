@@ -305,7 +305,6 @@ convert_binary_string_to_type(Type, BinaryString) when is_binary(BinaryString) -
 convert_binary_string_to_type(Type, NonBinary) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, NonBinary)]}.
 
-%% Inverse of unicode:characters_to_binary/1 used on the encode side.
 -spec decode_utf8_string(string | nonempty_string, binary()) ->
     {ok, string()} | {error, [spectra:error()]}.
 decode_utf8_string(Type, BinaryString) ->

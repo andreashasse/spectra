@@ -496,10 +496,6 @@ convert_type_to_string(neg_integer, Data) ->
 convert_type_to_string(Type, Data) ->
     {error, [sp_error:type_mismatch(#sp_simple_type{type = Type}, Data)]}.
 
-%% Decode a binary as UTF-8 into a codepoint list. Used when encoding
-%% a binary-typed value into its string representation so that callers
-%% get a proper Unicode list, not a latin1 byte sequence dressed up as
-%% codepoints.
 -spec decode_utf8_binary(binary | nonempty_binary, binary()) ->
     {ok, string()} | {error, [spectra:error()]}.
 decode_utf8_binary(Type, Data) ->
@@ -524,8 +520,6 @@ decode_utf8_binary(Type, Data) ->
             ]}
     end.
 
-%% Encode a codepoint list as a UTF-8 binary. Used when decoding a
-%% string into a binary-typed value.
 -spec encode_utf8_binary(binary | nonempty_binary, string()) ->
     {ok, binary()} | {error, [spectra:error()]}.
 encode_utf8_binary(Type, String) ->
@@ -550,9 +544,6 @@ encode_utf8_binary(Type, String) ->
             ]}
     end.
 
-%% Validate and normalise a list of characters. Accepts any valid
-%% Unicode iolist (codepoints or UTF-8 binaries mixed in) and returns a
-%% flat codepoint list. Rejects invalid Unicode with a structured ctx.
 -spec list_to_charlist(string | nonempty_string, list()) ->
     {ok, string()} | {error, [spectra:error()]}.
 list_to_charlist(Type, Data) ->

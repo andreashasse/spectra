@@ -387,7 +387,6 @@ process_record_fields(
         end,
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
-%% Helper function to generate anyOf schemas
 generate_anyof_schema(TypeInfo, Types, Config) ->
     Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T, Config) end, Types),
     #{anyOf => Schemas}.
