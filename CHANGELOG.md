@@ -6,8 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
- 
- ## [0.11.2] - 2026-04-17
+
+## [0.11.3] - 2026-04-19
+
+### Fixed
+- `spectra_binary_string` and `spectra_string` now use UTF-8 consistently in both directions when converting between strings and binaries. Previously encode used UTF-8 but decode used raw bytes (latin1), so a non-ASCII value did not roundtrip — e.g. encoding `[233]` (`é`) produced `<<195, 169>>`, which decoded back as `[195, 169]`. Invalid UTF-8 input now returns a structured error instead of silently producing garbage.
+- `spectra_json_schema` now emits `anyOf` instead of `oneOf` for union types. `oneOf` requires exactly one branch to match, which rejected values in overlapping unions (e.g. `non_neg_integer() | integer()`, where a positive integer matches both branches). `anyOf` matches Erlang's union semantics of "matches at least one branch".
+
+### Changed
+- Expanded property-based test coverage for JSON, string, and binary_string roundtrips and schema validation
+
+## [0.11.2] - 2026-04-17
  
  ### Changed
  - Optimized JSON traversal hot paths for improved performance
