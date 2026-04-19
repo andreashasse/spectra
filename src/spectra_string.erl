@@ -500,6 +500,8 @@ convert_type_to_string(Type, Data) ->
 %% a binary-typed value into its string representation so that callers
 %% get a proper Unicode list, not a latin1 byte sequence dressed up as
 %% codepoints.
+-spec decode_utf8_binary(binary | nonempty_binary, binary()) ->
+    {ok, string()} | {error, [spectra:error()]}.
 decode_utf8_binary(Type, Data) ->
     case unicode:characters_to_list(Data, utf8) of
         Chars when is_list(Chars) ->
@@ -524,6 +526,8 @@ decode_utf8_binary(Type, Data) ->
 
 %% Encode a codepoint list as a UTF-8 binary. Used when decoding a
 %% string into a binary-typed value.
+-spec encode_utf8_binary(binary | nonempty_binary, string()) ->
+    {ok, binary()} | {error, [spectra:error()]}.
 encode_utf8_binary(Type, String) ->
     case unicode:characters_to_binary(String, utf8) of
         Bin when is_binary(Bin) ->
@@ -549,6 +553,8 @@ encode_utf8_binary(Type, String) ->
 %% Validate and normalise a list of characters. Accepts any valid
 %% Unicode iolist (codepoints or UTF-8 binaries mixed in) and returns a
 %% flat codepoint list. Rejects invalid Unicode with a structured ctx.
+-spec list_to_charlist(string | nonempty_string, list()) ->
+    {ok, string()} | {error, [spectra:error()]}.
 list_to_charlist(Type, Data) ->
     case unicode:characters_to_list(Data) of
         Chars when is_list(Chars) ->
