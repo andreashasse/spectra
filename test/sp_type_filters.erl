@@ -62,10 +62,11 @@ json_map_field_safe(#literal_map_field{val_type = V}) ->
 json_map_field_safe(#typed_map_field{key_type = K, val_type = V}) ->
     json_map_key_safe(K) andalso json_roundtrip_safe(V).
 
-%% Typed map keys encode via the key's type. Non-string/atom/integer keys
-%% don't round-trip cleanly through JSON object keys.
+%% Typed map keys encode via the key's type. Only string-like keys and
+%% atoms round-trip cleanly through JSON object keys; integers are
+%% excluded for consistency with `spectra_json_schema:can_be_json_key/2`.
 json_map_key_safe(#sp_simple_type{type = T}) ->
-    lists:member(T, [binary, nonempty_binary, string, nonempty_string, atom, integer]);
+    lists:member(T, [binary, nonempty_binary, string, nonempty_string, atom]);
 json_map_key_safe(_) ->
     false.
 
