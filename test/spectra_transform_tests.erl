@@ -15,3 +15,15 @@ generated_function_matches_beam_lib_test() ->
 
 strip_generated(#type_info{functions = Fns} = TI) ->
     TI#type_info{functions = maps:remove({'__spectra_type_info__', 0}, Fns)}.
+
+preserves_hand_written_type_info_test() ->
+    %% Module opts into the parse transform but already defines
+    %% __spectra_type_info__/0 (via -compile(export_all) rather than a
+    %% matching -export attribute). The transform must not inject a
+    %% duplicate and must leave the hand-written implementation intact.
+    Module = spectra_test_module_transform_preserves,
+    TypeInfo = Module:'__spectra_type_info__'(),
+    ?assertEqual(Module, TypeInfo#type_info.module),
+    ?assertEqual(#{}, TypeInfo#type_info.types),
+    ?assertEqual(#{}, TypeInfo#type_info.records),
+    ?assertEqual(#{}, TypeInfo#type_info.functions).

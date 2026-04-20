@@ -92,6 +92,7 @@ ignore_modules = [
     "spectra_test_module_partial_spectra",
     "spectra_test_module_with_spectra",
     "spectra_test_module_transform",
+    "spectra_test_module_transform_preserves",
     "spectra_transform_tests",
     "spectra_test_compile",
     "spectra_type_doc_errors_test",
