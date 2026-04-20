@@ -2,7 +2,7 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([types_in_module/1, types_in_module_path/1, apply_only/2]).
+-export([types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2]).
 -ignore_xref([types_in_module_path/1, apply_only/2]).
 
 -define(is_primary_type(PrimaryType),
@@ -40,17 +40,22 @@ types_in_module(Module) ->
 types_in_module_path(FilePath) ->
     case beam_lib:chunks(FilePath, [abstract_code]) of
         {ok, {Module, [{abstract_code, {_, Forms}}]}} ->
-            NamedTypes = process_forms_with_docs(Forms),
-            Behaviours = [B || {attribute, _, behaviour, B} <- Forms],
-            IsBehaviour =
-                lists:member(spectra_codec, Behaviours) orelse
-                    lists:member('Elixir.Spectral.Codec', Behaviours),
-            build_type_info(Module, IsBehaviour, NamedTypes);
+            types_in_forms(Module, Forms);
         {ok, {Module, [{abstract_code, no_abstract_code}]}} ->
             erlang:error({module_not_compiled_with_debug_info, Module, FilePath});
         {error, beam_lib, Reason} ->
             erlang:error({beam_lib_error, FilePath, Reason})
     end.
+
+-spec types_in_forms(module(), [erl_parse:abstract_form() | erl_parse:form_info()]) ->
+    spectra:type_info().
+types_in_forms(Module, Forms) ->
+    NamedTypes = process_forms_with_docs(Forms),
+    Behaviours = [B || {attribute, _, behaviour, B} <- Forms],
+    IsBehaviour =
+        lists:member(spectra_codec, Behaviours) orelse
+            lists:member('Elixir.Spectral.Codec', Behaviours),
+    build_type_info(Module, IsBehaviour, NamedTypes).
 
 -spec process_forms_with_docs(list()) -> [type_form_result()].
 process_forms_with_docs(Forms) ->
