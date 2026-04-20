@@ -4,17 +4,13 @@
 -include_lib("eunit/include/eunit.hrl").
 
 generated_function_matches_beam_lib_test() ->
-    %% The parse transform builds type_info() from the forms it receives, which
-    %% do not yet contain the synthesized __spectra_type_info__/0 function.
-    %% beam_lib sees the compiled BEAM afterwards and does see that function.
-    %% Strip it from the beam_lib view before comparing.
+    %% Type extraction must be stable whether or not the transform was
+    %% applied: the generated value and the beam_lib-derived value must
+    %% compare equal without stripping __spectra_type_info__/0.
     Module = spectra_test_module_transform,
     Generated = Module:'__spectra_type_info__'(),
-    FromBeam = strip_generated(spectra_abstract_code:types_in_module(Module)),
+    FromBeam = spectra_abstract_code:types_in_module(Module),
     ?assertEqual(FromBeam, Generated).
-
-strip_generated(#type_info{functions = Fns} = TI) ->
-    TI#type_info{functions = maps:remove({'__spectra_type_info__', 0}, Fns)}.
 
 preserves_hand_written_type_info_test() ->
     %% Module opts into the parse transform but already defines
@@ -27,3 +23,36 @@ preserves_hand_written_type_info_test() ->
     ?assertEqual(#{}, TypeInfo#type_info.types),
     ?assertEqual(#{}, TypeInfo#type_info.records),
     ?assertEqual(#{}, TypeInfo#type_info.functions).
+
+injects_function_when_only_export_present_test() ->
+    %% Module opts into the transform and adds -export for
+    %% __spectra_type_info__/0 but does not define the function body.
+    %% The transform must inject the body so the module compiles and the
+    %% function is callable.
+    Module = spectra_test_module_transform_export_only,
+    TypeInfo = Module:'__spectra_type_info__'(),
+    ?assertEqual(Module, TypeInfo#type_info.module),
+    %% The injected value reflects the module's declared types.
+    Types = TypeInfo#type_info.types,
+    ?assert(maps:is_key({only_export_type, 0}, Types)).
+
+injects_function_when_export_and_spec_present_test() ->
+    %% Module opts into the transform and provides -export and a hand-written
+    %% -spec for __spectra_type_info__/0 but no body. The transform must
+    %% inject only the body, not a duplicate spec.
+    Module = spectra_test_module_transform_spec_only,
+    TypeInfo = Module:'__spectra_type_info__'(),
+    ?assertEqual(Module, TypeInfo#type_info.module),
+    Types = TypeInfo#type_info.types,
+    ?assert(maps:is_key({only_spec_type, 0}, Types)).
+
+injects_export_when_only_function_present_test() ->
+    %% Module opts into the transform and defines __spectra_type_info__/0
+    %% but does not export it (no -export, no export_all). The transform
+    %% must inject the export attribute so the hand-written body is
+    %% reachable from outside the module.
+    Module = spectra_test_module_transform_function_only,
+    %% Force the module to be loaded so function_exported/3 sees it.
+    TypeInfo = Module:'__spectra_type_info__'(),
+    ?assertEqual(hand_written_marker, TypeInfo),
+    ?assert(erlang:function_exported(Module, '__spectra_type_info__', 0)).

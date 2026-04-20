@@ -15,15 +15,17 @@ The generated function returns the same `spectra:type_info()` value that
 `spectra_abstract_code:types_in_module/1` would produce at runtime, but without
 requiring the BEAM to carry `abstract_code` debug info.
 
-If the module already defines `__spectra_type_info__/0` (via an `-export`
-attribute or a function clause), the forms are returned unchanged so
-hand-written implementations take precedence.
+The export attribute, spec and function body are injected independently so
+that hand-written pieces of `__spectra_type_info__/0` are always preserved:
+if the function body is already defined (plus an `-export` or
+`-compile(export_all)`), the forms are returned unchanged; otherwise only
+the missing pieces are added.
 """.
 -spec parse_transform(forms(), list()) -> forms().
 parse_transform(Forms, _Opts) ->
     maybe
         {ok, Module} ?= module_name(Forms),
-        false ?= skip_module(Module) orelse already_defines(Forms),
+        false ?= skip_module(Module) orelse fully_defined(Forms),
         {ok, Injected} ?= try_inject(Forms, Module),
         Injected
     else
@@ -55,23 +57,55 @@ skip_module(spectra_type) -> true;
 skip_module(spectra_type_info) -> true;
 skip_module(_) -> false.
 
--spec already_defines(forms()) -> boolean().
-already_defines(Forms) ->
-    lists:any(fun is_type_info_definition/1, Forms).
+-spec fully_defined(forms()) -> boolean().
+fully_defined(Forms) ->
+    has_function_form(Forms) andalso has_export(Forms).
 
--spec is_type_info_definition(term()) -> boolean().
-is_type_info_definition({attribute, _, export, List}) when is_list(List) ->
+-spec has_function_form(forms()) -> boolean().
+has_function_form(Forms) ->
+    lists:any(
+        fun
+            ({function, _, ?TYPE_INFO_FUNCTION, 0, _}) -> true;
+            (_) -> false
+        end,
+        Forms
+    ).
+
+-spec has_spec(forms()) -> boolean().
+has_spec(Forms) ->
+    lists:any(
+        fun
+            ({attribute, _, spec, {{?TYPE_INFO_FUNCTION, 0}, _}}) -> true;
+            (_) -> false
+        end,
+        Forms
+    ).
+
+-spec has_export(forms()) -> boolean().
+has_export(Forms) ->
+    lists:any(fun is_type_info_export/1, Forms).
+
+-spec is_type_info_export(term()) -> boolean().
+is_type_info_export({attribute, _, export, List}) when is_list(List) ->
     lists:member({?TYPE_INFO_FUNCTION, 0}, List);
-is_type_info_definition({function, _, ?TYPE_INFO_FUNCTION, 0, _}) ->
-    true;
-is_type_info_definition(_) ->
+is_type_info_export({attribute, _, compile, Opts}) ->
+    compile_exports_all(Opts);
+is_type_info_export(_) ->
     false.
+
+-spec compile_exports_all(term()) -> boolean().
+compile_exports_all(export_all) -> true;
+compile_exports_all(Opts) when is_list(Opts) -> lists:member(export_all, Opts);
+compile_exports_all(_) -> false.
 
 -spec inject(forms(), spectra:type_info()) -> forms().
 inject(Forms, TypeInfo) ->
     Anno = erl_anno:new(0),
-    ExportForm = {attribute, Anno, export, [{?TYPE_INFO_FUNCTION, 0}]},
-    SpecForm =
+    ExportForms = [
+        {attribute, Anno, export, [{?TYPE_INFO_FUNCTION, 0}]}
+     || not has_export(Forms)
+    ],
+    SpecForms = [
         {attribute, Anno, spec,
             {{?TYPE_INFO_FUNCTION, 0}, [
                 {type, Anno, 'fun', [
@@ -82,35 +116,36 @@ inject(Forms, TypeInfo) ->
                         []
                     ]}
                 ]}
-            ]}},
-    Body = erl_parse:abstract(TypeInfo, [{line, erl_anno:line(Anno)}]),
-    FunctionForm =
-        {function, Anno, ?TYPE_INFO_FUNCTION, 0, [
-            {clause, Anno, [], [], [Body]}
-        ]},
-    insert_export_and_function(Forms, ExportForm, SpecForm, FunctionForm).
+            ]}}
+     || not has_spec(Forms)
+    ],
+    FunctionForms =
+        case has_function_form(Forms) of
+            true ->
+                [];
+            false ->
+                Body = erl_parse:abstract(TypeInfo, [{line, erl_anno:line(Anno)}]),
+                [
+                    {function, Anno, ?TYPE_INFO_FUNCTION, 0, [
+                        {clause, Anno, [], [], [Body]}
+                    ]}
+                ]
+        end,
+    insert_forms(Forms, ExportForms, SpecForms ++ FunctionForms).
 
--spec insert_export_and_function(
-    forms(),
-    erl_parse:abstract_form(),
-    erl_parse:abstract_form(),
-    erl_parse:abstract_form()
-) -> forms().
-insert_export_and_function([{attribute, _, module, _} = ModForm | Rest], Export, Spec, Fun) ->
-    [ModForm, Export | insert_before_eof(Rest, Spec, Fun)];
-insert_export_and_function([Form | Rest], Export, Spec, Fun) ->
-    [Form | insert_export_and_function(Rest, Export, Spec, Fun)];
-insert_export_and_function([], _Export, Spec, Fun) ->
-    [Spec, Fun].
-
--spec insert_before_eof(forms(), erl_parse:abstract_form(), erl_parse:abstract_form()) ->
+-spec insert_forms(forms(), [erl_parse:abstract_form()], [erl_parse:abstract_form()]) ->
     forms().
-insert_before_eof([], Spec, Fun) ->
-    [Spec, Fun];
-insert_before_eof([Form | Rest] = All, Spec, Fun) ->
-    case Form of
-        {eof, _} ->
-            [Spec, Fun | All];
-        _ ->
-            [Form | insert_before_eof(Rest, Spec, Fun)]
-    end.
+insert_forms([{attribute, _, module, _} = ModForm | Rest], ExportForms, TrailingForms) ->
+    [ModForm | ExportForms ++ insert_before_eof(Rest, TrailingForms)];
+insert_forms([Form | Rest], ExportForms, TrailingForms) ->
+    [Form | insert_forms(Rest, ExportForms, TrailingForms)];
+insert_forms([], _ExportForms, TrailingForms) ->
+    TrailingForms.
+
+-spec insert_before_eof(forms(), [erl_parse:abstract_form()]) -> forms().
+insert_before_eof([], TrailingForms) ->
+    TrailingForms;
+insert_before_eof([{eof, _} | _] = All, TrailingForms) ->
+    TrailingForms ++ All;
+insert_before_eof([Form | Rest], TrailingForms) ->
+    [Form | insert_before_eof(Rest, TrailingForms)].

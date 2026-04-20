@@ -5,6 +5,8 @@
 -export([types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2]).
 -ignore_xref([types_in_module_path/1, apply_only/2]).
 
+-define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
+
 -define(is_primary_type(PrimaryType),
     PrimaryType =:= string orelse
         PrimaryType =:= nonempty_string orelse
@@ -50,12 +52,23 @@ types_in_module_path(FilePath) ->
 -spec types_in_forms(module(), [erl_parse:abstract_form() | erl_parse:form_info()]) ->
     spectra:type_info().
 types_in_forms(Module, Forms) ->
-    NamedTypes = process_forms_with_docs(Forms),
-    Behaviours = [B || {attribute, _, behaviour, B} <- Forms],
+    %% Drop any __spectra_type_info__/0 spec and function so the extracted
+    %% type_info is identical whether or not spectra_transform was applied.
+    FilteredForms = [F || F <- Forms, not is_generated_type_info_form(F)],
+    NamedTypes = process_forms_with_docs(FilteredForms),
+    Behaviours = [B || {attribute, _, behaviour, B} <- FilteredForms],
     IsBehaviour =
         lists:member(spectra_codec, Behaviours) orelse
             lists:member('Elixir.Spectral.Codec', Behaviours),
     build_type_info(Module, IsBehaviour, NamedTypes).
+
+-spec is_generated_type_info_form(term()) -> boolean().
+is_generated_type_info_form({function, _, ?TYPE_INFO_FUNCTION, 0, _}) ->
+    true;
+is_generated_type_info_form({attribute, _, spec, {{?TYPE_INFO_FUNCTION, 0}, _}}) ->
+    true;
+is_generated_type_info_form(_) ->
+    false.
 
 -spec process_forms_with_docs(list()) -> [type_form_result()].
 process_forms_with_docs(Forms) ->
