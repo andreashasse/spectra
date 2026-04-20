@@ -46,6 +46,15 @@ injects_function_when_export_and_spec_present_test() ->
     Types = TypeInfo#type_info.types,
     ?assert(maps:is_key({only_spec_type, 0}, Types)).
 
+types_in_forms_does_not_orphan_spectra_doc_on_handwritten_spec_test() ->
+    %% Module opts into the transform and fully defines
+    %% __spectra_type_info__/0 by hand, with a -spectra(...) doc attribute
+    %% preceding the -spec. types_in_forms must not raise
+    %% {orphaned_spectra, ...} when analysing such a module.
+    Module = spectra_test_module_transform_spec_doc,
+    TypeInfo = spectra_abstract_code:types_in_module(Module),
+    ?assertEqual(Module, TypeInfo#type_info.module).
+
 injects_export_when_only_function_present_test() ->
     %% Module opts into the transform and defines __spectra_type_info__/0
     %% but does not export it (no -export, no export_all). The transform

@@ -24,31 +24,33 @@ the missing pieces are added.
 -spec parse_transform(forms(), list()) -> forms().
 parse_transform(Forms, _Opts) ->
     maybe
-        {ok, Module} ?= module_name(Forms),
+        {ok, Module, Anno} ?= module_header(Forms),
         false ?= skip_module(Module) orelse fully_defined(Forms),
-        {ok, Injected} ?= try_inject(Forms, Module),
+        {ok, Injected} ?= try_inject(Forms, Module, Anno),
         Injected
     else
-        {error, Reason} ->
-            [{error, {0, ?MODULE, Reason}} | Forms];
+        {error, ErrAnno, Reason} ->
+            [{error, {erl_anno:line(ErrAnno), ?MODULE, Reason}} | Forms];
         true ->
             Forms
     end.
 
--spec try_inject(forms(), module()) -> {ok, forms()} | {error, term()}.
-try_inject(Forms, Module) ->
+-spec try_inject(forms(), module(), erl_anno:anno()) ->
+    {ok, forms()} | {error, erl_anno:anno(), term()}.
+try_inject(Forms, Module, Anno) ->
     try spectra_abstract_code:types_in_forms(Module, Forms) of
         TypeInfo ->
-            {ok, inject(Forms, TypeInfo)}
+            {ok, inject(Forms, TypeInfo, Anno)}
     catch
         Class:Reason:Stack ->
-            {error, {transform_failed, Module, Class, Reason, Stack}}
+            {error, Anno, {transform_failed, Module, Class, Reason, Stack}}
     end.
 
--spec module_name(forms()) -> {ok, module()} | {error, missing_module_attribute}.
-module_name([{attribute, _, module, M} | _]) when is_atom(M) -> {ok, M};
-module_name([_ | Rest]) -> module_name(Rest);
-module_name([]) -> {error, missing_module_attribute}.
+-spec module_header(forms()) ->
+    {ok, module(), erl_anno:anno()} | {error, erl_anno:anno(), missing_module_attribute}.
+module_header([{attribute, Anno, module, M} | _]) when is_atom(M) -> {ok, M, Anno};
+module_header([_ | Rest]) -> module_header(Rest);
+module_header([]) -> {error, erl_anno:new(0), missing_module_attribute}.
 
 -spec skip_module(module()) -> boolean().
 skip_module(spectra_transform) -> true;
@@ -98,9 +100,8 @@ compile_exports_all(export_all) -> true;
 compile_exports_all(Opts) when is_list(Opts) -> lists:member(export_all, Opts);
 compile_exports_all(_) -> false.
 
--spec inject(forms(), spectra:type_info()) -> forms().
-inject(Forms, TypeInfo) ->
-    Anno = erl_anno:new(0),
+-spec inject(forms(), spectra:type_info(), erl_anno:anno()) -> forms().
+inject(Forms, TypeInfo, Anno) ->
     ExportForms = [
         {attribute, Anno, export, [{?TYPE_INFO_FUNCTION, 0}]}
      || not has_export(Forms)
