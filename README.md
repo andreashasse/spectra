@@ -21,7 +21,7 @@ Add spectra to your rebar.config dependencies:
 ]}.
 ```
 
-Your modules must be compiled with `debug_info` for spectra to extract type information.
+Your modules must be compiled with `debug_info` for spectra to extract type information. If your release strips debug info, opt individual modules into the [`spectra_transform` parse transform](#parse-transform-no-debug_info-required) instead.
 
 ## Data (de)serialization and schemas
 
@@ -685,6 +685,30 @@ Each format supports a subset of Erlang types. For JSON serialization and schema
 - Function types - Cannot be serialized
 
 It would be interesting to add support for key value lists, but as it isn't a native type in erlang, I haven't gotten around to it yet.
+
+## Parse Transform (no `debug_info` required)
+
+By default, spectra reads each module's `abstract_code` chunk at runtime to extract type information, which requires compilation with `debug_info`. As an alternative, opt individual modules into the `spectra_transform` parse transform. It injects a `__spectra_type_info__/0` function that returns the precomputed `spectra:type_info()` value, so spectra never needs to read `abstract_code`.
+
+When to prefer the parse transform:
+
+- **Releases without `debug_info`** — the transform bakes the type info into the module itself, so stripping debug info from the release BEAMs does not break spectra.
+- **Hot code reloading** — type info travels with the loaded module, so a reload updates the types atomically. In particular, it avoids stale entries in the `persistent` [`module_types_cache`](#module_types_cache) that would otherwise need explicit clearing via `spectra_module_types:clear/1`.
+- **Matching behaviour between test and prod** — the recommended cache settings differ (`persistent` in prod, `local` elsewhere), so test and production can behave differently. With the parse transform the type info is always a plain function call, independent of the cache setting, so both environments behave identically.
+
+Opt in per module:
+
+```erlang
+-module(my_module).
+-compile({parse_transform, spectra_transform}).
+
+-export([...]).
+-export_type([my_type/0]).
+
+-type my_type() :: binary().
+```
+
+The transform detects what you have written by hand and only injects what's missing — the `-export` attribute, the `-spec`, and/or the function body. A hand-written `__spectra_type_info__/0` always takes precedence, so you can override or stub it if needed.
 
 ## Configuration
 
