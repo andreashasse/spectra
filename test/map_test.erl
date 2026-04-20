@@ -21,6 +21,10 @@
 -type optional_nullable() :: #{a1 => integer() | undefined}.
 -type nullable() :: #{a1 := integer() | undefined}.
 
+-record(only_atom5, {f :: atom5}).
+-type strict_empty_map() :: #{}.
+-type strict_empty_or_rec() :: #{} | #only_atom5{}.
+
 map1_test() ->
     ?assertEqual({ok, #{<<"a1">> => 1}}, to_json_atom_map(#{a1 => 1})).
 
@@ -308,6 +312,32 @@ from_json_empty_map_bad_test() ->
         from_json_empty_map([])
     ).
 
+strict_empty_map_ok_test() ->
+    ?assertEqual({ok, #{}}, to_json_strict_empty_map(#{})),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_map(#{})).
+
+strict_empty_map_rejects_non_empty_test() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    StrictType = spectra_type_info:get_type(TypeInfo, strict_empty_map, 0),
+    ?assertEqual(
+        {error, [sp_error:type_mismatch(StrictType, #{a => 1})]},
+        to_json_strict_empty_map(#{a => 1})
+    ),
+    ?assertEqual(
+        {error, [sp_error:type_mismatch(StrictType, #{<<"a">> => 1})]},
+        from_json_strict_empty_map(#{<<"a">> => 1})
+    ).
+
+strict_empty_or_rec_roundtrip_test() ->
+    %% Regression: union of #{} and a record decoded a record-shaped JSON
+    %% object as #{} because the empty-map branch silently accepted any
+    %% object and dropped its keys.
+    Rec = #only_atom5{f = atom5},
+    {ok, Json} = to_json_strict_empty_or_rec(Rec),
+    ?assertEqual({ok, Rec}, from_json_strict_empty_or_rec(Json)),
+    {ok, EmptyJson} = to_json_strict_empty_or_rec(#{}),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_or_rec(EmptyJson)).
+
 map_with_tuple_value_test() ->
     ?assertError({type_not_supported, _}, to_json_map_with_tuple_value(#{a => {a}})),
     ?assertError({type_not_supported, _}, to_json_map_with_tuple_value(#{b => {1, 2, 3}})).
@@ -478,6 +508,26 @@ to_json_empty_map(Data) ->
 -spec from_json_empty_map(term()) -> {ok, empty_map()} | {error, [spectra:error()]}.
 from_json_empty_map(Data) ->
     spectra:decode(json, ?MODULE, {type, empty_map, 0}, Data, [pre_decoded]).
+
+-spec to_json_strict_empty_map(term()) ->
+    {ok, strict_empty_map()} | {error, [spectra:error()]}.
+to_json_strict_empty_map(Data) ->
+    spectra:encode(json, ?MODULE, {type, strict_empty_map, 0}, Data, [pre_encoded]).
+
+-spec from_json_strict_empty_map(term()) ->
+    {ok, strict_empty_map()} | {error, [spectra:error()]}.
+from_json_strict_empty_map(Data) ->
+    spectra:decode(json, ?MODULE, {type, strict_empty_map, 0}, Data, [pre_decoded]).
+
+-spec to_json_strict_empty_or_rec(term()) ->
+    {ok, strict_empty_or_rec()} | {error, [spectra:error()]}.
+to_json_strict_empty_or_rec(Data) ->
+    spectra:encode(json, ?MODULE, {type, strict_empty_or_rec, 0}, Data, [pre_encoded]).
+
+-spec from_json_strict_empty_or_rec(term()) ->
+    {ok, strict_empty_or_rec()} | {error, [spectra:error()]}.
+from_json_strict_empty_or_rec(Data) ->
+    spectra:decode(json, ?MODULE, {type, strict_empty_or_rec, 0}, Data, [pre_decoded]).
 
 -spec to_json_map_with_tuple_value(term()) ->
     {ok, map_with_tuple_value()} | {error, [spectra:error()]}.
