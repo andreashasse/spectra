@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-04-20
+
+### Added
+- `spectra_transform`: a compile-time parse transform that embeds type info directly into a module as an exported `__spectra_type_info__/0` function. Opt in per module with `-compile({parse_transform, spectra_transform}).`. This removes the runtime `beam_lib` overhead for modules that use it; the existing fallback remains unchanged, so adoption is gradual.
+
+### Fixed
+- `#{}` (empty-map type) in JSON encode/decode now correctly rejects non-empty maps. Previously it silently accepted and discarded all keys, which caused incorrect union disambiguation — for example, a record's JSON object could decode as `#{}` instead of the record.
+
 ## [0.11.3] - 2026-04-19
 
 ### Fixed
