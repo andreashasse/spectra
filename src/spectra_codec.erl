@@ -94,22 +94,22 @@ where the reference node is available.
     try_codec_schema/6
 ]).
 
--doc "Encodes `Data` via a registered codec for `RemoteMod`, or returns `continue`.".
+-doc "Encodes `Data` via a registered codec for `TargetModule`, or returns `continue`.".
 -spec try_codec_encode(
     CallerTypeInfo :: spectra:type_info(),
-    RemoteMod :: module(),
+    TargetModule :: module(),
     Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
     TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_encode_result().
-try_codec_encode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetType, Config) ->
+try_codec_encode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, TargetType, Config) ->
     case Config#sp_config.codecs of
-        #{{RemoteMod, TargetTypeRef} := M} ->
+        #{{TargetModule, TargetTypeRef} := M} ->
             M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
         #{} ->
-            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, TargetModule, Config) of
                 {ok, M} ->
                     M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
                 error ->
@@ -117,22 +117,22 @@ try_codec_encode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetT
             end
     end.
 
--doc "Decodes `Data` via a registered codec for `RemoteMod`, or returns `continue`.".
+-doc "Decodes `Data` via a registered codec for `TargetModule`, or returns `continue`.".
 -spec try_codec_decode(
     CallerTypeInfo :: spectra:type_info(),
-    RemoteMod :: module(),
+    TargetModule :: module(),
     Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
     TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_decode_result().
-try_codec_decode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetType, Config) ->
+try_codec_decode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, TargetType, Config) ->
     case Config#sp_config.codecs of
-        #{{RemoteMod, TargetTypeRef} := M} ->
+        #{{TargetModule, TargetTypeRef} := M} ->
             M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
         #{} ->
-            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, TargetModule, Config) of
                 {ok, M} ->
                     M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
                 error ->
@@ -140,21 +140,21 @@ try_codec_decode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetT
             end
     end.
 
--doc "Returns the schema for `RemoteMod` via a registered codec, or `continue`.".
+-doc "Returns the schema for `TargetModule` via a registered codec, or `continue`.".
 -spec try_codec_schema(
     CallerTypeInfo :: spectra:type_info(),
-    RemoteMod :: module(),
+    TargetModule :: module(),
     Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
     TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> dynamic() | continue.
-try_codec_schema(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, TargetType, Config) ->
+try_codec_schema(CallerTypeInfo, TargetModule, Format, TargetTypeRef, TargetType, Config) ->
     case Config#sp_config.codecs of
-        #{{RemoteMod, TargetTypeRef} := M} ->
+        #{{TargetModule, TargetTypeRef} := M} ->
             invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
         #{} ->
-            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, TargetModule, Config) of
                 {ok, M} ->
                     invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
                 error ->
@@ -169,11 +169,11 @@ invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config) ->
         error:undef -> erlang:error({schema_not_implemented, M, TargetTypeRef})
     end.
 
-has_local_codec(CallerTypeInfo, RemoteMod, Config) ->
+has_local_codec(CallerTypeInfo, TargetModule, Config) ->
     case spectra_type_info:get_module(CallerTypeInfo) of
-        RemoteMod ->
+        TargetModule ->
             spectra_type_info:find_local_codec(CallerTypeInfo);
         _ ->
-            RemoteTypeInfo = spectra_module_types:get(RemoteMod, Config),
-            spectra_type_info:find_local_codec(RemoteTypeInfo)
+            TargetTypeInfo = spectra_module_types:get(TargetModule, Config),
+            spectra_type_info:find_local_codec(TargetTypeInfo)
     end.
