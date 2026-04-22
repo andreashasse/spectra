@@ -43,12 +43,12 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(json, CallerTypeInfo, {type, dict, 2} = TargetTypeRef, Data, TargetType, Config) ->
+encode(json, CallerTypeInfo, {type, dict, 2} = TargetTypeRef, TargetType, Data, Config) ->
     try dict:to_list(Data) of
         Pairs ->
             [KeyType, ValueType] = spectra_type:type_args(TargetType),
@@ -62,15 +62,15 @@ encode(json, CallerTypeInfo, {type, dict, 2} = TargetTypeRef, Data, TargetType, 
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(json, CallerTypeInfo, {type, dict, 2}, Data, TargetType, Config) when is_map(Data) ->
+decode(json, CallerTypeInfo, {type, dict, 2}, TargetType, Data, Config) when is_map(Data) ->
     [KeyType, ValueType] = spectra_type:type_args(TargetType),
     decode_pairs(CallerTypeInfo, KeyType, ValueType, maps:to_list(Data), [], Config);
-decode(json, _CallerTypeInfo, {type, dict, 2} = TargetTypeRef, Data, _TargetType, _Config) ->
+decode(json, _CallerTypeInfo, {type, dict, 2} = TargetTypeRef, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch(TargetTypeRef, Data)]}.
 
 -spec schema(

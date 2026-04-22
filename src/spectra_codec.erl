@@ -47,7 +47,7 @@ For a type written as `dict:dict(binary(), integer())` the codec receives the
 recursively encode/decode keys and values:
 
 ```erlang
-encode(json, CallerTypeInfo, _TargetTypeRef, Data, TargetType, Config) ->
+encode(json, CallerTypeInfo, _TargetTypeRef, TargetType, Data, Config) ->
     [KeyType, ValueType] = spectra_type:type_args(TargetType),
     encode_pairs(CallerTypeInfo, KeyType, ValueType, dict:to_list(Data), #{}, Config).
 ```
@@ -63,8 +63,8 @@ where the reference node is available.
     Format :: atom(),
     CallerTypeInfo :: spectra:type_info(),
     TargetTypeRef :: spectra:sp_type_reference(),
-    Data :: dynamic(),
     TargetType :: spectra:sp_type(),
+    Data :: dynamic(),
     Config :: spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -72,8 +72,8 @@ where the reference node is available.
     Format :: atom(),
     CallerTypeInfo :: spectra:type_info(),
     TargetTypeRef :: spectra:sp_type_reference(),
-    Input :: dynamic(),
     TargetType :: spectra:sp_type(),
+    Input :: dynamic(),
     Config :: spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
@@ -107,11 +107,11 @@ where the reference node is available.
 try_codec_encode(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType, Data, Config) ->
     case Config#sp_config.codecs of
         #{{TargetModule, TargetTypeRef} := M} ->
-            M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+            M:encode(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config);
         #{} ->
             case has_local_codec(CallerTypeInfo, TargetModule, Config) of
                 {ok, M} ->
-                    M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+                    M:encode(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config);
                 error ->
                     continue
             end
@@ -130,11 +130,11 @@ try_codec_encode(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType
 try_codec_decode(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType, Data, Config) ->
     case Config#sp_config.codecs of
         #{{TargetModule, TargetTypeRef} := M} ->
-            M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+            M:decode(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config);
         #{} ->
             case has_local_codec(CallerTypeInfo, TargetModule, Config) of
                 {ok, M} ->
-                    M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+                    M:decode(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config);
                 error ->
                     continue
             end

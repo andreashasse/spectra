@@ -10,24 +10,24 @@
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
 encode(
-    json, _CallerTypeInfo, {record, point2d}, #{x := X, y := Y}, _TargetType, _Config
+    json, _CallerTypeInfo, {record, point2d}, _TargetType, #{x := X, y := Y}, _Config
 ) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, [X, Y]};
 encode(
-    json, _CallerTypeInfo, {record, point2d}, {point2d, X, Y}, _TargetType, _Config
+    json, _CallerTypeInfo, {record, point2d}, _TargetType, {point2d, X, Y}, _Config
 ) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, [X, Y]};
-encode(json, _CallerTypeInfo, {record, point2d}, Data, _TargetType, _Config) ->
+encode(json, _CallerTypeInfo, {record, point2d}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({record, point2d}, Data)]};
 encode(_, _, _, _, _, _) ->
     continue.
@@ -36,16 +36,16 @@ encode(_, _, _, _, _, _) ->
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(json, _CallerTypeInfo, {record, point2d}, [X, Y], _TargetType, _Config) when
+decode(json, _CallerTypeInfo, {record, point2d}, _TargetType, [X, Y], _Config) when
     is_number(X) andalso is_number(Y)
 ->
     {ok, #{x => X, y => Y}};
-decode(json, _CallerTypeInfo, {record, point2d}, Data, _TargetType, _Config) ->
+decode(json, _CallerTypeInfo, {record, point2d}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({record, point2d}, Data)]};
 decode(_, _, _, _, _, _) ->
     continue.

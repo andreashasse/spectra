@@ -25,16 +25,16 @@
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(_, _CallerTypeInfo, {type, point, 0}, {X, Y}, _TargetType, _Config) when
+encode(_, _CallerTypeInfo, {type, point, 0}, _TargetType, {X, Y}, _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, [X, Y]};
-encode(_, _CallerTypeInfo, {type, point, 0}, Data, _TargetType, _Config) ->
+encode(_, _CallerTypeInfo, {type, point, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 encode(_, _, _, _, _, _) ->
     continue.
@@ -43,16 +43,16 @@ encode(_, _, _, _, _, _) ->
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(_, _CallerTypeInfo, {type, point, 0}, [X, Y], _TargetType, _Config) when
+decode(_, _CallerTypeInfo, {type, point, 0}, _TargetType, [X, Y], _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, {X, Y}};
-decode(_, _CallerTypeInfo, {type, point, 0}, Data, _TargetType, _Config) ->
+decode(_, _CallerTypeInfo, {type, point, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 decode(_, _, _, _, _, _) ->
     continue.

@@ -25,22 +25,22 @@
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(Format, _CallerTypeInfo, {type, animal, 0}, #cat{} = Cat, _TargetType, _Config) ->
+encode(Format, _CallerTypeInfo, {type, animal, 0}, _TargetType, #cat{} = Cat, _Config) ->
     case spectra:encode(Format, ?MODULE, {type, cat, 0}, Cat, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"cat">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(Format, _CallerTypeInfo, {type, animal, 0}, #dog{} = Dog, _TargetType, _Config) ->
+encode(Format, _CallerTypeInfo, {type, animal, 0}, _TargetType, #dog{} = Dog, _Config) ->
     case spectra:encode(Format, ?MODULE, {type, dog, 0}, Dog, [pre_encoded]) of
         {ok, Fields} when is_map(Fields) -> {ok, maps:put(<<"type">>, <<"dog">>, Fields)};
         {error, _} = Err -> Err
     end;
-encode(_, _CallerTypeInfo, {type, animal, 0}, Data, _TargetType, _Config) ->
+encode(_, _CallerTypeInfo, {type, animal, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
 encode(_, _, _, _, _, _) ->
     continue.
@@ -49,8 +49,8 @@ encode(_, _, _, _, _, _) ->
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
@@ -58,8 +58,8 @@ decode(
     Format,
     _CallerTypeInfo,
     {type, animal, 0},
-    #{<<"type">> := <<"cat">>} = Json,
     _TargetType,
+    #{<<"type">> := <<"cat">>} = Json,
     _Config
 ) ->
     spectra:decode(Format, ?MODULE, {type, cat, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
@@ -67,12 +67,12 @@ decode(
     Format,
     _CallerTypeInfo,
     {type, animal, 0},
-    #{<<"type">> := <<"dog">>} = Json,
     _TargetType,
+    #{<<"type">> := <<"dog">>} = Json,
     _Config
 ) ->
     spectra:decode(Format, ?MODULE, {type, dog, 0}, maps:remove(<<"type">>, Json), [pre_decoded]);
-decode(_, _CallerTypeInfo, {type, animal, 0}, Data, _TargetType, _Config) ->
+decode(_, _CallerTypeInfo, {type, animal, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, animal, 0}, Data)]};
 decode(_, _, _, _, _, _) ->
     continue.

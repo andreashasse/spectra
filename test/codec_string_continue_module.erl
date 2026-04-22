@@ -15,8 +15,8 @@
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -27,8 +27,8 @@ encode(_, _, _, _, _, _) ->
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().

@@ -10,30 +10,30 @@
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(string, _CallerTypeInfo, {type, token, 0}, {token, Bin}, _TargetType, _Config) when
+encode(string, _CallerTypeInfo, {type, token, 0}, _TargetType, {token, Bin}, _Config) when
     is_binary(Bin)
 ->
     {ok, binary_to_list(Bin)};
-encode(string, _CallerTypeInfo, {type, token, 0}, Data, _TargetType, _Config) ->
+encode(string, _CallerTypeInfo, {type, token, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, token, 0}, Data)]}.
 
 -spec decode(
     atom(),
     spectra:type_info(),
     spectra:sp_type_reference(),
-    dynamic(),
     spectra:sp_type(),
+    dynamic(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(string, _CallerTypeInfo, {type, token, 0}, String, _TargetType, _Config) when
+decode(string, _CallerTypeInfo, {type, token, 0}, _TargetType, String, _Config) when
     is_list(String)
 ->
     {ok, {token, list_to_binary(String)}};
-decode(string, _CallerTypeInfo, {type, token, 0}, Data, _TargetType, _Config) ->
+decode(string, _CallerTypeInfo, {type, token, 0}, _TargetType, Data, _Config) ->
     {error, [sp_error:type_mismatch({type, token, 0}, Data)]}.
