@@ -51,7 +51,7 @@ to_json(
     TypeRef = {type, TypeName, Arity},
     Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Data, UserTypeRef, Config)
+        spectra_codec:try_codec_encode(json, TypeInfo, Module, TypeRef, UserTypeRef, Data, Config)
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
@@ -67,7 +67,7 @@ to_json(
     Config
 ) ->
     TypeRef = {type, TypeName, TypeArity},
-    case spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Data, RemoteRef, Config) of
+    case spectra_codec:try_codec_encode(json, TypeInfo, Module, TypeRef, RemoteRef, Data, Config) of
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Module, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
@@ -91,7 +91,7 @@ to_json(
     TypeRef = {record, RecordName},
     Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Record, RecordRef, Config)
+        spectra_codec:try_codec_encode(json, TypeInfo, Module, TypeRef, RecordRef, Record, Config)
     of
         continue ->
             RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
@@ -536,7 +536,7 @@ do_from_json(
     TypeRef = {type, TypeName, Arity},
     Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, UserTypeRef, Config)
+        spectra_codec:try_codec_decode(json, TypeInfo, Module, TypeRef, UserTypeRef, Json, Config)
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
@@ -552,7 +552,7 @@ do_from_json(
     Config
 ) ->
     TypeRef = {type, TypeName, TypeArity},
-    case spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, RemoteRef, Config) of
+    case spectra_codec:try_codec_decode(json, TypeInfo, Module, TypeRef, RemoteRef, Json, Config) of
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Module, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
@@ -575,7 +575,7 @@ do_from_json(
 ->
     TypeRef = {record, RecordName},
     Module = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, RecordRef, Config) of
+    case spectra_codec:try_codec_decode(json, TypeInfo, Module, TypeRef, RecordRef, Json, Config) of
         continue ->
             RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
             record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);

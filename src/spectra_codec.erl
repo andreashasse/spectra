@@ -96,15 +96,15 @@ where the reference node is available.
 
 -doc "Encodes `Data` via a registered codec for `TargetModule`, or returns `continue`.".
 -spec try_codec_encode(
+    Format :: atom(),
     CallerTypeInfo :: spectra:type_info(),
     TargetModule :: module(),
-    Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
-    Data :: dynamic(),
     TargetType :: spectra:sp_type(),
+    Data :: dynamic(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_encode_result().
-try_codec_encode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, TargetType, Config) ->
+try_codec_encode(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType, Data, Config) ->
     case Config#sp_config.codecs of
         #{{TargetModule, TargetTypeRef} := M} ->
             M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
@@ -119,15 +119,15 @@ try_codec_encode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, Targ
 
 -doc "Decodes `Data` via a registered codec for `TargetModule`, or returns `continue`.".
 -spec try_codec_decode(
+    Format :: atom(),
     CallerTypeInfo :: spectra:type_info(),
     TargetModule :: module(),
-    Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
-    Data :: dynamic(),
     TargetType :: spectra:sp_type(),
+    Data :: dynamic(),
     Config :: spectra:sp_config()
 ) -> spectra:codec_decode_result().
-try_codec_decode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, TargetType, Config) ->
+try_codec_decode(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType, Data, Config) ->
     case Config#sp_config.codecs of
         #{{TargetModule, TargetTypeRef} := M} ->
             M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
@@ -142,14 +142,14 @@ try_codec_decode(CallerTypeInfo, TargetModule, Format, TargetTypeRef, Data, Targ
 
 -doc "Returns the schema for `TargetModule` via a registered codec, or `continue`.".
 -spec try_codec_schema(
+    Format :: atom(),
     CallerTypeInfo :: spectra:type_info(),
     TargetModule :: module(),
-    Format :: atom(),
     TargetTypeRef :: spectra:sp_type_reference(),
     TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> dynamic() | continue.
-try_codec_schema(CallerTypeInfo, TargetModule, Format, TargetTypeRef, TargetType, Config) ->
+try_codec_schema(Format, CallerTypeInfo, TargetModule, TargetTypeRef, TargetType, Config) ->
     case Config#sp_config.codecs of
         #{{TargetModule, TargetTypeRef} := M} ->
             invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);

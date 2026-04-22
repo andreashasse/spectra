@@ -53,7 +53,7 @@ from_binary_string(
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_decode(
-            TypeInfo, Module, binary_string, TypeRef, BinaryString, UserTypeRef, Config
+            binary_string, TypeInfo, Module, TypeRef, UserTypeRef, BinaryString, Config
         )
     of
         continue ->
@@ -73,7 +73,7 @@ from_binary_string(
     TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_decode(
-            TypeInfo, Module, binary_string, TypeRef, BinaryString, RemoteRef, Config
+            binary_string, TypeInfo, Module, TypeRef, RemoteRef, BinaryString, Config
         )
     of
         continue ->
@@ -93,7 +93,7 @@ from_binary_string(
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_decode(
-            TypeInfo, Module, binary_string, TypeRef, BinaryString, RecordRef, Config
+            binary_string, TypeInfo, Module, TypeRef, RecordRef, BinaryString, Config
         )
     of
         continue ->
@@ -183,7 +183,7 @@ to_binary_string(
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_encode(
-            TypeInfo, Module, binary_string, TypeRef, Data, UserTypeRef, Config
+            binary_string, TypeInfo, Module, TypeRef, UserTypeRef, Data, Config
         )
     of
         continue ->
@@ -203,7 +203,7 @@ to_binary_string(
     TypeRef = {type, TypeName, TypeArity},
     case
         spectra_codec:try_codec_encode(
-            TypeInfo, Module, binary_string, TypeRef, Data, RemoteRef, Config
+            binary_string, TypeInfo, Module, TypeRef, RemoteRef, Data, Config
         )
     of
         continue ->
@@ -219,7 +219,7 @@ to_binary_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Da
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_encode(
-            TypeInfo, Module, binary_string, TypeRef, Data, RecordRef, Config
+            binary_string, TypeInfo, Module, TypeRef, RecordRef, Data, Config
         )
     of
         continue ->

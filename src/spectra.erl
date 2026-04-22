@@ -490,7 +490,7 @@ resolve_type_ref(TypeInfo, {record, RecordName}) ->
     spectra_json_schema:json_schema_object().
 maybe_codec_schema(Format, TypeInfo, TypeRef, SpType, Config) ->
     Module = spectra_type_info:get_module(TypeInfo),
-    case spectra_codec:try_codec_schema(TypeInfo, Module, Format, TypeRef, SpType, Config) of
+    case spectra_codec:try_codec_schema(Format, TypeInfo, Module, TypeRef, SpType, Config) of
         continue -> default_schema(Format, TypeInfo, SpType, Config);
         Schema -> Schema
     end.
@@ -525,12 +525,12 @@ maybe_codec_decode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config) ->
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_decode(
+            Format,
             TypeInfo,
             Module,
-            Format,
             TypeRef,
-            Data,
             SpType,
+            Data,
             Config
         )
     of
@@ -551,12 +551,12 @@ maybe_codec_encode(Format, TypeInfo, TypeRef, SpType, Data, Options, Config) ->
     Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_encode(
+            Format,
             TypeInfo,
             Module,
-            Format,
             TypeRef,
-            Data,
             SpType,
+            Data,
             Config
         )
     of
