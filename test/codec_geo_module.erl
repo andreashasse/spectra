@@ -19,7 +19,7 @@
 -export_type([
     point/0, maybe_point/0, named_point/0, location/0, point_with_status/1, active_passive_point/0
 ]).
--export([encode/7, decode/7, schema/6]).
+-export([encode/6, decode/6, schema/5]).
 
 -spec encode(
     atom(),
@@ -27,17 +27,16 @@
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
-    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(_, _Mod, {type, point, 0}, {X, Y}, _SpType, _Params, _Config) when
+encode(_, _Mod, {type, point, 0}, {X, Y}, _TargetType, _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, [X, Y]};
-encode(_, _Mod, {type, point, 0}, Data, _SpType, _Params, _Config) ->
+encode(_, _Mod, {type, point, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-encode(_, _, _, _, _, _, _) ->
+encode(_, _, _, _, _, _) ->
     continue.
 
 -spec decode(
@@ -46,28 +45,27 @@ encode(_, _, _, _, _, _, _) ->
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
-    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(_, _Mod, {type, point, 0}, [X, Y], _SpType, _Params, _Config) when
+decode(_, _Mod, {type, point, 0}, [X, Y], _TargetType, _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, {X, Y}};
-decode(_, _Mod, {type, point, 0}, Data, _SpType, _Params, _Config) ->
+decode(_, _Mod, {type, point, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
-decode(_, _, _, _, _, _, _) ->
+decode(_, _, _, _, _, _) ->
     continue.
 
 -spec schema(
-    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term(), spectra:sp_config()
+    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) -> map().
-schema(json_schema, _Mod, {type, point, 0}, _SpType, _Params, _Config) ->
+schema(json_schema, _Mod, {type, point, 0}, _TargetType, _Config) ->
     #{
         type => <<"array">>,
         items => #{type => <<"number">>},
         minItems => 2,
         maxItems => 2
     };
-schema(_, _, _, _, _, _) ->
+schema(_, _, _, _, _) ->
     continue.

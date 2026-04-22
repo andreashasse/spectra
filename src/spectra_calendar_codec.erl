@@ -48,19 +48,20 @@ DT = {{2024, 1, 15}, {10, 30, 0}},
 
 -behaviour(spectra_codec).
 
--export([encode/7, decode/7, schema/6]).
+-export([encode/6, decode/6, schema/5]).
 
 -spec encode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
-    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(json, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _SpType, _Params, _Config) when
+encode(
+    json, _CallerTypeInfo, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _TargetType, _Config
+) when
     is_integer(Y),
     is_integer(Mo),
     is_integer(D),
@@ -72,48 +73,49 @@ encode(json, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _SpType, _Para
         io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0wZ", [Y, Mo, D, H, Mi, S])
     ),
     {ok, Bin};
-encode(json, _Mod, {type, datetime, 0} = TypeRef, Data, _SpType, _Params, _Config) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]};
-encode(json, _Mod, {type, date, 0}, {Y, Mo, D}, _SpType, _Params, _Config) when
+encode(json, _CallerTypeInfo, {type, datetime, 0} = TargetTypeRef, Data, _TargetType, _Config) ->
+    {error, [sp_error:type_mismatch(TargetTypeRef, Data)]};
+encode(json, _CallerTypeInfo, {type, date, 0}, {Y, Mo, D}, _TargetType, _Config) when
     is_integer(Y), is_integer(Mo), is_integer(D)
 ->
     Bin = iolist_to_binary(io_lib:format("~4..0w-~2..0w-~2..0w", [Y, Mo, D])),
     {ok, Bin};
-encode(json, _Mod, {type, date, 0} = TypeRef, Data, _SpType, _Params, _Config) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
+encode(json, _CallerTypeInfo, {type, date, 0} = TargetTypeRef, Data, _TargetType, _Config) ->
+    {error, [sp_error:type_mismatch(TargetTypeRef, Data)]}.
 
 -spec decode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
-    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(json, _Mod, {type, datetime, 0}, Bin, _SpType, _Params, _Config) when is_binary(Bin) ->
+decode(json, _CallerTypeInfo, {type, datetime, 0}, Bin, _TargetType, _Config) when
+    is_binary(Bin)
+->
     case parse_datetime(Bin) of
         {ok, DT} -> {ok, DT};
         error -> {error, [sp_error:type_mismatch({type, datetime, 0}, Bin)]}
     end;
-decode(json, _Mod, {type, datetime, 0} = TypeRef, Data, _SpType, _Params, _Config) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]};
-decode(json, _Mod, {type, date, 0}, Bin, _SpType, _Params, _Config) when is_binary(Bin) ->
+decode(json, _CallerTypeInfo, {type, datetime, 0} = TargetTypeRef, Data, _TargetType, _Config) ->
+    {error, [sp_error:type_mismatch(TargetTypeRef, Data)]};
+decode(json, _CallerTypeInfo, {type, date, 0}, Bin, _TargetType, _Config) when is_binary(Bin) ->
     case parse_date(Bin) of
         {ok, D} -> {ok, D};
         error -> {error, [sp_error:type_mismatch({type, date, 0}, Bin)]}
     end;
-decode(json, _Mod, {type, date, 0} = TypeRef, Data, _SpType, _Params, _Config) ->
-    {error, [sp_error:type_mismatch(TypeRef, Data)]}.
+decode(json, _CallerTypeInfo, {type, date, 0} = TargetTypeRef, Data, _TargetType, _Config) ->
+    {error, [sp_error:type_mismatch(TargetTypeRef, Data)]}.
 
 -spec schema(
-    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), term(), spectra:sp_config()
+    atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) ->
     dynamic().
-schema(json_schema, _Mod, {type, datetime, 0}, _SpType, _Params, _Config) ->
+schema(json_schema, _CallerTypeInfo, {type, datetime, 0}, _TargetType, _Config) ->
     #{type => <<"string">>, format => <<"date-time">>};
-schema(json_schema, _Mod, {type, date, 0}, _SpType, _Params, _Config) ->
+schema(json_schema, _CallerTypeInfo, {type, date, 0}, _TargetType, _Config) ->
     #{type => <<"string">>, format => <<"date">>}.
 
 %% Internal helpers

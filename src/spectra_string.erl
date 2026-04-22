@@ -43,63 +43,45 @@ from_string(
     String,
     Config
 ) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     TypeRef = {type, TypeName, Arity},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
         spectra_codec:try_codec_decode(
-            TypeInfo,
-            string,
-            TypeRef,
-            Type,
-            String,
-            UserTypeRef,
-            Config
+            TypeInfo, Module, string, TypeRef, String, UserTypeRef, Config
         )
     of
         continue ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
             TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             from_string(TypeInfo, TypeWithoutVars, String, Config);
         Result ->
             Result
     end;
 from_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, String, Config) ->
-    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     TypeRef = {record, RecordName},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_decode(
-            TypeInfo,
-            string,
-            TypeRef,
-            RecordType,
-            String,
-            RecordRef,
-            Config
-        )
+        spectra_codec:try_codec_decode(TypeInfo, Module, string, TypeRef, String, RecordRef, Config)
     of
-        continue -> erlang:error({type_not_supported, RecordType});
-        Result -> Result
+        continue ->
+            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            erlang:error({type_not_supported, RecordType});
+        Result ->
+            Result
     end;
 from_string(
-    _TypeInfo,
+    TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
     String,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeRef = {type, TypeName, TypeArity},
     case
-        spectra_codec:try_codec_decode(
-            RemoteTypeInfo,
-            string,
-            TypeRef,
-            RemoteType,
-            String,
-            RemoteRef,
-            Config
-        )
+        spectra_codec:try_codec_decode(TypeInfo, Module, string, TypeRef, String, RemoteRef, Config)
     of
         continue ->
+            RemoteTypeInfo = spectra_module_types:get(Module, Config),
+            RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
             TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args),
             from_string(RemoteTypeInfo, TypeWithoutVars, String, Config);
         Result ->
@@ -176,63 +158,43 @@ to_string(
     Data,
     Config
 ) ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     TypeRef = {type, TypeName, Arity},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(
-            TypeInfo,
-            string,
-            TypeRef,
-            Type,
-            Data,
-            UserTypeRef,
-            Config
-        )
+        spectra_codec:try_codec_encode(TypeInfo, Module, string, TypeRef, Data, UserTypeRef, Config)
     of
         continue ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
             TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             to_string(TypeInfo, TypeWithoutVars, Data, Config);
         Result ->
             Result
     end;
 to_string(TypeInfo, #sp_rec_ref{record_name = RecordName} = RecordRef, Data, Config) ->
-    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     TypeRef = {record, RecordName},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(
-            TypeInfo,
-            string,
-            TypeRef,
-            RecordType,
-            Data,
-            RecordRef,
-            Config
-        )
+        spectra_codec:try_codec_encode(TypeInfo, Module, string, TypeRef, Data, RecordRef, Config)
     of
-        continue -> erlang:error({type_not_supported, RecordType});
-        Result -> Result
+        continue ->
+            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            erlang:error({type_not_supported, RecordType});
+        Result ->
+            Result
     end;
 to_string(
-    _TypeInfo,
+    TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
     Data,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeRef = {type, TypeName, TypeArity},
     case
-        spectra_codec:try_codec_encode(
-            RemoteTypeInfo,
-            string,
-            TypeRef,
-            RemoteType,
-            Data,
-            RemoteRef,
-            Config
-        )
+        spectra_codec:try_codec_encode(TypeInfo, Module, string, TypeRef, Data, RemoteRef, Config)
     of
         continue ->
+            RemoteTypeInfo = spectra_module_types:get(Module, Config),
+            RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
             TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args),
             to_string(RemoteTypeInfo, TypeWithoutVars, Data, Config);
         Result ->

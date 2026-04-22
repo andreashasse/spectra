@@ -48,46 +48,29 @@ to_json(
 ) when
     is_atom(TypeName)
 ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     TypeRef = {type, TypeName, Arity},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(
-            TypeInfo,
-            json,
-            TypeRef,
-            Type,
-            Data,
-            UserTypeRef,
-            Config
-        )
+        spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Data, UserTypeRef, Config)
     of
         continue ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
             TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             to_json(TypeInfo, TypeWithoutVars, Data, Config);
         Result ->
             Result
     end;
 to_json(
-    _TypeInfo,
+    TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
     Data,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeRef = {type, TypeName, TypeArity},
-    case
-        spectra_codec:try_codec_encode(
-            RemoteTypeInfo,
-            json,
-            TypeRef,
-            RemoteType,
-            Data,
-            RemoteRef,
-            Config
-        )
-    of
+    case spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Data, RemoteRef, Config) of
         continue ->
+            RemoteTypeInfo = spectra_module_types:get(Module, Config),
+            RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
@@ -105,21 +88,16 @@ to_json(
 ) when
     is_atom(RecordName)
 ->
-    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     TypeRef = {record, RecordName},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_encode(
-            TypeInfo,
-            json,
-            TypeRef,
-            RecordType,
-            Record,
-            RecordRef,
-            Config
-        )
+        spectra_codec:try_codec_encode(TypeInfo, Module, json, TypeRef, Record, RecordRef, Config)
     of
-        continue -> record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
-        Result -> Result
+        continue ->
+            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
+        Result ->
+            Result
     end;
 to_json(_TypeInfo, #sp_simple_type{type = NotSupported} = Type, _Data, _Config) when
     NotSupported =:= pid orelse
@@ -555,46 +533,29 @@ do_from_json(
 ) when
     is_atom(TypeName)
 ->
-    Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
     TypeRef = {type, TypeName, Arity},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_decode(
-            TypeInfo,
-            json,
-            TypeRef,
-            Type,
-            Json,
-            UserTypeRef,
-            Config
-        )
+        spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, UserTypeRef, Config)
     of
         continue ->
+            Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
             TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             do_from_json(TypeInfo, TypeWithoutVars, Json, Config);
         Result ->
             Result
     end;
 do_from_json(
-    _TypeInfo,
+    TypeInfo,
     #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity} = RemoteRef,
     Json,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Module, Config),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
     TypeRef = {type, TypeName, TypeArity},
-    case
-        spectra_codec:try_codec_decode(
-            RemoteTypeInfo,
-            json,
-            TypeRef,
-            RemoteType,
-            Json,
-            RemoteRef,
-            Config
-        )
-    of
+    case spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, RemoteRef, Config) of
         continue ->
+            RemoteTypeInfo = spectra_module_types:get(Module, Config),
+            RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
@@ -612,21 +573,14 @@ do_from_json(
 ) when
     is_atom(RecordName)
 ->
-    RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
     TypeRef = {record, RecordName},
-    case
-        spectra_codec:try_codec_decode(
-            TypeInfo,
-            json,
-            TypeRef,
-            RecordType,
-            Json,
-            RecordRef,
-            Config
-        )
-    of
-        continue -> record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);
-        Result -> Result
+    Module = spectra_type_info:get_module(TypeInfo),
+    case spectra_codec:try_codec_decode(TypeInfo, Module, json, TypeRef, Json, RecordRef, Config) of
+        continue ->
+            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);
+        Result ->
+            Result
     end;
 do_from_json(TypeInfo, #sp_map{} = Type, Json, Config) ->
     map_from_json(TypeInfo, Type, Json, Config);

@@ -1,5 +1,7 @@
 -module(spectra_codec).
 
+-include("../include/spectra_internal.hrl").
+
 -doc """
 Behaviour for custom codecs that extend spectra's encoding, decoding, and
 schema generation for specific types and formats.
@@ -17,32 +19,19 @@ application:set_env(spectra, codecs, #{
 Alternatively, add `-behaviour(spectra_codec)` to the module that *defines*
 the type and spectra will discover the codec automatically at load time.
 
-## Callback arguments: `SpType` and `Params`
+## Callback arguments
 
-Every callback receives two arguments for inspecting the type in context.
+Every callback receives two type-related arguments for inspecting the type in context.
 
-### `Params :: term()` — static per-type configuration
+### `CallerTypeInfo :: spectra:type_info()` — caller's module type information
 
-`Params` is the value from the `-spectra(#{type_parameters => ...})` attribute
-on the type definition, or `undefined` when no such attribute is present.
+`CallerTypeInfo` is the type information of the module where the type traversal
+is currently taking place. This allows the codec to recursively encode/decode
+user-defined generic arguments that might be defined locally in that module.
 
-```erlang
--spectra(#{type_parameters => <<"user:">>}).
--type user_id() :: binary().
-```
+### `TargetType :: spectra:sp_type()` — instantiation node with type-variable bindings
 
-The codec receives `<<"user:">>` as `Params` and can use it directly:
-
-```erlang
-encode(json, _Mod, _TypeRef, Data, _SpType, Prefix, _Config) when is_binary(Prefix) ->
-    {ok, <<Prefix/binary, Data/binary>>};
-encode(_Format, _Mod, _TypeRef, _Data, _SpType, _Params, _Config) ->
-    continue.
-```
-
-### `SpType :: spectra:sp_type()` — instantiation node with type-variable bindings
-
-`SpType` is the type node from the traversal at the point where the codec was
+`TargetType` is the type node from the traversal at the point where the codec was
 invoked. For generic types this is the reference node — `#sp_user_type_ref{}`
 or `#sp_remote_type{}` — and it carries the **concrete type-variable bindings**
 of that specific instantiation. Use `spectra_type:type_args/1` to extract them.
@@ -52,14 +41,13 @@ For a type written as `dict:dict(binary(), integer())` the codec receives the
 recursively encode/decode keys and values:
 
 ```erlang
-encode(json, Mod, _TypeRef, Data, SpType, _Params, Config) ->
-    TypeInfo = spectra_module_types:get(Mod, Config),
-    [KeyType, ValueType] = spectra_type:type_args(SpType),
-    encode_pairs(TypeInfo, KeyType, ValueType, dict:to_list(Data), #{}, Config).
+encode(json, CallerTypeInfo, _TargetTypeRef, Data, TargetType, Config) ->
+    [KeyType, ValueType] = spectra_type:type_args(TargetType),
+    encode_pairs(CallerTypeInfo, KeyType, ValueType, dict:to_list(Data), #{}, Config).
 ```
 
 Note: when a codec is invoked from the `spectra:encode/decode/schema` entry
-points (rather than via mid-traversal dispatch), `SpType` is the resolved type
+points (rather than via mid-traversal dispatch), `TargetType` is the resolved type
 definition and `spectra_type:type_args/1` returns `[]`. In practice this only
 affects codecs for generic types — they are naturally called from the traversal
 where the reference node is available.
@@ -67,35 +55,32 @@ where the reference node is available.
 
 -callback encode(
     Format :: atom(),
-    Module :: module(),
-    TypeRef :: spectra:sp_type_reference(),
+    CallerTypeInfo :: spectra:type_info(),
+    TargetTypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
-    SpType :: spectra:sp_type(),
-    Params :: term(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
 -callback decode(
     Format :: atom(),
-    Module :: module(),
-    TypeRef :: spectra:sp_type_reference(),
+    CallerTypeInfo :: spectra:type_info(),
+    TargetTypeRef :: spectra:sp_type_reference(),
     Input :: dynamic(),
-    SpType :: spectra:sp_type(),
-    Params :: term(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
 -callback schema(
     Format :: atom(),
-    Module :: module(),
-    TypeRef :: spectra:sp_type_reference(),
-    SpType :: spectra:sp_type(),
-    Params :: term(),
+    CallerTypeInfo :: spectra:type_info(),
+    TargetTypeRef :: spectra:sp_type_reference(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) ->
     dynamic().
 
--optional_callbacks([schema/6]).
+-optional_callbacks([schema/5]).
 
 -export([
     try_codec_encode/7,
@@ -103,68 +88,85 @@ where the reference node is available.
     try_codec_schema/6
 ]).
 
--doc "Encodes `Data` via a registered codec for the module owning `TypeInfo`, or returns `continue`.".
+-doc "Encodes `Data` via a registered codec for `RemoteMod`, or returns `continue`.".
 -spec try_codec_encode(
-    TypeInfo :: spectra:type_info(),
+    CallerTypeInfo :: spectra:type_info(),
+    RemoteMod :: module(),
     Format :: atom(),
-    TypeRef :: spectra:sp_type_reference(),
-    Type :: spectra:sp_type(),
+    TargetTypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
-    SpType :: spectra:sp_type(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
-) -> spectra:codec_encode_result().
-try_codec_encode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
-        {ok, M} ->
-            M:encode(
-                Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
-            );
-        error ->
-            continue
+) -> spectra:codec_encode_result() | continue.
+try_codec_encode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetType, Config) ->
+    case Config#sp_config.codecs of
+        #{{RemoteMod, TargetTypeRef} := M} ->
+            M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+        #{} ->
+            case has_local_codec(RemoteMod, Config) of
+                {ok, M} ->
+                    M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+                error ->
+                    continue
+            end
     end.
 
--doc "Decodes `Data` via a registered codec for the module owning `TypeInfo`, or returns `continue`.".
+-doc "Decodes `Data` via a registered codec for `RemoteMod`, or returns `continue`.".
 -spec try_codec_decode(
-    TypeInfo :: spectra:type_info(),
+    CallerTypeInfo :: spectra:type_info(),
+    RemoteMod :: module(),
     Format :: atom(),
-    TypeRef :: spectra:sp_type_reference(),
-    Type :: spectra:sp_type(),
+    TargetTypeRef :: spectra:sp_type_reference(),
     Data :: dynamic(),
-    SpType :: spectra:sp_type(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
-) -> spectra:codec_decode_result().
-try_codec_decode(TypeInfo, Format, TypeReference, Type, Data, SpType, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
-        {ok, M} ->
-            M:decode(
-                Format, Mod, TypeReference, Data, SpType, spectra_type:parameters(Type), Config
-            );
-        error ->
-            continue
+) -> spectra:codec_decode_result() | continue.
+try_codec_decode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetType, Config) ->
+    case Config#sp_config.codecs of
+        #{{RemoteMod, TargetTypeRef} := M} ->
+            M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+        #{} ->
+            case has_local_codec(RemoteMod, Config) of
+                {ok, M} ->
+                    M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
+                error ->
+                    continue
+            end
     end.
 
--doc "Returns the schema for the module owning `TypeInfo` via a registered codec, or `continue`.".
+-doc "Returns the schema for `RemoteMod` via a registered codec, or `continue`.".
 -spec try_codec_schema(
-    TypeInfo :: spectra:type_info(),
+    CallerTypeInfo :: spectra:type_info(),
+    RemoteMod :: module(),
     Format :: atom(),
-    TypeRef :: spectra:sp_type_reference(),
-    Type :: spectra:sp_type(),
-    SpType :: spectra:sp_type(),
+    TargetTypeRef :: spectra:sp_type_reference(),
+    TargetType :: spectra:sp_type(),
     Config :: spectra:sp_config()
 ) -> dynamic() | continue.
-try_codec_schema(TypeInfo, Format, TypeReference, Type, SpType, Config) ->
-    Mod = spectra_type_info:get_module(TypeInfo),
-    case spectra_type_info:find_codec(TypeInfo, TypeReference, Mod, Config) of
-        {ok, M} ->
-            try
-                M:schema(
-                    Format, Mod, TypeReference, SpType, spectra_type:parameters(Type), Config
-                )
-            catch
-                error:undef -> erlang:error({schema_not_implemented, M, TypeReference})
-            end;
-        error ->
-            continue
+try_codec_schema(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, TargetType, Config) ->
+    case Config#sp_config.codecs of
+        #{{RemoteMod, TargetTypeRef} := M} ->
+            invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
+        #{} ->
+            case has_local_codec(RemoteMod, Config) of
+                {ok, M} ->
+                    invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
+                error ->
+                    continue
+            end
+    end.
+
+invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config) ->
+    try
+        M:schema(Format, CallerTypeInfo, TargetTypeRef, TargetType, Config)
+    catch
+        error:undef -> erlang:error({schema_not_implemented, M, TargetTypeRef})
+    end.
+
+has_local_codec(RemoteMod, Config) ->
+    try spectra_module_types:get(RemoteMod, Config) of
+        RemoteTypeInfo -> spectra_type_info:find_local_codec(RemoteTypeInfo)
+    catch
+        error:{module_types_not_found, _, _} -> error;
+        error:{module_not_compiled_with_debug_info, _, _} -> error
     end.

@@ -326,8 +326,8 @@ type_alias_of_codec_type_decode_test() ->
 
 %% When a module has NO -behaviour(spectra_codec) but its type has a codec
 %% registered via application env, encoding/decoding a local #sp_user_type_ref
-%% must use find_codec/3 (which checks app env) rather than find_local_codec/1
-%% (which only checks the behaviour flag). Before the fix, find_local_codec
+%% must use try_codec_encode/7 (which checks app env) rather than has_local_codec/2
+%% (which only checks the behaviour flag). Before the fix, has_local_codec
 %% returned `error` and the opaque tuple fell through to structural encoding,
 %% crashing with {type_not_supported, #sp_tuple{}}.
 app_env_local_type_encode_test() ->
@@ -366,7 +366,7 @@ app_env_local_type_decode_test() ->
     end.
 
 %% A union type like `maybe_token() :: token() | undefined` where the codec for
-%% token() is registered via app env. Without the fix, find_local_codec returns
+%% token() is registered via app env. Without the fix, has_local_codec returns
 %% `error` for the module, so there is no codec dispatch at all - the opaque
 %% tuple type falls through to structural encoding and crashes.
 app_env_local_union_encode_test() ->
