@@ -8,42 +8,42 @@
 
 -spec encode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(_, _Mod, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _TargetType, _Config) ->
+encode(_, _CallerTypeInfo, {type, datetime, 0}, {{Y, Mo, D}, {H, Mi, S}}, _TargetType, _Config) ->
     Bin = iolist_to_binary(
         io_lib:format("~4..0w-~2..0w-~2..0wT~2..0w:~2..0w:~2..0w", [Y, Mo, D, H, Mi, S])
     ),
     {ok, Bin};
-encode(_, _Mod, {type, datetime, 0}, Data, _TargetType, _Config) ->
+encode(_, _CallerTypeInfo, {type, datetime, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
 -spec decode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(_, _Mod, {type, datetime, 0}, Bin, _TargetType, _Config) when is_binary(Bin) ->
+decode(_, _CallerTypeInfo, {type, datetime, 0}, Bin, _TargetType, _Config) when is_binary(Bin) ->
     case parse_datetime(Bin) of
         {ok, DT} -> {ok, DT};
         error -> {error, [sp_error:type_mismatch({type, datetime, 0}, Bin)]}
     end;
-decode(_, _Mod, {type, datetime, 0}, Data, _TargetType, _Config) ->
+decode(_, _CallerTypeInfo, {type, datetime, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, datetime, 0}, Data)]}.
 
 -spec schema(
-    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
+    atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) -> map().
-schema(json_schema, _Mod, {type, datetime, 0}, _TargetType, _Config) ->
+schema(json_schema, _CallerTypeInfo, {type, datetime, 0}, _TargetType, _Config) ->
     #{type => <<"string">>, format => <<"date-time">>}.
 
 parse_datetime(<<Y1, Y2, Y3, Y4, $-, Mo1, Mo2, $-, D1, D2, $T, H1, H2, $:, Mi1, Mi2, $:, S1, S2>>) ->

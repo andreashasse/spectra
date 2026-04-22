@@ -103,7 +103,7 @@ try_codec_encode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetT
         #{{RemoteMod, TargetTypeRef} := M} ->
             M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
         #{} ->
-            case has_local_codec(RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
                 {ok, M} ->
                     M:encode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
                 error ->
@@ -126,7 +126,7 @@ try_codec_decode(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, Data, TargetT
         #{{RemoteMod, TargetTypeRef} := M} ->
             M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
         #{} ->
-            case has_local_codec(RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
                 {ok, M} ->
                     M:decode(Format, CallerTypeInfo, TargetTypeRef, Data, TargetType, Config);
                 error ->
@@ -148,7 +148,7 @@ try_codec_schema(CallerTypeInfo, RemoteMod, Format, TargetTypeRef, TargetType, C
         #{{RemoteMod, TargetTypeRef} := M} ->
             invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
         #{} ->
-            case has_local_codec(RemoteMod, Config) of
+            case has_local_codec(CallerTypeInfo, RemoteMod, Config) of
                 {ok, M} ->
                     invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config);
                 error ->
@@ -163,10 +163,11 @@ invoke_schema(M, Format, CallerTypeInfo, TargetTypeRef, TargetType, Config) ->
         error:undef -> erlang:error({schema_not_implemented, M, TargetTypeRef})
     end.
 
-has_local_codec(RemoteMod, Config) ->
-    try spectra_module_types:get(RemoteMod, Config) of
-        RemoteTypeInfo -> spectra_type_info:find_local_codec(RemoteTypeInfo)
-    catch
-        error:{module_types_not_found, _, _} -> error;
-        error:{module_not_compiled_with_debug_info, _, _} -> error
+has_local_codec(CallerTypeInfo, RemoteMod, Config) ->
+    case spectra_type_info:get_module(CallerTypeInfo) of
+        RemoteMod ->
+            spectra_type_info:find_local_codec(CallerTypeInfo);
+        _ ->
+            RemoteTypeInfo = spectra_module_types:get(RemoteMod, Config),
+            spectra_type_info:find_local_codec(RemoteTypeInfo)
     end.

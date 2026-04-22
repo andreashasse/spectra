@@ -23,44 +23,44 @@
 
 -spec encode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
-encode(_, _Mod, {type, point, 0}, {X, Y}, _TargetType, _Config) when
+encode(_, _CallerTypeInfo, {type, point, 0}, {X, Y}, _TargetType, _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, [X, Y]};
-encode(_, _Mod, {type, point, 0}, Data, _TargetType, _Config) ->
+encode(_, _CallerTypeInfo, {type, point, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 encode(_, _, _, _, _, _) ->
     continue.
 
 -spec decode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
-decode(_, _Mod, {type, point, 0}, [X, Y], _TargetType, _Config) when
+decode(_, _CallerTypeInfo, {type, point, 0}, [X, Y], _TargetType, _Config) when
     is_number(X), is_number(Y)
 ->
     {ok, {X, Y}};
-decode(_, _Mod, {type, point, 0}, Data, _TargetType, _Config) ->
+decode(_, _CallerTypeInfo, {type, point, 0}, Data, _TargetType, _Config) ->
     {error, [sp_error:type_mismatch({type, point, 0}, Data)]};
 decode(_, _, _, _, _, _) ->
     continue.
 
 -spec schema(
-    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
+    atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) -> map().
-schema(json_schema, _Mod, {type, point, 0}, _TargetType, _Config) ->
+schema(json_schema, _CallerTypeInfo, {type, point, 0}, _TargetType, _Config) ->
     #{
         type => <<"array">>,
         items => #{type => <<"number">>},

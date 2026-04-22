@@ -8,7 +8,7 @@
 
 -spec encode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
@@ -34,7 +34,7 @@ encode(_, _, _, _, _, _) ->
 
 -spec decode(
     atom(),
-    module(),
+    spectra:type_info(),
     spectra:sp_type_reference(),
     dynamic(),
     spectra:sp_type(),
@@ -51,7 +51,7 @@ decode(_, _, _, _, _, _) ->
     continue.
 
 -spec schema(
-    atom(), module(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
+    atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) ->
     map() | continue.
 schema(json_schema, _CallerTypeInfo, {record, point2d}, _TargetType, _Config) ->

@@ -9,23 +9,22 @@ no_debug_info_test_() ->
 
 setup() ->
     ModuleName = test_no_debug_module,
-    SourceFile = atom_to_list(ModuleName) ++ ".erl",
-    Code =
-        "-module(" ++
-            atom_to_list(ModuleName) ++
-            ").\n"
-            "-export([hello/0]).\n"
-            "-type user_id() :: pos_integer().\n"
-            "hello() -> ok.\n",
-    ok = file:write_file(SourceFile, Code),
-
-    {ok, ModuleName} = compile:file(SourceFile, []),
-
-    {ModuleName, SourceFile}.
-
-cleanup({ModuleName, SourceFile}) ->
+    Forms = [
+        {attribute, 1, module, ModuleName},
+        {attribute, 2, export, [{hello, 0}]},
+        {attribute, 3, type, {{user_id, {type, 3, pos_integer, []}}, []}},
+        {function, 4, hello, 0, [{clause, 4, [], [], [{atom, 4, ok}]}]}
+    ],
+    {ok, ModuleName, Bin} = compile:forms(Forms, []),
+    %% Write the beam to disk so code:which/1 works properly and beam_lib can find it
     BeamFile = atom_to_list(ModuleName) ++ ".beam",
-    file:delete(SourceFile),
+    ok = file:write_file(BeamFile, Bin),
+    code:purge(ModuleName),
+    code:load_abs(atom_to_list(ModuleName)),
+
+    {ModuleName, BeamFile}.
+
+cleanup({ModuleName, BeamFile}) ->
     file:delete(BeamFile),
     code:purge(ModuleName),
     code:delete(ModuleName).

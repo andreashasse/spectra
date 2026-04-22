@@ -572,7 +572,38 @@ app_env_inline_rec_ref_decode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% point_with_status(Status) :: #{point := point(), status := Status}
+%% A codec for a remote type in a module compiled without debug_info
+no_debug_info_remote_encode_test() ->
+    %% Compile a dummy module without debug_info
+    {ok, my_no_debug_mod, Bin} = compile:forms(
+        [{attribute, 1, module, my_no_debug_mod}], []
+    ),
+    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
+
+    application:set_env(
+        spectra,
+        codecs,
+        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, <<"abc123">>},
+            spectra:encode(
+                json,
+                codec_appenv_type_module,
+                {sp_remote_type, {my_no_debug_mod, token, []}, 0, #{}},
+                {token, <<"abc123">>},
+                [
+                    pre_encoded
+                ]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs),
+        code:delete(my_no_debug_mod),
+        code:purge(my_no_debug_mod)
+    end.
+
 %% Encoding and decoding with the concrete active_passive_point/0 instantiation,
 %% which fills Status with the literal union `active | passive`.
 active_passive_point_encode_test() ->
