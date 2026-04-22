@@ -1,6 +1,7 @@
 -module(custom_codec_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 %% Copied from codec_animal_codec to avoid a shared header file.
 -record(cat, {name :: binary(), indoor :: boolean()}).
@@ -591,7 +592,7 @@ no_debug_info_remote_encode_test() ->
             spectra:encode(
                 json,
                 codec_appenv_type_module,
-                {sp_remote_type, {my_no_debug_mod, token, []}, 0, #{}},
+                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
                 {token, <<"abc123">>},
                 [
                     pre_encoded

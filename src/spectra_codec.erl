@@ -35,8 +35,12 @@ user-defined generic arguments that might be defined locally in that module.
 invoked. For generic types this is the reference node — `#sp_user_type_ref{}`
 or `#sp_remote_type{}` — and it carries the **concrete type-variable bindings**
 of that specific instantiation. Use `spectra_type:type_args/1` to extract them.
-Any values supplied via `-spectra(#{type_parameters => ...})` are also available
-from this node; use `spectra_type:parameters/1` to retrieve them.
+Values supplied via `-spectra(#{type_parameters => ...})` are **not** propagated
+onto reference nodes (`#sp_user_type_ref{}` / `#sp_remote_type{}`), so
+`spectra_type:parameters/1` on `TargetType` returns `undefined` during
+mid-traversal dispatch. It is only reliable when `TargetType` is the resolved
+type definition (i.e. the codec is invoked from the `spectra:encode/decode/schema`
+entry points directly).
 
 For a type written as `dict:dict(binary(), integer())` the codec receives the
 `#sp_remote_type{}` node and can extract `[BinaryType, IntegerType]` to
