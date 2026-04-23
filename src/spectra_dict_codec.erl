@@ -44,7 +44,7 @@ D = dict:from_list([{<<"hello">>, 3}, {<<"world">>, 1}]),
     spectra:type_info(),
     spectra:sp_type_reference(),
     spectra:sp_type(),
-    dynamic(),
+    dict:dict(term(), term()),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -63,7 +63,7 @@ encode(json, CallerTypeInfo, {type, dict, 2} = TargetTypeRef, TargetType, Data, 
     spectra:type_info(),
     spectra:sp_type_reference(),
     spectra:sp_type(),
-    dynamic(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
@@ -76,7 +76,7 @@ decode(json, _CallerTypeInfo, {type, dict, 2} = TargetTypeRef, _TargetType, Data
 -spec schema(
     atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) ->
-    dynamic().
+    map().
 schema(json_schema, CallerTypeInfo, {type, dict, 2}, TargetType, Config) ->
     [_KeyType, ValueType] = spectra_type:type_args(TargetType),
     ValueSchema = spectra_json_schema:to_schema(CallerTypeInfo, ValueType, Config),

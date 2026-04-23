@@ -55,7 +55,7 @@ DT = {{2024, 1, 15}, {10, 30, 0}},
     spectra:type_info(),
     spectra:sp_type_reference(),
     spectra:sp_type(),
-    dynamic(),
+    calendar:datetime() | calendar:date(),
     spectra:sp_config()
 ) ->
     spectra:codec_encode_result().
@@ -88,7 +88,7 @@ encode(json, _CallerTypeInfo, {type, date, 0} = TargetTypeRef, _TargetType, Data
     spectra:type_info(),
     spectra:sp_type_reference(),
     spectra:sp_type(),
-    dynamic(),
+    term(),
     spectra:sp_config()
 ) ->
     spectra:codec_decode_result().
@@ -112,7 +112,7 @@ decode(json, _CallerTypeInfo, {type, date, 0} = TargetTypeRef, _TargetType, Data
 -spec schema(
     atom(), spectra:type_info(), spectra:sp_type_reference(), spectra:sp_type(), spectra:sp_config()
 ) ->
-    dynamic().
+    map().
 schema(json_schema, _CallerTypeInfo, {type, datetime, 0}, _TargetType, _Config) ->
     #{type => <<"string">>, format => <<"date-time">>};
 schema(json_schema, _CallerTypeInfo, {type, date, 0}, _TargetType, _Config) ->
