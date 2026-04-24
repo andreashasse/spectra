@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Breaking**: Custom codec callback argument order has changed. `TargetType` is now passed before `Data` in `encode` and `decode` callbacks, and `Format` is now the first argument in internal try-codec functions. Update any custom codec modules accordingly.
-- **Breaking**: Custom codec callback specs now use concrete types instead of `dynamic()`. This improves type checking but may require updating specs in custom codec modules.
-- Renamed `RemoteMod` to `TargetModule` in codec callback signatures for clarity.
 
 ## [0.11.4] - 2026-04-20
 
@@ -35,13 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded property-based test coverage for JSON, string, and binary_string roundtrips and schema validation
 
 ## [0.11.2] - 2026-04-17
- 
+
  ### Changed
  - Optimized JSON traversal hot paths for improved performance
- 
+
  ### Fixed
  - Configured regex module to support Unicode and UCP for pattern constraints
- 
+
  ## [0.11.1] - 2026-04-14
 
 ### Changed
