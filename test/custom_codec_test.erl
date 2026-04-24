@@ -1,7 +1,6 @@
 -module(custom_codec_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include("../include/spectra_internal.hrl").
 
 %% Copied from codec_animal_codec to avoid a shared header file.
 -record(cat, {name :: binary(), indoor :: boolean()}).
@@ -327,7 +326,7 @@ type_alias_of_codec_type_decode_test() ->
 
 %% When a module has NO -behaviour(spectra_codec) but its type has a codec
 %% registered via application env, encoding/decoding a local #sp_user_type_ref
-%% must use try_codec_encode/7 (which checks app env) rather than has_local_codec/2
+%% must use try_codec_encode/7 (which checks app env) rather than has_local_codec/3
 %% (which only checks the behaviour flag). Before the fix, has_local_codec
 %% returned `error` and the opaque tuple fell through to structural encoding,
 %% crashing with {type_not_supported, #sp_tuple{}}.
@@ -367,7 +366,7 @@ app_env_local_type_decode_test() ->
     end.
 
 %% A union type like `maybe_token() :: token() | undefined` where the codec for
-%% token() is registered via app env. Without the fix, has_local_codec returns
+%% token() is registered via app env. Without the fix, has_local_codec/3 returns
 %% `error` for the module, so there is no codec dispatch at all - the opaque
 %% tuple type falls through to structural encoding and crashes.
 app_env_local_union_encode_test() ->
@@ -573,64 +572,95 @@ app_env_inline_rec_ref_decode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% A codec for a remote type in a module compiled without debug_info
+%% A codec for a remote type in a module compiled without debug_info.
+%% We compile two modules at runtime:
+%%   - no_debug_target_mod: the module that owns token/0, compiled WITHOUT debug_info
+%%   - no_debug_caller_mod: a caller module with a type `wrapped :: no_debug_target_mod:token()`
+%%                          compiled WITH debug_info so spectra can traverse the reference
+%% The codec is registered via app env for {no_debug_target_mod, {type, token, 0}}.
+%% This exercises the code path where spectra encounters an #sp_remote_type{} whose
+%% target module has no debug_info but a codec is registered for it.
 no_debug_info_remote_encode_test() ->
-    %% Compile a dummy module without debug_info
-    {ok, my_no_debug_mod, Bin} = compile:forms(
-        [{attribute, 1, module, my_no_debug_mod}], []
-    ),
-    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
-
+    {TargetBeam, CallerBeam} = setup_no_debug_info_modules(),
     application:set_env(
         spectra,
         codecs,
-        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+        #{{no_debug_target_mod, {type, token, 0}} => codec_appenv_type_codec}
     ),
     try
         ?assertEqual(
             {ok, <<"abc123">>},
             spectra:encode(
                 json,
-                codec_appenv_type_module,
-                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
+                no_debug_caller_mod,
+                {type, wrapped, 0},
                 {token, <<"abc123">>},
                 [pre_encoded]
             )
         )
     after
         application:unset_env(spectra, codecs),
-        code:delete(my_no_debug_mod),
-        code:purge(my_no_debug_mod)
+        cleanup_no_debug_info_modules(TargetBeam, CallerBeam)
     end.
 
 no_debug_info_remote_decode_test() ->
-    %% Compile a dummy module without debug_info
-    {ok, my_no_debug_mod, Bin} = compile:forms(
-        [{attribute, 1, module, my_no_debug_mod}], []
-    ),
-    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
-
+    {TargetBeam, CallerBeam} = setup_no_debug_info_modules(),
     application:set_env(
         spectra,
         codecs,
-        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+        #{{no_debug_target_mod, {type, token, 0}} => codec_appenv_type_codec}
     ),
     try
         ?assertEqual(
             {ok, {token, <<"abc123">>}},
             spectra:decode(
                 json,
-                codec_appenv_type_module,
-                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
+                no_debug_caller_mod,
+                {type, wrapped, 0},
                 <<"abc123">>,
                 [pre_decoded]
             )
         )
     after
         application:unset_env(spectra, codecs),
-        code:delete(my_no_debug_mod),
-        code:purge(my_no_debug_mod)
+        cleanup_no_debug_info_modules(TargetBeam, CallerBeam)
     end.
+
+setup_no_debug_info_modules() ->
+    Dir = filename:join(os:getenv("TMPDIR", "/tmp"), "spectra_test"),
+    ok = filelib:ensure_path(Dir),
+
+    {ok, no_debug_target_mod, TargetBin} = compile:forms(
+        [{attribute, 1, module, no_debug_target_mod}], []
+    ),
+    TargetBeam = filename:join(Dir, "no_debug_target_mod.beam"),
+    ok = file:write_file(TargetBeam, TargetBin),
+    code:purge(no_debug_target_mod),
+    code:load_abs(filename:join(Dir, "no_debug_target_mod")),
+
+    {ok, no_debug_caller_mod, CallerBin} = compile:forms(
+        [
+            {attribute, 1, module, no_debug_caller_mod},
+            {attribute, 2, type,
+                {wrapped, {remote_type, 2, [{atom, 2, no_debug_target_mod}, {atom, 2, token}, []]},
+                    []}}
+        ],
+        [debug_info]
+    ),
+    CallerBeam = filename:join(Dir, "no_debug_caller_mod.beam"),
+    ok = file:write_file(CallerBeam, CallerBin),
+    code:purge(no_debug_caller_mod),
+    code:load_abs(filename:join(Dir, "no_debug_caller_mod")),
+
+    {TargetBeam, CallerBeam}.
+
+cleanup_no_debug_info_modules(TargetBeam, CallerBeam) ->
+    code:delete(no_debug_target_mod),
+    code:purge(no_debug_target_mod),
+    file:delete(TargetBeam),
+    code:delete(no_debug_caller_mod),
+    code:purge(no_debug_caller_mod),
+    file:delete(CallerBeam).
 
 %% Encoding and decoding with the concrete active_passive_point/0 instantiation,
 %% which fills Status with the literal union `active | passive`.

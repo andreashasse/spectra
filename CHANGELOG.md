@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-04-24
+
+### Added
+- Custom codec can now operate on remote types from modules compiled without `debug_info`. Previously this required debug info to be present; now spectra falls back gracefully and the codec handles decoding directly.
+
+### Changed
+- **Breaking**: Custom codec callback signatures have changed. All three callbacks (`encode`, `decode`, `schema`) now receive `CallerTypeInfo :: spectra:type_info()` instead of a bare `Module :: atom()`, and a new `TargetTypeRef :: spectra:sp_type_reference()` argument is added before `TargetType`. The arities are: `encode/6`, `decode/6`, `schema/5`. The argument order is `(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config)` for `encode`/`decode` and `(Format, CallerTypeInfo, TargetTypeRef, TargetType, Config)` for `schema`. The separate `Params` argument no longer exists; type-variable bindings are carried on `TargetType` and accessible via `spectra_type:type_args/1`. Update all custom codec modules to the new signatures.
+
 ## [0.11.4] - 2026-04-20
 
 ### Added
@@ -25,13 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded property-based test coverage for JSON, string, and binary_string roundtrips and schema validation
 
 ## [0.11.2] - 2026-04-17
- 
+
  ### Changed
  - Optimized JSON traversal hot paths for improved performance
- 
+
  ### Fixed
  - Configured regex module to support Unicode and UCP for pattern constraints
- 
+
  ## [0.11.1] - 2026-04-14
 
 ### Changed
