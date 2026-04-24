@@ -12,7 +12,7 @@ tracks whether the owning module implements the `spectra_codec` behaviour.
 
 -include("../include/spectra_internal.hrl").
 
--ignore_xref([find_codec/3, find_function/3, new/2]).
+-ignore_xref([find_function/3, new/2]).
 
 -export([new/2, get_module/1]).
 -export([add_type/4, find_type/3, get_type/3]).
