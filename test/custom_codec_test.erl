@@ -1,6 +1,7 @@
 -module(custom_codec_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 %% Copied from codec_animal_codec to avoid a shared header file.
 -record(cat, {name :: binary(), indoor :: boolean()}).
@@ -326,8 +327,8 @@ type_alias_of_codec_type_decode_test() ->
 
 %% When a module has NO -behaviour(spectra_codec) but its type has a codec
 %% registered via application env, encoding/decoding a local #sp_user_type_ref
-%% must use find_codec/3 (which checks app env) rather than find_local_codec/1
-%% (which only checks the behaviour flag). Before the fix, find_local_codec
+%% must use try_codec_encode/7 (which checks app env) rather than has_local_codec/2
+%% (which only checks the behaviour flag). Before the fix, has_local_codec
 %% returned `error` and the opaque tuple fell through to structural encoding,
 %% crashing with {type_not_supported, #sp_tuple{}}.
 app_env_local_type_encode_test() ->
@@ -366,7 +367,7 @@ app_env_local_type_decode_test() ->
     end.
 
 %% A union type like `maybe_token() :: token() | undefined` where the codec for
-%% token() is registered via app env. Without the fix, find_local_codec returns
+%% token() is registered via app env. Without the fix, has_local_codec returns
 %% `error` for the module, so there is no codec dispatch at all - the opaque
 %% tuple type falls through to structural encoding and crashes.
 app_env_local_union_encode_test() ->
@@ -572,7 +573,65 @@ app_env_inline_rec_ref_decode_test() ->
         application:unset_env(spectra, codecs)
     end.
 
-%% point_with_status(Status) :: #{point := point(), status := Status}
+%% A codec for a remote type in a module compiled without debug_info
+no_debug_info_remote_encode_test() ->
+    %% Compile a dummy module without debug_info
+    {ok, my_no_debug_mod, Bin} = compile:forms(
+        [{attribute, 1, module, my_no_debug_mod}], []
+    ),
+    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
+
+    application:set_env(
+        spectra,
+        codecs,
+        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, <<"abc123">>},
+            spectra:encode(
+                json,
+                codec_appenv_type_module,
+                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
+                {token, <<"abc123">>},
+                [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs),
+        code:delete(my_no_debug_mod),
+        code:purge(my_no_debug_mod)
+    end.
+
+no_debug_info_remote_decode_test() ->
+    %% Compile a dummy module without debug_info
+    {ok, my_no_debug_mod, Bin} = compile:forms(
+        [{attribute, 1, module, my_no_debug_mod}], []
+    ),
+    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
+
+    application:set_env(
+        spectra,
+        codecs,
+        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, {token, <<"abc123">>}},
+            spectra:decode(
+                json,
+                codec_appenv_type_module,
+                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
+                <<"abc123">>,
+                [pre_decoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs),
+        code:delete(my_no_debug_mod),
+        code:purge(my_no_debug_mod)
+    end.
+
 %% Encoding and decoding with the concrete active_passive_point/0 instantiation,
 %% which fills Status with the literal union `active | passive`.
 active_passive_point_encode_test() ->

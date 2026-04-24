@@ -76,31 +76,28 @@ do_to_schema(
     #sp_user_type_ref{type_name = N, variables = Args, arity = Arity} = UserTypeRef,
     Config
 ) ->
-    Type = spectra_type_info:get_type(TypeInfo, N, Arity),
     TypeRef = {type, N, Arity},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_schema(TypeInfo, json_schema, TypeRef, Type, UserTypeRef, Config)
+        spectra_codec:try_codec_schema(json_schema, TypeInfo, Module, TypeRef, UserTypeRef, Config)
     of
         continue ->
+            Type = spectra_type_info:get_type(TypeInfo, N, Arity),
             TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
             do_to_schema(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
     end;
 do_to_schema(
-    _TypeInfo,
+    TypeInfo,
     #sp_remote_type{mfargs = {Mod, TypeName, Args}, arity = Arity} = RemoteRef,
     Config
 ) ->
-    RemoteTypeInfo = spectra_module_types:get(Mod, Config),
-    RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
     TypeRef = {type, TypeName, Arity},
-    case
-        spectra_codec:try_codec_schema(
-            RemoteTypeInfo, json_schema, TypeRef, RemoteType, RemoteRef, Config
-        )
-    of
+    case spectra_codec:try_codec_schema(json_schema, TypeInfo, Mod, TypeRef, RemoteRef, Config) of
         continue ->
+            RemoteTypeInfo = spectra_module_types:get(Mod, Config),
+            RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
             TypeResolved = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
             ),
@@ -109,14 +106,13 @@ do_to_schema(
             Schema
     end;
 do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef, Config) ->
-    RecordType = spectra_type_info:get_record(TypeInfo, N),
     TypeRef = {record, N},
+    Module = spectra_type_info:get_module(TypeInfo),
     case
-        spectra_codec:try_codec_schema(
-            TypeInfo, json_schema, TypeRef, RecordType, RecordRef, Config
-        )
+        spectra_codec:try_codec_schema(json_schema, TypeInfo, Module, TypeRef, RecordRef, Config)
     of
         continue ->
+            RecordType = spectra_type_info:get_record(TypeInfo, N),
             Schema = record_to_schema_internal(TypeInfo, RecordType, Config),
             merge_type_doc_into_schema(TypeInfo, RecordType, Schema, Config);
         Schema ->

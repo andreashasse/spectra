@@ -12,13 +12,13 @@ tracks whether the owning module implements the `spectra_codec` behaviour.
 
 -include("../include/spectra_internal.hrl").
 
--ignore_xref([find_codec/3, find_function/3, new/2]).
+-ignore_xref([find_function/3, new/2]).
 
 -export([new/2, get_module/1]).
 -export([add_type/4, find_type/3, get_type/3]).
 -export([add_record/3, find_record/2, get_record/2]).
 -export([add_function/4, find_function/3]).
--export([find_codec/4]).
+-export([find_local_codec/1]).
 
 -export_type([type_info/0, type_key/0, function_key/0]).
 
@@ -90,21 +90,3 @@ find_function(#type_info{functions = Functions}, Name, Arity) ->
 -spec find_local_codec(type_info()) -> {ok, module()} | error.
 find_local_codec(#type_info{implements_codec = true, module = M}) -> {ok, M};
 find_local_codec(#type_info{implements_codec = false}) -> error.
-
--doc """
-Resolves the codec module for `{Mod, TypeRef}` using a pre-loaded `TypeInfo`.
-
-Checks the global codecs map first, then falls back to the module's own
-`spectra_codec` behaviour if it implements one. Uses the already-loaded
-`TypeInfo` to avoid a cache lookup. The caller must ensure that `TypeInfo`
-is the type info for the module that owns `TypeRef`.
-""".
--spec find_codec(type_info(), spectra:sp_type_reference(), module(), spectra:sp_config()) ->
-    {ok, module()} | error.
-find_codec(TypeInfo, TypeRef, Mod, #sp_config{codecs = Codecs}) ->
-    case Codecs of
-        #{{Mod, TypeRef} := CodecMod} ->
-            {ok, CodecMod};
-        #{} ->
-            find_local_codec(TypeInfo)
-    end.
