@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-04-24
+
+### Fixed
+- `#{}` (empty-map type) in JSON encode/decode now accepts any map input again — additional fields are silently dropped, matching the behaviour of other literal-field maps. The overly strict rejection introduced in 0.12.0 caused valid use-cases (unconstrained map types) to fail unexpectedly.
+
 ## [0.12.0] - 2026-04-24
 
 ### Added
