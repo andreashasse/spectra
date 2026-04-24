@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-04-24
+
+### Added
+- Custom codec can now operate on remote types from modules compiled without `debug_info`. Previously this required debug info to be present; now spectra falls back gracefully and the codec handles decoding directly.
+
+### Changed
+- **Breaking**: Custom codec callback argument order has changed. `TargetType` is now passed before `Data` in `encode` and `decode` callbacks, and `Format` is now the first argument in internal try-codec functions. Update any custom codec modules accordingly.
+- **Breaking**: Custom codec callback specs now use concrete types instead of `dynamic()`. This improves type checking but may require updating specs in custom codec modules.
+- Renamed `RemoteMod` to `TargetModule` in codec callback signatures for clarity.
+
 ## [0.11.4] - 2026-04-20
 
 ### Added
