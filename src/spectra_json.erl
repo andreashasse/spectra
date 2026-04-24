@@ -233,7 +233,7 @@ list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_l
     Config :: spectra:sp_config()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-map_to_json(TypeInfo, #sp_map{fields = Fields} = Map, Data, Config) when
+map_to_json(TypeInfo, #sp_map{fields = Fields}, Data, Config) when
     is_map(Data)
 ->
     %% Check if this is an Elixir struct and remove __struct__ field for JSON serialization
@@ -244,16 +244,11 @@ map_to_json(TypeInfo, #sp_map{fields = Fields} = Map, Data, Config) when
             error ->
                 Data
         end,
-    case {Fields, map_size(DataWithoutStruct)} of
-        {[], Size} when Size > 0 ->
-            {error, [sp_error:type_mismatch(Map, Data)]};
-        _ ->
-            case map_fields_to_json(TypeInfo, Fields, DataWithoutStruct, Config) of
-                {ok, MapFields} ->
-                    {ok, maps:from_list(MapFields)};
-                {error, Errors} ->
-                    {error, Errors}
-            end
+    case map_fields_to_json(TypeInfo, Fields, DataWithoutStruct, Config) of
+        {ok, MapFields} ->
+            {ok, maps:from_list(MapFields)};
+        {error, Errors} ->
+            {error, Errors}
     end;
 map_to_json(_TypeInfo, MapType, Data, _Config) ->
     {error, [sp_error:type_mismatch(MapType, Data)]}.
@@ -910,10 +905,6 @@ do_first(Fun, TypeInfo, [Type | Rest], Json, Config, ErrorsAcc) ->
 ) ->
     {ok, #{json:encode_value() => json:encode_value()}}
     | {error, [spectra:error()]}.
-map_from_json(_TypeInfo, #sp_map{fields = []} = Map, Json, _Config) when
-    is_map(Json), map_size(Json) > 0
-->
-    {error, [sp_error:type_mismatch(Map, Json)]};
 map_from_json(TypeInfo, #sp_map{fields = MapFieldType, struct_name = StructName}, Json, Config) when
     is_map(Json)
 ->

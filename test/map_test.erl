@@ -312,31 +312,36 @@ from_json_empty_map_bad_test() ->
         from_json_empty_map([])
     ).
 
-strict_empty_map_ok_test() ->
+strict_empty_map_test() ->
     ?assertEqual({ok, #{}}, to_json_strict_empty_map(#{})),
-    ?assertEqual({ok, #{}}, from_json_strict_empty_map(#{})).
+    ?assertEqual({ok, #{}}, to_json_strict_empty_map(#{a => 1})),
+    ?assertEqual({ok, #{}}, to_json_strict_empty_map(#{a => 1, b => 2})),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_map(#{})),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_map(#{<<"a">> => 1})),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_map(#{<<"a">> => 1, <<"b">> => 2})).
 
-strict_empty_map_rejects_non_empty_test() ->
+strict_empty_map_bad_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
     StrictType = spectra_type_info:get_type(TypeInfo, strict_empty_map, 0),
     ?assertEqual(
-        {error, [sp_error:type_mismatch(StrictType, #{a => 1})]},
-        to_json_strict_empty_map(#{a => 1})
+        {error, [sp_error:type_mismatch(StrictType, not_a_map)]},
+        to_json_strict_empty_map(not_a_map)
     ),
     ?assertEqual(
-        {error, [sp_error:type_mismatch(StrictType, #{<<"a">> => 1})]},
-        from_json_strict_empty_map(#{<<"a">> => 1})
+        {error, [sp_error:type_mismatch(StrictType, not_a_map)]},
+        from_json_strict_empty_map(not_a_map)
     ).
 
-strict_empty_or_rec_roundtrip_test() ->
-    %% Regression: union of #{} and a record decoded a record-shaped JSON
-    %% object as #{} because the empty-map branch silently accepted any
-    %% object and dropped its keys.
+strict_empty_map_in_union_test() ->
+    %% Encoding a record works because records are tuples, not maps, so the
+    %% #{} arm fails the is_map guard and the record arm is tried next.
     Rec = #only_atom5{f = atom5},
-    {ok, Json} = to_json_strict_empty_or_rec(Rec),
-    ?assertEqual({ok, Rec}, from_json_strict_empty_or_rec(Json)),
-    {ok, EmptyJson} = to_json_strict_empty_or_rec(#{}),
-    ?assertEqual({ok, #{}}, from_json_strict_empty_or_rec(EmptyJson)).
+    ?assertMatch({ok, #{<<"f">> := <<"atom5">>}}, to_json_strict_empty_or_rec(Rec)),
+    %% Decoding: #{} is tried first and accepts any JSON object, producing #{}
+    %% and discarding all fields. This is consistent with how other literal-field
+    %% maps work when placed first in a union.
+    ?assertEqual({ok, #{}}, from_json_strict_empty_or_rec(#{<<"f">> => <<"atom5">>})),
+    ?assertEqual({ok, #{}}, from_json_strict_empty_or_rec(#{})).
 
 map_with_tuple_value_test() ->
     ?assertError({type_not_supported, _}, to_json_map_with_tuple_value(#{a => {a}})),
