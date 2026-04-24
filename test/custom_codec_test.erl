@@ -594,9 +594,36 @@ no_debug_info_remote_encode_test() ->
                 codec_appenv_type_module,
                 #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
                 {token, <<"abc123">>},
-                [
-                    pre_encoded
-                ]
+                [pre_encoded]
+            )
+        )
+    after
+        application:unset_env(spectra, codecs),
+        code:delete(my_no_debug_mod),
+        code:purge(my_no_debug_mod)
+    end.
+
+no_debug_info_remote_decode_test() ->
+    %% Compile a dummy module without debug_info
+    {ok, my_no_debug_mod, Bin} = compile:forms(
+        [{attribute, 1, module, my_no_debug_mod}], []
+    ),
+    code:load_binary(my_no_debug_mod, "my_no_debug_mod.erl", Bin),
+
+    application:set_env(
+        spectra,
+        codecs,
+        #{{my_no_debug_mod, {type, token, 0}} => codec_appenv_type_codec}
+    ),
+    try
+        ?assertEqual(
+            {ok, {token, <<"abc123">>}},
+            spectra:decode(
+                json,
+                codec_appenv_type_module,
+                #sp_remote_type{mfargs = {my_no_debug_mod, token, []}, arity = 0},
+                <<"abc123">>,
+                [pre_decoded]
             )
         )
     after
