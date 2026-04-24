@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom codec can now operate on remote types from modules compiled without `debug_info`. Previously this required debug info to be present; now spectra falls back gracefully and the codec handles decoding directly.
 
 ### Changed
-- **Breaking**: Custom codec callback argument order has changed. `TargetType` is now passed before `Data` in `encode` and `decode` callbacks, and `Format` is now the first argument in internal try-codec functions. Update any custom codec modules accordingly.
+- **Breaking**: Custom codec callback signatures have changed. All three callbacks (`encode`, `decode`, `schema`) now receive `CallerTypeInfo :: spectra:type_info()` instead of a bare `Module :: atom()`, and a new `TargetTypeRef :: spectra:sp_type_reference()` argument is added before `TargetType`. The arities are: `encode/6`, `decode/6`, `schema/5`. The argument order is `(Format, CallerTypeInfo, TargetTypeRef, TargetType, Data, Config)` for `encode`/`decode` and `(Format, CallerTypeInfo, TargetTypeRef, TargetType, Config)` for `schema`. The separate `Params` argument no longer exists; type-variable bindings are carried on `TargetType` and accessible via `spectra_type:type_args/1`. Update all custom codec modules to the new signatures.
 
 ## [0.11.4] - 2026-04-20
 
