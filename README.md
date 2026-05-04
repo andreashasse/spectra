@@ -21,7 +21,17 @@ Add spectra to your rebar.config dependencies:
 ]}.
 ```
 
-Your modules must be compiled with `debug_info` for spectra to extract type information. If your release strips debug info, opt individual modules into the [`spectra_transform` parse transform](#parse-transform-no-debug_info-required) instead.
+By default, spectra reads type information from `debug_info` in compiled BEAM files. Rebar3 enables `debug_info` by default in development profiles. See [Running without `debug_info`](#running-without-debug_info) if you need to strip it in production.
+
+### Running without `debug_info`
+
+Some release tools strip `debug_info` from BEAM files to reduce binary size. If you cannot keep `debug_info`, you must compensate for every module whose types you encode or decode:
+
+1. **Your own modules** — add `-compile({parse_transform, spectra_transform}).` to each module. This injects `__spectra_type_info__/0` at compile time, embedding the type information directly into the module so it survives stripping. See the [Parse Transform](#parse-transform-no-debug_info-required) section for details.
+
+2. **Dependency and OTP modules** — write a [custom codec](#custom-codecs) for every type from those modules that you encode or decode, and register it via `{spectra, [{codecs, ...}]}` in your sys.config.
+
+If any type is encountered that has neither `debug_info` nor a registered codec, spectra will raise a configuration error at runtime.
 
 ## Data (de)serialization and schemas
 
