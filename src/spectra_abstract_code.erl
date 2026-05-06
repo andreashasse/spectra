@@ -169,9 +169,13 @@ validate_field_aliases(Aliases) ->
 
 -spec apply_field_aliases(spectra:sp_type(), #{atom() => binary()}) -> spectra:sp_type().
 apply_field_aliases(#sp_map{fields = Fields} = Map, Aliases) ->
-    Map#sp_map{fields = [alias_map_field(F, Aliases) || F <- Fields]};
+    Updated = [alias_map_field(F, Aliases) || F <- Fields],
+    check_unique_binary_names([BN || #literal_map_field{binary_name = BN} <- Updated]),
+    Map#sp_map{fields = Updated};
 apply_field_aliases(#sp_rec{fields = Fields} = Rec, Aliases) ->
-    Rec#sp_rec{fields = [alias_rec_field(F, Aliases) || F <- Fields]};
+    Updated = [alias_rec_field(F, Aliases) || F <- Fields],
+    check_unique_binary_names([BN || #sp_rec_field{binary_name = BN} <- Updated]),
+    Rec#sp_rec{fields = Updated};
 apply_field_aliases(#sp_union{types = Types} = Union, Aliases) ->
     Union#sp_union{types = [apply_field_aliases(T, Aliases) || T <- Types]};
 apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
@@ -193,6 +197,16 @@ alias_rec_field(#sp_rec_field{name = Name} = F, Aliases) ->
     case Aliases of
         #{Name := Alias} -> F#sp_rec_field{binary_name = Alias};
         _ -> F
+    end.
+
+-spec check_unique_binary_names([binary()]) -> ok.
+check_unique_binary_names(Names) ->
+    Sorted = lists:sort(Names),
+    case Sorted -- lists:usort(Sorted) of
+        [] ->
+            ok;
+        [Dup | _] ->
+            erlang:error({invalid_spectra_field, field_aliases, {duplicate_json_name, Dup}})
     end.
 
 -doc """

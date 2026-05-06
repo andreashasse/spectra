@@ -57,6 +57,18 @@ record_decode_rejects_unaliased_name_test() ->
         )
     ).
 
+map_decode_rejects_unaliased_name_test() ->
+    ?assertMatch(
+        {error, _},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, person_map, 0},
+            #{<<"last_name">> => <<"Smith">>},
+            [pre_decoded]
+        )
+    ).
+
 map_encode_test() ->
     ?assertEqual(
         {ok, #{<<"lastName">> => <<"Smith">>}},
@@ -118,6 +130,51 @@ invalid_field_aliases_bad_value_test() ->
     ok = file:write_file(TempFile, BeamBinary),
     ?assertError(
         {invalid_spectra_field, field_aliases, {name, not_a_binary}},
+        spectra_abstract_code:types_in_module_path(TempFile)
+    ),
+    file:delete(TempFile).
+
+duplicate_alias_in_map_type_test() ->
+    Code =
+        "-module(bad_aliases_dup_map).\n"
+        "-compile(nowarn_unused_type).\n"
+        "-spectra(#{field_aliases => #{first_name => <<\"name\">>, last_name => <<\"name\">>}}).\n"
+        "-type t() :: #{first_name := binary(), last_name := binary()}.\n",
+    {ok, bad_aliases_dup_map, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("bad_aliases_dup_map"),
+    ok = file:write_file(TempFile, BeamBinary),
+    ?assertError(
+        {invalid_spectra_field, field_aliases, {duplicate_json_name, <<"name">>}},
+        spectra_abstract_code:types_in_module_path(TempFile)
+    ),
+    file:delete(TempFile).
+
+duplicate_alias_in_record_test() ->
+    Code =
+        "-module(bad_aliases_dup_rec).\n"
+        "-compile(nowarn_unused_record).\n"
+        "-spectra(#{field_aliases => #{first_name => <<\"name\">>, last_name => <<\"name\">>}}).\n"
+        "-record(t, {first_name :: binary(), last_name :: binary()}).\n",
+    {ok, bad_aliases_dup_rec, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("bad_aliases_dup_rec"),
+    ok = file:write_file(TempFile, BeamBinary),
+    ?assertError(
+        {invalid_spectra_field, field_aliases, {duplicate_json_name, <<"name">>}},
+        spectra_abstract_code:types_in_module_path(TempFile)
+    ),
+    file:delete(TempFile).
+
+alias_collides_with_default_name_test() ->
+    Code =
+        "-module(bad_aliases_collide).\n"
+        "-compile(nowarn_unused_type).\n"
+        "-spectra(#{field_aliases => #{first_name => <<\"last_name\">>}}).\n"
+        "-type t() :: #{first_name := binary(), last_name := binary()}.\n",
+    {ok, bad_aliases_collide, BeamBinary} = spectra_test_compile:compile_module(Code),
+    TempFile = spectra_test_compile:temp_beam_path("bad_aliases_collide"),
+    ok = file:write_file(TempFile, BeamBinary),
+    ?assertError(
+        {invalid_spectra_field, field_aliases, {duplicate_json_name, <<"last_name">>}},
         spectra_abstract_code:types_in_module_path(TempFile)
     ),
     file:delete(TempFile).
