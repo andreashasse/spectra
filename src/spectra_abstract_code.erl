@@ -156,14 +156,14 @@ validate_only(Only) ->
 
 -spec validate_field_aliases(term()) -> #{atom() => binary()}.
 validate_field_aliases(Aliases) when is_map(Aliases) ->
-    maps:foreach(
+    maps:fold(
         fun
-            (K, V) when is_atom(K), is_binary(V) -> ok;
-            (K, V) -> erlang:error({invalid_spectra_field, field_aliases, {K, V}})
+            (K, V, Acc) when is_atom(K), is_binary(V) -> Acc#{K => V};
+            (K, V, _Acc) -> erlang:error({invalid_spectra_field, field_aliases, {K, V}})
         end,
+        #{},
         Aliases
-    ),
-    Aliases;
+    );
 validate_field_aliases(Aliases) ->
     erlang:error({invalid_spectra_field, field_aliases, Aliases}).
 
