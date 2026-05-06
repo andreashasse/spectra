@@ -115,9 +115,9 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     Aliases = maps:get(field_aliases, DocMap, #{}),
     OnlyFiltered =
-        case maps:get(only, DocMap, undefined) of
-            undefined -> Type;
-            Only -> apply_only(Type, validate_only(Only))
+        case DocMap of
+            #{only := Only} -> apply_only(Type, validate_only(Only));
+            #{} -> Type
         end,
     FinalType = apply_field_aliases(OnlyFiltered, validate_field_aliases(Aliases)),
     CleanDocMap = maps:without([field_aliases, only, type_parameters], DocMap),
