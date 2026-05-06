@@ -177,7 +177,8 @@ apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
 apply_field_aliases(Other, _Aliases) ->
     Other.
 
--spec alias_map_field(spectra:map_field(), #{atom() => binary()}) -> spectra:map_field().
+-spec alias_map_field(spectra:map_field(), #{atom() | integer() => binary()}) ->
+    spectra:map_field().
 alias_map_field(#literal_map_field{name = Name} = F, Aliases) ->
     case Aliases of
         #{Name := Alias} -> F#literal_map_field{binary_name = Alias};
@@ -186,7 +187,7 @@ alias_map_field(#literal_map_field{name = Name} = F, Aliases) ->
 alias_map_field(F, _Aliases) ->
     F.
 
--spec alias_rec_field(#sp_rec_field{}, #{atom() => binary()}) -> #sp_rec_field{}.
+-spec alias_rec_field(#sp_rec_field{}, #{atom() | integer() => binary()}) -> #sp_rec_field{}.
 alias_rec_field(#sp_rec_field{name = Name} = F, Aliases) ->
     case Aliases of
         #{Name := Alias} -> F#sp_rec_field{binary_name = Alias};

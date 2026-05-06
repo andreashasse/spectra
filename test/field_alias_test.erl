@@ -15,7 +15,7 @@
 -type person_with_doc() :: #{last_name := binary()}.
 
 -spectra(#{field_aliases => #{1 => <<"one">>}}).
--type int_key_map() :: #{1 := binary()}.
+-type int_key_map() :: #{1 => binary()}.
 
 %% Union: alias applies to the map branch inside the union
 -spectra(#{field_aliases => #{last_name => <<"lastName">>}}).
