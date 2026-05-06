@@ -112,23 +112,16 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
     end.
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
-attach_doc({{type, _Name, _Arity} = Key, Type}, #{only := Only} = DocMap) ->
-    Aliases = maps:get(field_aliases, DocMap, #{}),
-    FilteredType = apply_only(
-        apply_field_aliases(Type, validate_field_aliases(Aliases)), validate_only(Only)
-    ),
-    CleanDocMap = maps:remove(
-        field_aliases, maps:remove(only, maps:remove(type_parameters, DocMap))
-    ),
-    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     Aliases = maps:get(field_aliases, DocMap, #{}),
     AliasedType = apply_field_aliases(Type, validate_field_aliases(Aliases)),
-    CleanDocMap = maps:remove(field_aliases, maps:remove(type_parameters, DocMap)),
-    {Key,
-        apply_type_parameters(
-            spectra_type:add_doc_to_type(AliasedType, CleanDocMap), DocMap
-        )};
+    FilteredType =
+        case maps:find(only, DocMap) of
+            {ok, Only} -> apply_only(AliasedType, validate_only(Only));
+            error -> AliasedType
+        end,
+    CleanDocMap = maps:without([field_aliases, only, type_parameters], DocMap),
+    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{record, _Name} = Key, Record}, DocMap) ->
     Aliases = maps:get(field_aliases, DocMap, #{}),
     AliasedRecord = apply_field_aliases(Record, validate_field_aliases(Aliases)),
@@ -154,11 +147,11 @@ validate_only(Only) when is_list(Only) ->
 validate_only(Only) ->
     erlang:error({invalid_spectra_field, only, Only}).
 
--spec validate_field_aliases(term()) -> #{atom() => binary()}.
+-spec validate_field_aliases(term()) -> #{atom() | integer() => binary()}.
 validate_field_aliases(Aliases) when is_map(Aliases) ->
     maps:fold(
         fun
-            (K, V, Acc) when is_atom(K), is_binary(V) -> Acc#{K => V};
+            (K, V, Acc) when (is_atom(K) orelse is_integer(K)), is_binary(V) -> Acc#{K => V};
             (K, V, _Acc) -> erlang:error({invalid_spectra_field, field_aliases, {K, V}})
         end,
         #{},
@@ -167,7 +160,8 @@ validate_field_aliases(Aliases) when is_map(Aliases) ->
 validate_field_aliases(Aliases) ->
     erlang:error({invalid_spectra_field, field_aliases, Aliases}).
 
--spec apply_field_aliases(spectra:sp_type(), #{atom() => binary()}) -> spectra:sp_type().
+-spec apply_field_aliases(spectra:sp_type(), #{atom() | integer() => binary()}) ->
+    spectra:sp_type().
 apply_field_aliases(#sp_map{fields = Fields} = Map, Aliases) ->
     Updated = [alias_map_field(F, Aliases) || F <- Fields],
     check_unique_binary_names([BN || #literal_map_field{binary_name = BN} <- Updated]),
