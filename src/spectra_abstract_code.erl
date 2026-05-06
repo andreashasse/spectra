@@ -2,8 +2,10 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2]).
--ignore_xref([types_in_module_path/1, apply_only/2]).
+-export([
+    types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2, apply_field_aliases/2
+]).
+-ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 
