@@ -114,14 +114,14 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
     Aliases = maps:get(field_aliases, DocMap, #{}),
-    AliasedType = apply_field_aliases(Type, validate_field_aliases(Aliases)),
-    FilteredType =
+    OnlyFiltered =
         case maps:find(only, DocMap) of
-            {ok, Only} -> apply_only(AliasedType, validate_only(Only));
-            error -> AliasedType
+            {ok, Only} -> apply_only(Type, validate_only(Only));
+            error -> Type
         end,
+    FinalType = apply_field_aliases(OnlyFiltered, validate_field_aliases(Aliases)),
     CleanDocMap = maps:without([field_aliases, only, type_parameters], DocMap),
-    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
+    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FinalType, CleanDocMap), DocMap)};
 attach_doc({{record, _Name} = Key, Record}, DocMap) ->
     Aliases = maps:get(field_aliases, DocMap, #{}),
     AliasedRecord = apply_field_aliases(Record, validate_field_aliases(Aliases)),
