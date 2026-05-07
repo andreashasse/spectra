@@ -121,5 +121,10 @@ ignore_modules = [
     "typed_map_field_json_test",
     "typed_map_field_schema_test",
     "undefined_test",
-    "union_test"
+    "union_test",
+    "field_alias_test",
+    "field_alias_remote_type_a",
+    "field_alias_remote_type_b",
+    "spectra_attr_interaction_test",
+    "spectra_attr_interaction_base"
 ]
