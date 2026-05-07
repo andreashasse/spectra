@@ -859,14 +859,15 @@ response_builder_basic_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
     ?assertMatch(
         #{
-            description := <<"Success">>,
-            schema := {record, user_list},
-            module := ?MODULE
+            responses := #{
+                200 := #{
+                    description := <<"Success">>, schema := {record, user_list}, module := ?MODULE
+                }
+            }
         },
-        AddedResponse
+        Endpoint
     ).
 
 %% Test response builder with custom content type
@@ -883,8 +884,7 @@ response_builder_with_content_type_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
-    ?assertMatch(#{content_type := <<"application/xml">>}, AddedResponse).
+    ?assertMatch(#{responses := #{200 := #{content_type := <<"application/xml">>}}}, Endpoint).
 
 %% Test response builder with headers
 response_builder_with_headers_test() ->
@@ -914,10 +914,9 @@ response_builder_with_headers_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
     ?assertMatch(
-        #{headers := #{<<"X-Rate-Limit">> := _, <<"X-Request-ID">> := _}},
-        AddedResponse
+        #{responses := #{200 := #{headers := #{<<"X-Rate-Limit">> := _, <<"X-Request-ID">> := _}}}},
+        Endpoint
     ).
 
 %% Test response builder with everything
@@ -952,16 +951,19 @@ response_builder_complete_test() ->
     Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{201 := AddedResponse}} = Endpoint,
     ?assertMatch(
         #{
-            description := <<"User created">>,
-            schema := {record, user},
-            module := ?MODULE,
-            content_type := <<"application/json">>,
-            headers := #{<<"Location">> := _, <<"X-Request-ID">> := _}
+            responses := #{
+                201 := #{
+                    description := <<"User created">>,
+                    schema := {record, user},
+                    module := ?MODULE,
+                    content_type := <<"application/json">>,
+                    headers := #{<<"Location">> := _, <<"X-Request-ID">> := _}
+                }
+            }
         },
-        AddedResponse
+        Endpoint
     ).
 
 %% Test multiple responses built with builder pattern
@@ -1229,11 +1231,17 @@ info_extended_fields_test() ->
             [pre_encoded]
         ),
 
-    #{<<"info">> := Info} = OpenAPISpec,
-    ?assertMatch(#{<<"summary">> := <<"Short summary">>}, Info),
-    ?assertMatch(#{<<"termsOfService">> := <<"https://example.com/tos">>}, Info),
-    ?assertMatch(#{<<"contact">> := #{<<"name">> := <<"Support">>}}, Info),
-    ?assertMatch(#{<<"license">> := #{<<"name">> := <<"MIT">>}}, Info).
+    ?assertMatch(
+        #{
+            <<"info">> := #{
+                <<"summary">> := <<"Short summary">>,
+                <<"termsOfService">> := <<"https://example.com/tos">>,
+                <<"contact">> := #{<<"name">> := <<"Support">>},
+                <<"license">> := #{<<"name">> := <<"MIT">>}
+            }
+        },
+        OpenAPISpec
+    ).
 
 %% Test that absent info fields are not included in output
 info_extended_fields_absent_test() ->
