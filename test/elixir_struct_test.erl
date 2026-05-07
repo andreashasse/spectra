@@ -170,7 +170,7 @@ run_from_json_only() ->
 schema_only_includes_listed_fields_test() ->
     TypeInfo = spectra_abstract_code:types_in_module(elixir_test_user_struct_types),
     Schema = spectra:schema(json_schema, TypeInfo, {type, t_only, 0}, [pre_encoded]),
-    Properties = maps:get(properties, Schema),
+    #{properties := Properties} = Schema,
     ?assertEqual([<<"age">>, <<"name">>], lists:sort(maps:keys(Properties))).
 
 to_json_only_union_excludes_other_fields_test() ->
@@ -216,5 +216,5 @@ schema_only_parameterized_type_test() ->
     %% binary_item() = item(binary()) where item/1 has only => [name]
     %% Without the fix, 'age' also appears because apply_only bypasses #sp_type_with_variables{}
     Schema = spectra:schema(json_schema, TypeInfo, binary_item, [pre_encoded]),
-    Properties = maps:get(properties, Schema),
+    #{properties := Properties} = Schema,
     ?assertEqual([<<"name">>], lists:sort(maps:keys(Properties))).

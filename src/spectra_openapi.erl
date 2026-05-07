@@ -630,7 +630,7 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
 group_endpoints_by_path(Endpoints) ->
     lists:foldl(
         fun(Endpoint, Acc) ->
-            Path = maps:get(path, Endpoint),
+            #{path := Path} = Endpoint,
             PathEndpoints = maps:get(Path, Acc, []),
             Acc#{Path => [Endpoint | PathEndpoints]}
         end,
