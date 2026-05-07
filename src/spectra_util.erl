@@ -220,11 +220,12 @@ type_replace_vars(TypeInfo, #sp_type_with_variables{type = Type}, NamedTypes) ->
                         Fields
                     )
             };
-        #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes} ->
+        #sp_rec_ref{record_name = RecordName, field_types = RefFieldTypes, meta = RefMeta} ->
             {ok, #sp_rec{fields = Fields} = Rec} = spectra_type_info:find_record(
                 TypeInfo, RecordName
             ),
-            NewRec = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
+            NewRec0 = Rec#sp_rec{fields = record_replace_vars(Fields, RefFieldTypes)},
+            NewRec = spectra_abstract_code:apply_ref_meta(NewRec0, RefMeta),
             type_replace_vars(TypeInfo, NewRec, NamedTypes);
         _ ->
             type_replace_vars(TypeInfo, Type, NamedTypes)
