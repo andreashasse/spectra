@@ -118,7 +118,10 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef, Config) ->
         spectra_codec:try_codec_schema(json_schema, TypeInfo, Module, TypeRef, RecordRef, Config)
     of
         continue ->
-            RecordType = spectra_type_info:get_record(TypeInfo, N),
+            RecordType0 = spectra_type_info:get_record(TypeInfo, N),
+            RecordType = spectra_abstract_code:apply_ref_meta(
+                RecordType0, RecordRef#sp_rec_ref.meta
+            ),
             Schema = record_to_schema_internal(TypeInfo, RecordType, Config),
             merge_type_doc_into_schema(TypeInfo, RecordType, Schema, Config);
         Schema ->

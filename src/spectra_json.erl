@@ -100,7 +100,10 @@ to_json(
         spectra_codec:try_codec_encode(json, TypeInfo, Module, TypeRef, RecordRef, Record, Config)
     of
         continue ->
-            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            RecordType0 = spectra_type_info:get_record(TypeInfo, RecordName),
+            RecordType = spectra_abstract_code:apply_ref_meta(
+                RecordType0, RecordRef#sp_rec_ref.meta
+            ),
             record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
         Result ->
             Result
@@ -580,7 +583,10 @@ do_from_json(
     Module = spectra_type_info:get_module(TypeInfo),
     case spectra_codec:try_codec_decode(json, TypeInfo, Module, TypeRef, RecordRef, Json, Config) of
         continue ->
-            RecordType = spectra_type_info:get_record(TypeInfo, RecordName),
+            RecordType0 = spectra_type_info:get_record(TypeInfo, RecordName),
+            RecordType = spectra_abstract_code:apply_ref_meta(
+                RecordType0, RecordRef#sp_rec_ref.meta
+            ),
             record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);
         Result ->
             Result

@@ -185,6 +185,8 @@ apply_field_aliases(#sp_remote_type{meta = Meta} = Remote, Aliases) when map_siz
     Remote#sp_remote_type{meta = Meta#{field_aliases => Aliases}};
 apply_field_aliases(#sp_user_type_ref{meta = Meta} = Ref, Aliases) when map_size(Aliases) > 0 ->
     Ref#sp_user_type_ref{meta = Meta#{field_aliases => Aliases}};
+apply_field_aliases(#sp_rec_ref{meta = Meta} = RecRef, Aliases) when map_size(Aliases) > 0 ->
+    RecRef#sp_rec_ref{meta = Meta#{field_aliases => Aliases}};
 apply_field_aliases(Other, _Aliases) ->
     Other.
 
@@ -238,10 +240,12 @@ apply_only(#sp_remote_type{meta = Meta} = Remote, Only) ->
     Remote#sp_remote_type{meta = Meta#{only => Only}};
 apply_only(#sp_user_type_ref{meta = Meta} = Ref, Only) ->
     Ref#sp_user_type_ref{meta = Meta#{only => Only}};
+apply_only(#sp_rec_ref{meta = Meta} = RecRef, Only) ->
+    RecRef#sp_rec_ref{meta = Meta#{only => Only}};
 apply_only(Other, _Only) ->
     Other.
 
--doc "Applies all structural transforms stored in a type-ref meta map (`only`, `field_aliases`) to a resolved type. Call after resolving a `#sp_user_type_ref{}` or `#sp_remote_type{}` to honour transforms declared at the alias site.".
+-doc "Applies all structural transforms stored in a type-ref meta map (`only`, `field_aliases`) to a resolved type. Call after resolving a `#sp_user_type_ref{}`, `#sp_remote_type{}`, or `#sp_rec_ref{}` to honour transforms declared at the alias site.".
 -spec apply_ref_meta(spectra:sp_type(), spectra:sp_type_meta()) -> spectra:sp_type().
 apply_ref_meta(Type, Meta) ->
     OnlyFiltered =

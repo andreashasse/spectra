@@ -33,6 +33,13 @@
 -spectra(#{field_aliases => #{first_name => <<"firstName">>}}).
 -type aliased_person() :: base_person().
 
+%% Record ref: alias-site field_aliases applied to a type that resolves to #sp_rec_ref{}.
+%% employee has no definition-site aliases; aliases are applied at the type reference site.
+-record(employee, {emp_id :: integer(), full_name :: binary()}).
+
+-spectra(#{field_aliases => #{emp_id => <<"employeeId">>, full_name => <<"fullName">>}}).
+-type employee_ref() :: #employee{}.
+
 %% only through a local type reference
 -spectra(#{only => [first_name]}).
 -type only_local_ref() :: base_person().
@@ -430,3 +437,43 @@ only_remote_ref_decode_test() ->
             [pre_decoded]
         )
     ).
+
+%% Record ref: field_aliases applied via a type that resolves to #sp_rec_ref{}.
+
+rec_ref_alias_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"employeeId">> => 42, <<"fullName">> => <<"Alice">>}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, employee_ref, 0},
+            #employee{emp_id = 42, full_name = <<"Alice">>},
+            [pre_encoded]
+        )
+    ).
+
+rec_ref_alias_decode_test() ->
+    ?assertEqual(
+        {ok, #employee{emp_id = 42, full_name = <<"Alice">>}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, employee_ref, 0},
+            #{<<"employeeId">> => 42, <<"fullName">> => <<"Alice">>},
+            [pre_decoded]
+        )
+    ).
+
+rec_ref_alias_roundtrip_test() ->
+    Original = #employee{emp_id = 1, full_name = <<"Bob">>},
+    {ok, Json} = spectra:encode(json, ?MODULE, {type, employee_ref, 0}, Original, [pre_encoded]),
+    ?assertEqual(
+        {ok, Original}, spectra:decode(json, ?MODULE, {type, employee_ref, 0}, Json, [pre_decoded])
+    ).
+
+rec_ref_alias_schema_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, employee_ref, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+    ?assertMatch(#{<<"properties">> := #{<<"employeeId">> := _, <<"fullName">> := _}}, Schema),
+    ?assertNot(maps:is_key(<<"emp_id">>, maps:get(<<"properties">>, Schema))),
+    ?assertNot(maps:is_key(<<"full_name">>, maps:get(<<"properties">>, Schema))).
