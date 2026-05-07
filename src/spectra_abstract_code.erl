@@ -746,7 +746,7 @@ record_field_info(
         default = eval_record_default(Default)
     }.
 
--spec eval_record_default(term()) -> undefined | {value, term()}.
+-spec eval_record_default(dynamic()) -> undefined | {value, term()}.
 eval_record_default(DefaultExpr) ->
     try
         {value, Value, _} = erl_eval:expr(DefaultExpr, []),
