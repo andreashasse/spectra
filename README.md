@@ -397,6 +397,7 @@ The `-spectra()` attribute annotates types, records, and function specs with met
 | `examples` | `[term()]` | Example values (use tuple syntax for records) |
 | `examples_function` | `{module(), atom(), [term()]}` | MFA returning example values — avoids tuple syntax for records |
 | `type_parameters` | `term()` | Passed to codec callbacks; also enables string/binary constraints (see [Type Parameters](#type-parameters)) |
+| `field_aliases` | `#{atom() \| integer() => binary()}` | Map Erlang field names to different JSON key names (see [Field Aliases with `field_aliases`](#field-aliases-with-field_aliases)) |
 | `only` | `[atom()]` | Restrict encoding, decoding, and schema to the listed field names (see [Field Filtering with `only`](#field-filtering-with-only)) |
 
 **Before a `-spec` declaration:**
@@ -483,6 +484,23 @@ The `only` filter propagates through union types, so `t() | undefined` works as 
 > decoded plain maps, and absent from the encoded JSON — the result does not fully conform to the
 > declared Erlang type. This is intentional: `only` is an opt-in escape hatch for controlling the
 > external representation independently of the internal type. Dialyzer will not warn about this.
+
+## Field Aliases with `field_aliases`
+
+The `field_aliases` key in the `-spectra()` attribute renames fields in the external (JSON) representation without changing the Erlang field names. It is useful for mapping snake_case Erlang conventions to camelCase JSON conventions, or any other name transformation.
+
+```erlang
+-spectra(#{field_aliases => #{first_name => <<"firstName">>, last_name => <<"lastName">>}}).
+-record(person, {first_name :: binary(), last_name :: binary()}).
+```
+
+With this definition:
+
+- **Encoding**: `#person{first_name = <<"Alice">>, last_name = <<"Smith">>}` encodes to `{"firstName":"Alice","lastName":"Smith"}`
+- **Decoding**: expects `<<"firstName">>` and `<<"lastName">>` in the JSON — the original atom name is rejected
+- **Schema**: the generated schema uses `firstName` and `lastName` as property names
+
+`field_aliases` works for both records and maps (including integer-keyed maps).
 
 ## OpenAPI Spec
 

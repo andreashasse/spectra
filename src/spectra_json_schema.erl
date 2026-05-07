@@ -83,7 +83,10 @@ do_to_schema(
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars0 = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_abstract_code:apply_ref_meta(
+                TypeWithoutVars0, UserTypeRef#sp_user_type_ref.meta
+            ),
             do_to_schema(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
@@ -98,8 +101,11 @@ do_to_schema(
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Mod, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-            TypeResolved = spectra_type:propagate_params(
+            TypeResolved0 = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            TypeResolved = spectra_abstract_code:apply_ref_meta(
+                TypeResolved0, RemoteRef#sp_remote_type.meta
             ),
             do_to_schema(RemoteTypeInfo, TypeResolved, Config);
         Schema ->
@@ -112,7 +118,11 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef, Config) ->
         spectra_codec:try_codec_schema(json_schema, TypeInfo, Module, TypeRef, RecordRef, Config)
     of
         continue ->
-            RecordType = spectra_type_info:get_record(TypeInfo, N),
+            RecordType0 = spectra_type_info:get_record(TypeInfo, N),
+            #sp_rec{} =
+                RecordType = spectra_abstract_code:apply_ref_meta(
+                    RecordType0, RecordRef#sp_rec_ref.meta
+                ),
             Schema = record_to_schema_internal(TypeInfo, RecordType, Config),
             merge_type_doc_into_schema(TypeInfo, RecordType, Schema, Config);
         Schema ->
@@ -347,8 +357,13 @@ record_to_schema_internal(TypeInfo, #sp_rec{} = Record, Config) ->
 
 -spec record_fields_to_schema(spectra:type_info(), #sp_rec{}, spectra:sp_config()) ->
     json_schema_object().
-record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}, Config) ->
-    {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, [], Config),
+record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields, meta = Meta}, Config) ->
+    FilteredFields =
+        case Meta of
+            #{only := Only} -> [F || #sp_rec_field{name = N} = F <- Fields, lists:member(N, Only)];
+            _ -> Fields
+        end,
+    {Properties, Required} = process_record_fields(TypeInfo, FilteredFields, #{}, [], Config),
     #{
         type => <<"object">>,
         properties => Properties,

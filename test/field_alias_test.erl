@@ -27,6 +27,31 @@
 -type named(T) :: #{name := T}.
 -type named_binary() :: named(binary()).
 
+%% Local type reference: alias applied at the alias site, not the definition site.
+-type base_person() :: #{first_name := binary(), last_name := binary()} | undefined.
+
+-spectra(#{field_aliases => #{first_name => <<"firstName">>}}).
+-type aliased_person() :: base_person().
+
+%% Record ref: alias-site field_aliases applied to a type that resolves to #sp_rec_ref{}.
+%% employee has no definition-site aliases; aliases are applied at the type reference site.
+-record(employee, {emp_id :: integer(), full_name :: binary()}).
+
+-spectra(#{field_aliases => #{emp_id => <<"employeeId">>, full_name => <<"fullName">>}}).
+-type employee_ref() :: #employee{}.
+
+%% only through a record ref: expose just emp_id.
+-spectra(#{only => [emp_id]}).
+-type employee_id_only() :: #employee{}.
+
+%% only through a local type reference
+-spectra(#{only => [first_name]}).
+-type only_local_ref() :: base_person().
+
+%% only through a remote type reference
+-spectra(#{only => [first_name]}).
+-type only_remote_ref() :: field_alias_remote_type_a:t().
+
 record_encode_test() ->
     ?assertEqual(
         {ok, #{<<"firstName">> => <<"John">>, <<"lastName">> => <<"Smith">>}},
@@ -267,3 +292,224 @@ type_with_variables_alias_decode_test() ->
             pre_decoded
         ])
     ).
+
+%% Remote type aliasing: field_aliases on a type that is defined in another module.
+%% Module B aliases first_name => <<"firstName">> on a:t() which is #{first_name, last_name} | undefined.
+
+remote_type_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>}},
+        spectra:encode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+remote_type_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>, last_name => <<"Smith">>}},
+        spectra:decode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>},
+            [pre_decoded]
+        )
+    ).
+
+remote_type_undefined_branch_test() ->
+    ?assertEqual(
+        {ok, undefined},
+        spectra:decode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            null,
+            [pre_decoded]
+        )
+    ).
+
+remote_type_roundtrip_test() ->
+    Value = #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+    {ok, JsonIO} = spectra:encode(json, field_alias_remote_type_b, {type, my_t, 0}, Value),
+    Json = iolist_to_binary(JsonIO),
+    ?assertEqual(
+        {ok, Value}, spectra:decode(json, field_alias_remote_type_b, {type, my_t, 0}, Json)
+    ).
+
+remote_type_schema_test() ->
+    Schema = spectra:schema(
+        json_schema, field_alias_remote_type_b, {type, my_t, 0}, [pre_encoded]
+    ),
+    %% pre_encoded returns Erlang maps with atom keys.
+    #{properties := Props} = Schema,
+    ?assert(maps:is_key(<<"firstName">>, Props)),
+    ?assert(maps:is_key(<<"last_name">>, Props)),
+    ?assertNot(maps:is_key(<<"first_name">>, Props)).
+
+%% Local type reference aliasing: alias applied in the same module at the alias site.
+
+local_type_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, aliased_person, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+local_type_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>, last_name => <<"Smith">>}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, aliased_person, 0},
+            #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>},
+            [pre_decoded]
+        )
+    ).
+
+local_type_ref_undefined_branch_test() ->
+    ?assertEqual(
+        {ok, undefined},
+        spectra:decode(
+            json, ?MODULE, {type, aliased_person, 0}, null, [pre_decoded]
+        )
+    ).
+
+local_type_ref_roundtrip_test() ->
+    Value = #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+    {ok, JsonIO} = spectra:encode(json, ?MODULE, {type, aliased_person, 0}, Value),
+    Json = iolist_to_binary(JsonIO),
+    ?assertEqual({ok, Value}, spectra:decode(json, ?MODULE, {type, aliased_person, 0}, Json)).
+
+%% only through a local type reference
+
+only_local_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"first_name">> => <<"Alice">>}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, only_local_ref, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+only_local_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, only_local_ref, 0},
+            #{<<"first_name">> => <<"Alice">>},
+            [pre_decoded]
+        )
+    ).
+
+%% only through a remote type reference
+
+only_remote_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"first_name">> => <<"Alice">>}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, only_remote_ref, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+only_remote_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, only_remote_ref, 0},
+            #{<<"first_name">> => <<"Alice">>},
+            [pre_decoded]
+        )
+    ).
+
+%% Record ref: field_aliases applied via a type that resolves to #sp_rec_ref{}.
+
+rec_ref_alias_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"employeeId">> => 42, <<"fullName">> => <<"Alice">>}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, employee_ref, 0},
+            #employee{emp_id = 42, full_name = <<"Alice">>},
+            [pre_encoded]
+        )
+    ).
+
+rec_ref_alias_decode_test() ->
+    ?assertEqual(
+        {ok, #employee{emp_id = 42, full_name = <<"Alice">>}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, employee_ref, 0},
+            #{<<"employeeId">> => 42, <<"fullName">> => <<"Alice">>},
+            [pre_decoded]
+        )
+    ).
+
+rec_ref_alias_roundtrip_test() ->
+    Original = #employee{emp_id = 1, full_name = <<"Bob">>},
+    {ok, Json} = spectra:encode(json, ?MODULE, {type, employee_ref, 0}, Original, [pre_encoded]),
+    ?assertEqual(
+        {ok, Original}, spectra:decode(json, ?MODULE, {type, employee_ref, 0}, Json, [pre_decoded])
+    ).
+
+rec_ref_alias_schema_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, employee_ref, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+    ?assertMatch(#{<<"properties">> := #{<<"employeeId">> := _, <<"fullName">> := _}}, Schema),
+    ?assertNot(maps:is_key(<<"emp_id">>, maps:get(<<"properties">>, Schema))),
+    ?assertNot(maps:is_key(<<"full_name">>, maps:get(<<"properties">>, Schema))).
+
+%% only through a record ref: expose just emp_id.
+
+only_rec_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"emp_id">> => 42}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, employee_id_only, 0},
+            #employee{emp_id = 42, full_name = <<"Alice">>},
+            [pre_encoded]
+        )
+    ).
+
+only_rec_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #employee{emp_id = 42, full_name = undefined}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, employee_id_only, 0},
+            #{<<"emp_id">> => 42},
+            [pre_decoded]
+        )
+    ).
+
+only_rec_ref_schema_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, employee_id_only, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+    ?assertMatch(#{<<"properties">> := #{<<"emp_id">> := _}}, Schema),
+    ?assertNot(maps:is_key(<<"full_name">>, maps:get(<<"properties">>, Schema))).

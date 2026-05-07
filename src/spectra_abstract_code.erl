@@ -3,9 +3,14 @@
 -include("../include/spectra_internal.hrl").
 
 -export([
-    types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2, apply_field_aliases/2
+    types_in_module/1,
+    types_in_module_path/1,
+    types_in_forms/2,
+    apply_only/2,
+    apply_field_aliases/2,
+    apply_ref_meta/2
 ]).
--ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2]).
+-ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2, apply_ref_meta/2]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 
@@ -168,14 +173,29 @@ apply_field_aliases(#sp_map{fields = Fields} = Map, Aliases) ->
     Updated = [alias_map_field(F, Aliases) || F <- Fields],
     check_unique_binary_names([BN || #literal_map_field{binary_name = BN} <- Updated]),
     Map#sp_map{fields = Updated};
-apply_field_aliases(#sp_rec{fields = Fields} = Rec, Aliases) ->
+apply_field_aliases(#sp_rec{fields = Fields, meta = Meta} = Rec, Aliases) ->
     Updated = [alias_rec_field(F, Aliases) || F <- Fields],
-    check_unique_binary_names([BN || #sp_rec_field{binary_name = BN} <- Updated]),
+    Only = maps:get(only, Meta, all),
+    IncludedNames = [
+        BN
+     || #sp_rec_field{binary_name = BN, name = N} <- Updated,
+        Only =:= all orelse lists:member(N, Only)
+    ],
+    check_unique_binary_names(IncludedNames),
     Rec#sp_rec{fields = Updated};
 apply_field_aliases(#sp_union{types = Types} = Union, Aliases) ->
     Union#sp_union{types = [apply_field_aliases(T, Aliases) || T <- Types]};
 apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
     TWV#sp_type_with_variables{type = apply_field_aliases(Inner, Aliases)};
+apply_field_aliases(#sp_remote_type{meta = Meta} = Remote, Aliases) when map_size(Aliases) > 0 ->
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    Remote#sp_remote_type{meta = Meta#{field_aliases => Merged}};
+apply_field_aliases(#sp_user_type_ref{meta = Meta} = Ref, Aliases) when map_size(Aliases) > 0 ->
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    Ref#sp_user_type_ref{meta = Meta#{field_aliases => Merged}};
+apply_field_aliases(#sp_rec_ref{meta = Meta} = RecRef, Aliases) when map_size(Aliases) > 0 ->
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    RecRef#sp_rec_ref{meta = Meta#{field_aliases => Merged}};
 apply_field_aliases(Other, _Aliases) ->
     Other.
 
@@ -210,23 +230,52 @@ check_unique_binary_names(Names) ->
 Filters the fields of a map type to only those named in `Only`.
 
 Propagates through `#sp_union{}` members so that types like `MyStruct | nil`
-work correctly. `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes are passed
-through unchanged — they resolve at encode/decode time and cannot be filtered
-here without cross-module type resolution.
+work correctly. For `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes the
+filter list is stored in the node's `meta` map and applied after the type is
+resolved at encode/decode/schema time.
 
 **Note:** When `only` is used, the produced or accepted maps may not fully conform
 to the declared Erlang type. This is intentional.
 """.
+-spec intersect_only([atom()], [atom()] | all) -> [atom()].
+intersect_only(New, all) -> New;
+intersect_only(New, Existing) -> [F || F <- New, lists:member(F, Existing)].
+
 -spec apply_only(spectra:sp_type(), [atom()]) -> spectra:sp_type().
 apply_only(#sp_map{fields = Fields} = Map, Only) ->
     FilteredFields = [F || #literal_map_field{name = N} = F <- Fields, lists:member(N, Only)],
     Map#sp_map{fields = FilteredFields};
+apply_only(#sp_rec{meta = Meta} = Rec, Only) ->
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Rec#sp_rec{meta = Meta#{only => Intersected}};
 apply_only(#sp_union{types = Types} = Union, Only) ->
     Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
 apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->
     TypeWithVars#sp_type_with_variables{type = apply_only(Inner, Only)};
+apply_only(#sp_remote_type{meta = Meta} = Remote, Only) ->
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Remote#sp_remote_type{meta = Meta#{only => Intersected}};
+apply_only(#sp_user_type_ref{meta = Meta} = Ref, Only) ->
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Ref#sp_user_type_ref{meta = Meta#{only => Intersected}};
+apply_only(#sp_rec_ref{meta = Meta} = RecRef, Only) ->
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    RecRef#sp_rec_ref{meta = Meta#{only => Intersected}};
 apply_only(Other, _Only) ->
     Other.
+
+-doc "Applies all structural transforms stored in a type-ref meta map (`only`, `field_aliases`) to a resolved type. Call after resolving a `#sp_user_type_ref{}`, `#sp_remote_type{}`, or `#sp_rec_ref{}` to honour transforms declared at the alias site.".
+-spec apply_ref_meta(spectra:sp_type(), spectra:sp_type_meta()) -> spectra:sp_type().
+apply_ref_meta(Type, Meta) ->
+    OnlyFiltered =
+        case Meta of
+            #{only := Only} -> apply_only(Type, Only);
+            _ -> Type
+        end,
+    case Meta of
+        #{field_aliases := Aliases} -> apply_field_aliases(OnlyFiltered, Aliases);
+        _ -> OnlyFiltered
+    end.
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->
