@@ -475,7 +475,7 @@ The `only` key in the `-spectra()` attribute restricts which fields are included
 With this definition:
 
 - **Encoding**: only `name` and `age` appear in the JSON output — `email` and `password_hash` are omitted even if present in the input map.
-- **Decoding**: only `name` and `age` are read from the JSON input. For Elixir structs, excluded fields are still populated from the struct's default values (via `__struct__/0`). Extra fields in the JSON for excluded fields are silently ignored.
+- **Decoding**: only `name` and `age` are read from the JSON input. For Elixir structs, excluded fields are populated from the struct's default values (via `__struct__/0`). For Erlang records, excluded fields are populated from their declared record default (e.g. `field = default_value :: type()`); fields with no declared default receive `undefined`. Extra fields in the JSON for excluded fields are silently ignored.
 - **Schema**: the generated schema includes only `name` and `age` as properties.
 
 The `only` filter propagates through union types, so `t() | undefined` works as expected — the map member is filtered and the `undefined` literal is left unchanged.
