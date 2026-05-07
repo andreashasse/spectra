@@ -3,9 +3,10 @@
 -include("../include/spectra_internal.hrl").
 
 -export([
-    types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2, apply_field_aliases/2
+    types_in_module/1, types_in_module_path/1, types_in_forms/2,
+    apply_only/2, apply_field_aliases/2, apply_ref_meta/2
 ]).
--ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2]).
+-ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2, apply_ref_meta/2]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 
@@ -176,6 +177,10 @@ apply_field_aliases(#sp_union{types = Types} = Union, Aliases) ->
     Union#sp_union{types = [apply_field_aliases(T, Aliases) || T <- Types]};
 apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
     TWV#sp_type_with_variables{type = apply_field_aliases(Inner, Aliases)};
+apply_field_aliases(#sp_remote_type{meta = Meta} = Remote, Aliases) when map_size(Aliases) > 0 ->
+    Remote#sp_remote_type{meta = Meta#{field_aliases => Aliases}};
+apply_field_aliases(#sp_user_type_ref{meta = Meta} = Ref, Aliases) when map_size(Aliases) > 0 ->
+    Ref#sp_user_type_ref{meta = Meta#{field_aliases => Aliases}};
 apply_field_aliases(Other, _Aliases) ->
     Other.
 
@@ -210,9 +215,9 @@ check_unique_binary_names(Names) ->
 Filters the fields of a map type to only those named in `Only`.
 
 Propagates through `#sp_union{}` members so that types like `MyStruct | nil`
-work correctly. `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes are passed
-through unchanged — they resolve at encode/decode time and cannot be filtered
-here without cross-module type resolution.
+work correctly. For `#sp_user_type_ref{}` and `#sp_remote_type{}` nodes the
+filter list is stored in the node's `meta` map and applied after the type is
+resolved at encode/decode/schema time.
 
 **Note:** When `only` is used, the produced or accepted maps may not fully conform
 to the declared Erlang type. This is intentional.
@@ -225,8 +230,23 @@ apply_only(#sp_union{types = Types} = Union, Only) ->
     Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
 apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->
     TypeWithVars#sp_type_with_variables{type = apply_only(Inner, Only)};
+apply_only(#sp_remote_type{meta = Meta} = Remote, Only) ->
+    Remote#sp_remote_type{meta = Meta#{only => Only}};
+apply_only(#sp_user_type_ref{meta = Meta} = Ref, Only) ->
+    Ref#sp_user_type_ref{meta = Meta#{only => Only}};
 apply_only(Other, _Only) ->
     Other.
+
+-doc "Applies all structural transforms stored in a type-ref meta map (`only`, `field_aliases`) to a resolved type. Call after resolving a `#sp_user_type_ref{}` or `#sp_remote_type{}` to honour transforms declared at the alias site.".
+-spec apply_ref_meta(spectra:sp_type(), spectra:sp_type_meta()) -> spectra:sp_type().
+apply_ref_meta(Type, Meta) ->
+    OnlyFiltered =
+        case Meta of
+            #{only := Only} -> apply_only(Type, Only);
+            _ -> Type
+        end,
+    Aliases = maps:get(field_aliases, Meta, #{}),
+    apply_field_aliases(OnlyFiltered, Aliases).
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->

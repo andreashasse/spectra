@@ -83,7 +83,10 @@ do_to_schema(
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, N, Arity),
-            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars0 = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_abstract_code:apply_ref_meta(
+                TypeWithoutVars0, UserTypeRef#sp_user_type_ref.meta
+            ),
             do_to_schema(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
@@ -98,8 +101,11 @@ do_to_schema(
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Mod, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, Arity),
-            TypeResolved = spectra_type:propagate_params(
+            TypeResolved0 = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            TypeResolved = spectra_abstract_code:apply_ref_meta(
+                TypeResolved0, RemoteRef#sp_remote_type.meta
             ),
             do_to_schema(RemoteTypeInfo, TypeResolved, Config);
         Schema ->

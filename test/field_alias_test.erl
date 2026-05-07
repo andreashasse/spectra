@@ -27,6 +27,20 @@
 -type named(T) :: #{name := T}.
 -type named_binary() :: named(binary()).
 
+%% Local type reference: alias applied at the alias site, not the definition site.
+-type base_person() :: #{first_name := binary(), last_name := binary()} | undefined.
+
+-spectra(#{field_aliases => #{first_name => <<"firstName">>}}).
+-type aliased_person() :: base_person().
+
+%% only through a local type reference
+-spectra(#{only => [first_name]}).
+-type only_local_ref() :: base_person().
+
+%% only through a remote type reference
+-spectra(#{only => [first_name]}).
+-type only_remote_ref() :: field_alias_remote_type_a:t().
+
 record_encode_test() ->
     ?assertEqual(
         {ok, #{<<"firstName">> => <<"John">>, <<"lastName">> => <<"Smith">>}},
@@ -266,4 +280,147 @@ type_with_variables_alias_decode_test() ->
         spectra:decode(json, ?MODULE, {type, named_binary, 0}, #{<<"fullName">> => <<"Alice">>}, [
             pre_decoded
         ])
+    ).
+
+%% Remote type aliasing: field_aliases on a type that is defined in another module.
+%% Module B aliases first_name => <<"firstName">> on a:t() which is #{first_name, last_name} | undefined.
+
+remote_type_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>}},
+        spectra:encode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+remote_type_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>, last_name => <<"Smith">>}},
+        spectra:decode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>},
+            [pre_decoded]
+        )
+    ).
+
+remote_type_undefined_branch_test() ->
+    ?assertEqual(
+        {ok, undefined},
+        spectra:decode(
+            json,
+            field_alias_remote_type_b,
+            {type, my_t, 0},
+            null,
+            [pre_decoded]
+        )
+    ).
+
+remote_type_roundtrip_test() ->
+    Value = #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+    {ok, JsonIO} = spectra:encode(json, field_alias_remote_type_b, {type, my_t, 0}, Value),
+    Json = iolist_to_binary(JsonIO),
+    ?assertEqual({ok, Value}, spectra:decode(json, field_alias_remote_type_b, {type, my_t, 0}, Json)).
+
+remote_type_schema_test() ->
+    Schema = spectra:schema(
+        json_schema, field_alias_remote_type_b, {type, my_t, 0}, [pre_encoded]
+    ),
+    %% Locate the object branch (may be top-level or inside oneOf/anyOf).
+    %% pre_encoded returns Erlang maps with atom keys.
+    MapBranch =
+        case Schema of
+            #{oneOf := Branches} ->
+                hd([B || B = #{type := <<"object">>} <- Branches]);
+            #{type := <<"object">>} ->
+                Schema
+        end,
+    #{properties := Props} = MapBranch,
+    ?assert(maps:is_key(<<"firstName">>, Props)),
+    ?assert(maps:is_key(<<"last_name">>, Props)),
+    ?assertNot(maps:is_key(<<"first_name">>, Props)).
+
+%% Local type reference aliasing: alias applied in the same module at the alias site.
+
+local_type_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>}},
+        spectra:encode(
+            json, ?MODULE, {type, aliased_person, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+local_type_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>, last_name => <<"Smith">>}},
+        spectra:decode(
+            json, ?MODULE, {type, aliased_person, 0},
+            #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>},
+            [pre_decoded]
+        )
+    ).
+
+local_type_ref_undefined_branch_test() ->
+    ?assertEqual(
+        {ok, undefined},
+        spectra:decode(
+            json, ?MODULE, {type, aliased_person, 0}, null, [pre_decoded]
+        )
+    ).
+
+local_type_ref_roundtrip_test() ->
+    Value = #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+    {ok, JsonIO} = spectra:encode(json, ?MODULE, {type, aliased_person, 0}, Value),
+    Json = iolist_to_binary(JsonIO),
+    ?assertEqual({ok, Value}, spectra:decode(json, ?MODULE, {type, aliased_person, 0}, Json)).
+
+%% only through a local type reference
+
+only_local_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"first_name">> => <<"Alice">>}},
+        spectra:encode(
+            json, ?MODULE, {type, only_local_ref, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+only_local_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>}},
+        spectra:decode(
+            json, ?MODULE, {type, only_local_ref, 0},
+            #{<<"first_name">> => <<"Alice">>},
+            [pre_decoded]
+        )
+    ).
+
+%% only through a remote type reference
+
+only_remote_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"first_name">> => <<"Alice">>}},
+        spectra:encode(
+            json, ?MODULE, {type, only_remote_ref, 0},
+            #{first_name => <<"Alice">>, last_name => <<"Smith">>},
+            [pre_encoded]
+        )
+    ).
+
+only_remote_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #{first_name => <<"Alice">>}},
+        spectra:decode(
+            json, ?MODULE, {type, only_remote_ref, 0},
+            #{<<"first_name">> => <<"Alice">>},
+            [pre_decoded]
+        )
     ).

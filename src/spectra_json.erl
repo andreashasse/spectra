@@ -55,7 +55,10 @@ to_json(
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars0 = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_abstract_code:apply_ref_meta(
+                TypeWithoutVars0, UserTypeRef#sp_user_type_ref.meta
+            ),
             to_json(TypeInfo, TypeWithoutVars, Data, Config);
         Result ->
             Result
@@ -71,8 +74,11 @@ to_json(
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Module, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeResolved = spectra_type:propagate_params(
+            TypeResolved0 = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            TypeResolved = spectra_abstract_code:apply_ref_meta(
+                TypeResolved0, RemoteRef#sp_remote_type.meta
             ),
             to_json(RemoteTypeInfo, TypeResolved, Data, Config);
         Result ->
@@ -531,7 +537,10 @@ do_from_json(
     of
         continue ->
             Type = spectra_type_info:get_type(TypeInfo, TypeName, Arity),
-            TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars0 = spectra_util:apply_args(TypeInfo, Type, Args),
+            TypeWithoutVars = spectra_abstract_code:apply_ref_meta(
+                TypeWithoutVars0, UserTypeRef#sp_user_type_ref.meta
+            ),
             do_from_json(TypeInfo, TypeWithoutVars, Json, Config);
         Result ->
             Result
@@ -547,8 +556,11 @@ do_from_json(
         continue ->
             RemoteTypeInfo = spectra_module_types:get(Module, Config),
             RemoteType = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
-            TypeResolved = spectra_type:propagate_params(
+            TypeResolved0 = spectra_type:propagate_params(
                 RemoteRef, spectra_util:apply_args(RemoteTypeInfo, RemoteType, Args)
+            ),
+            TypeResolved = spectra_abstract_code:apply_ref_meta(
+                TypeResolved0, RemoteRef#sp_remote_type.meta
             ),
             do_from_json(RemoteTypeInfo, TypeResolved, Json, Config);
         Result ->
