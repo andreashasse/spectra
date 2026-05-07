@@ -331,16 +331,8 @@ remote_type_schema_test() ->
     Schema = spectra:schema(
         json_schema, field_alias_remote_type_b, {type, my_t, 0}, [pre_encoded]
     ),
-    %% Locate the object branch (may be top-level or inside oneOf/anyOf).
     %% pre_encoded returns Erlang maps with atom keys.
-    MapBranch =
-        case Schema of
-            #{oneOf := Branches} ->
-                hd([B || B = #{type := <<"object">>} <- Branches]);
-            #{type := <<"object">>} ->
-                Schema
-        end,
-    #{properties := Props} = MapBranch,
+    #{properties := Props} = Schema,
     ?assert(maps:is_key(<<"firstName">>, Props)),
     ?assert(maps:is_key(<<"last_name">>, Props)),
     ?assertNot(maps:is_key(<<"first_name">>, Props)).

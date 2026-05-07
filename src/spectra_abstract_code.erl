@@ -245,8 +245,10 @@ apply_ref_meta(Type, Meta) ->
             #{only := Only} -> apply_only(Type, Only);
             _ -> Type
         end,
-    Aliases = maps:get(field_aliases, Meta, #{}),
-    apply_field_aliases(OnlyFiltered, Aliases).
+    case Meta of
+        #{field_aliases := Aliases} -> apply_field_aliases(OnlyFiltered, Aliases);
+        _ -> OnlyFiltered
+    end.
 
 -spec apply_type_parameters(spectra:sp_type(), map()) -> spectra:sp_type().
 apply_type_parameters(Type, #{type_parameters := Params}) ->
