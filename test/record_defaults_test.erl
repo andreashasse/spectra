@@ -10,7 +10,8 @@
     status = active :: atom(),
     count = 0 :: integer(),
     opt = undefined :: undefined | binary(),
-    items = [] :: [atom()]
+    items = [] :: [atom()],
+    tag = <<"default">> :: binary()
 }).
 
 %% Expose only 'name'; excluded fields should fall back to their record defaults.
@@ -25,7 +26,12 @@ excluded_atom_default_test() ->
     ),
     ?assertEqual(
         #rec_with_defaults{
-            name = <<"alice">>, status = active, count = 0, opt = undefined, items = []
+            name = <<"alice">>,
+            status = active,
+            count = 0,
+            opt = undefined,
+            items = [],
+            tag = <<"default">>
         },
         Result
     ).
@@ -47,6 +53,12 @@ excluded_list_default_test() ->
         json, ?MODULE, {type, name_only, 0}, #{<<"name">> => <<"dave">>}, [pre_decoded]
     ),
     ?assertEqual([], Items).
+
+excluded_binary_default_test() ->
+    {ok, #rec_with_defaults{tag = Tag}} = spectra:decode(
+        json, ?MODULE, {type, name_only, 0}, #{<<"name">> => <<"eve">>}, [pre_decoded]
+    ),
+    ?assertEqual(<<"default">>, Tag).
 
 included_field_missing_is_error_test() ->
     ?assertMatch(

@@ -1083,7 +1083,7 @@ map_typed_field_from_json(
 
 -spec field_default_value(#sp_rec_field{}) -> term().
 field_default_value(#sp_rec_field{default = {value, V}}) -> V;
-field_default_value(#sp_rec_field{}) -> undefined.
+field_default_value(#sp_rec_field{default = undefined}) -> undefined.
 
 -spec struct_default_value(undefined | map(), atom() | integer()) -> {ok, term()} | error.
 struct_default_value(undefined, _FieldName) ->

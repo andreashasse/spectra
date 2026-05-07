@@ -752,12 +752,24 @@ eval_record_default({float, _, Value}) when is_float(Value) -> {value, Value};
 eval_record_default({nil, _}) ->
     {value, []};
 eval_record_default({string, _, Value}) when is_list(Value) -> {value, Value};
+eval_record_default({bin, _, Segments}) ->
+    try
+        Parts = [bin_segment_value(S) || S <- Segments],
+        {value, iolist_to_binary(Parts)}
+    catch
+        _:_ -> undefined
+    end;
 eval_record_default(Expr) ->
     try
         {value, integer_value(Expr)}
     catch
         _:_ -> undefined
     end.
+
+-spec bin_segment_value(dynamic()) -> iodata().
+bin_segment_value({bin_element, _, {string, _, S}, default, default}) -> S;
+bin_segment_value({bin_element, _, {char, _, V}, default, default}) -> V;
+bin_segment_value({bin_element, _, Expr, default, default}) -> integer_value(Expr).
 
 %% Helper functions for bounded_fun handling
 -spec bound_fun_constraints(list()) -> #{atom() => term()}.
