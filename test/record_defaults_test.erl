@@ -14,11 +14,21 @@
     tag = <<"default">> :: binary()
 }).
 
+-record(rec_with_complex_defaults, {
+    key :: binary(),
+    pair = {ok, 1} :: {atom(), integer()},
+    nonempty = [a, b] :: [atom()],
+    meta = #{foo => bar} :: map()
+}).
+
 %% Expose only 'name'; excluded fields should fall back to their record defaults.
 -spectra(#{only => [name]}).
 -type name_only() :: #rec_with_defaults{}.
 
--export_type([name_only/0]).
+-spectra(#{only => [key]}).
+-type key_only() :: #rec_with_complex_defaults{}.
+
+-export_type([name_only/0, key_only/0]).
 
 excluded_atom_default_test() ->
     {ok, Result} = spectra:decode(
@@ -65,3 +75,21 @@ included_field_missing_is_error_test() ->
         {error, [#sp_error{location = [name], type = missing_data}]},
         spectra:decode(json, ?MODULE, {type, name_only, 0}, #{}, [pre_decoded])
     ).
+
+excluded_tuple_default_test() ->
+    {ok, #rec_with_complex_defaults{pair = Pair}} = spectra:decode(
+        json, ?MODULE, {type, key_only, 0}, #{<<"key">> => <<"x">>}, [pre_decoded]
+    ),
+    ?assertEqual({ok, 1}, Pair).
+
+excluded_nonempty_list_default_test() ->
+    {ok, #rec_with_complex_defaults{nonempty = List}} = spectra:decode(
+        json, ?MODULE, {type, key_only, 0}, #{<<"key">> => <<"x">>}, [pre_decoded]
+    ),
+    ?assertEqual([a, b], List).
+
+excluded_map_default_test() ->
+    {ok, #rec_with_complex_defaults{meta = Meta}} = spectra:decode(
+        json, ?MODULE, {type, key_only, 0}, #{<<"key">> => <<"x">>}, [pre_decoded]
+    ),
+    ?assertEqual(#{foo => bar}, Meta).
