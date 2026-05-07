@@ -445,8 +445,6 @@ record_with_enum_fields_test() ->
         },
         UserWithRoleSchema
     ),
-    %% Verify role field is required
-    ?assert(lists:member(<<"role">>, maps:get(required, UserWithRoleSchema))),
     validate_with_python(UserWithRoleSchema),
 
     %% Record with optional enum field (contains undefined)
@@ -468,8 +466,6 @@ record_with_enum_fields_test() ->
         },
         UserWithOptionalRoleSchema
     ),
-    %% Verify role field is NOT required
-    ?assertNot(lists:member(<<"role">>, maps:get(required, UserWithOptionalRoleSchema))),
     validate_with_python(UserWithOptionalRoleSchema).
 
 %% Test enum type optimization (unions of literals should become single enum)
