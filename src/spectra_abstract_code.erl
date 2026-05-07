@@ -173,20 +173,29 @@ apply_field_aliases(#sp_map{fields = Fields} = Map, Aliases) ->
     Updated = [alias_map_field(F, Aliases) || F <- Fields],
     check_unique_binary_names([BN || #literal_map_field{binary_name = BN} <- Updated]),
     Map#sp_map{fields = Updated};
-apply_field_aliases(#sp_rec{fields = Fields} = Rec, Aliases) ->
+apply_field_aliases(#sp_rec{fields = Fields, meta = Meta} = Rec, Aliases) ->
     Updated = [alias_rec_field(F, Aliases) || F <- Fields],
-    check_unique_binary_names([BN || #sp_rec_field{binary_name = BN} <- Updated]),
+    Only = maps:get(only, Meta, all),
+    IncludedNames = [
+        BN
+     || #sp_rec_field{binary_name = BN, name = N} <- Updated,
+        Only =:= all orelse lists:member(N, Only)
+    ],
+    check_unique_binary_names(IncludedNames),
     Rec#sp_rec{fields = Updated};
 apply_field_aliases(#sp_union{types = Types} = Union, Aliases) ->
     Union#sp_union{types = [apply_field_aliases(T, Aliases) || T <- Types]};
 apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
     TWV#sp_type_with_variables{type = apply_field_aliases(Inner, Aliases)};
 apply_field_aliases(#sp_remote_type{meta = Meta} = Remote, Aliases) when map_size(Aliases) > 0 ->
-    Remote#sp_remote_type{meta = Meta#{field_aliases => Aliases}};
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    Remote#sp_remote_type{meta = Meta#{field_aliases => Merged}};
 apply_field_aliases(#sp_user_type_ref{meta = Meta} = Ref, Aliases) when map_size(Aliases) > 0 ->
-    Ref#sp_user_type_ref{meta = Meta#{field_aliases => Aliases}};
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    Ref#sp_user_type_ref{meta = Meta#{field_aliases => Merged}};
 apply_field_aliases(#sp_rec_ref{meta = Meta} = RecRef, Aliases) when map_size(Aliases) > 0 ->
-    RecRef#sp_rec_ref{meta = Meta#{field_aliases => Aliases}};
+    Merged = maps:merge(maps:get(field_aliases, Meta, #{}), Aliases),
+    RecRef#sp_rec_ref{meta = Meta#{field_aliases => Merged}};
 apply_field_aliases(Other, _Aliases) ->
     Other.
 
@@ -228,22 +237,30 @@ resolved at encode/decode/schema time.
 **Note:** When `only` is used, the produced or accepted maps may not fully conform
 to the declared Erlang type. This is intentional.
 """.
+-spec intersect_only([atom()], [atom()] | all) -> [atom()].
+intersect_only(New, all) -> New;
+intersect_only(New, Existing) -> [F || F <- New, lists:member(F, Existing)].
+
 -spec apply_only(spectra:sp_type(), [atom()]) -> spectra:sp_type().
 apply_only(#sp_map{fields = Fields} = Map, Only) ->
     FilteredFields = [F || #literal_map_field{name = N} = F <- Fields, lists:member(N, Only)],
     Map#sp_map{fields = FilteredFields};
 apply_only(#sp_rec{meta = Meta} = Rec, Only) ->
-    Rec#sp_rec{meta = Meta#{only => Only}};
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Rec#sp_rec{meta = Meta#{only => Intersected}};
 apply_only(#sp_union{types = Types} = Union, Only) ->
     Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
 apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->
     TypeWithVars#sp_type_with_variables{type = apply_only(Inner, Only)};
 apply_only(#sp_remote_type{meta = Meta} = Remote, Only) ->
-    Remote#sp_remote_type{meta = Meta#{only => Only}};
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Remote#sp_remote_type{meta = Meta#{only => Intersected}};
 apply_only(#sp_user_type_ref{meta = Meta} = Ref, Only) ->
-    Ref#sp_user_type_ref{meta = Meta#{only => Only}};
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    Ref#sp_user_type_ref{meta = Meta#{only => Intersected}};
 apply_only(#sp_rec_ref{meta = Meta} = RecRef, Only) ->
-    RecRef#sp_rec_ref{meta = Meta#{only => Only}};
+    Intersected = intersect_only(Only, maps:get(only, Meta, all)),
+    RecRef#sp_rec_ref{meta = Meta#{only => Intersected}};
 apply_only(Other, _Only) ->
     Other.
 
