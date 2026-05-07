@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-05-07
+
+### Added
+- Fields excluded by the `only` filter on records now receive their Erlang record default value (e.g. `age = 1`) instead of always being set to `undefined`. Included fields remain mandatory and unchanged.
+
+### Fixed
+- `field_aliases` and `only` transforms declared with `-spectra()` are now correctly propagated when the type body is a type reference (`-type t() :: other_type()`, remote types, or record refs). Previously these transforms were silently dropped at the reference boundary.
+
 ## [0.13.0] - 2026-05-07
 
 ### Added
