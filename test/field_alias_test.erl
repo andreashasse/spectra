@@ -325,7 +325,9 @@ remote_type_roundtrip_test() ->
     Value = #{first_name => <<"Alice">>, last_name => <<"Smith">>},
     {ok, JsonIO} = spectra:encode(json, field_alias_remote_type_b, {type, my_t, 0}, Value),
     Json = iolist_to_binary(JsonIO),
-    ?assertEqual({ok, Value}, spectra:decode(json, field_alias_remote_type_b, {type, my_t, 0}, Json)).
+    ?assertEqual(
+        {ok, Value}, spectra:decode(json, field_alias_remote_type_b, {type, my_t, 0}, Json)
+    ).
 
 remote_type_schema_test() ->
     Schema = spectra:schema(
@@ -343,7 +345,9 @@ local_type_ref_encode_test() ->
     ?assertEqual(
         {ok, #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>}},
         spectra:encode(
-            json, ?MODULE, {type, aliased_person, 0},
+            json,
+            ?MODULE,
+            {type, aliased_person, 0},
             #{first_name => <<"Alice">>, last_name => <<"Smith">>},
             [pre_encoded]
         )
@@ -353,7 +357,9 @@ local_type_ref_decode_test() ->
     ?assertEqual(
         {ok, #{first_name => <<"Alice">>, last_name => <<"Smith">>}},
         spectra:decode(
-            json, ?MODULE, {type, aliased_person, 0},
+            json,
+            ?MODULE,
+            {type, aliased_person, 0},
             #{<<"firstName">> => <<"Alice">>, <<"last_name">> => <<"Smith">>},
             [pre_decoded]
         )
@@ -379,7 +385,9 @@ only_local_ref_encode_test() ->
     ?assertEqual(
         {ok, #{<<"first_name">> => <<"Alice">>}},
         spectra:encode(
-            json, ?MODULE, {type, only_local_ref, 0},
+            json,
+            ?MODULE,
+            {type, only_local_ref, 0},
             #{first_name => <<"Alice">>, last_name => <<"Smith">>},
             [pre_encoded]
         )
@@ -389,7 +397,9 @@ only_local_ref_decode_test() ->
     ?assertEqual(
         {ok, #{first_name => <<"Alice">>}},
         spectra:decode(
-            json, ?MODULE, {type, only_local_ref, 0},
+            json,
+            ?MODULE,
+            {type, only_local_ref, 0},
             #{<<"first_name">> => <<"Alice">>},
             [pre_decoded]
         )
@@ -401,7 +411,9 @@ only_remote_ref_encode_test() ->
     ?assertEqual(
         {ok, #{<<"first_name">> => <<"Alice">>}},
         spectra:encode(
-            json, ?MODULE, {type, only_remote_ref, 0},
+            json,
+            ?MODULE,
+            {type, only_remote_ref, 0},
             #{first_name => <<"Alice">>, last_name => <<"Smith">>},
             [pre_encoded]
         )
@@ -411,7 +423,9 @@ only_remote_ref_decode_test() ->
     ?assertEqual(
         {ok, #{first_name => <<"Alice">>}},
         spectra:decode(
-            json, ?MODULE, {type, only_remote_ref, 0},
+            json,
+            ?MODULE,
+            {type, only_remote_ref, 0},
             #{<<"first_name">> => <<"Alice">>},
             [pre_decoded]
         )
