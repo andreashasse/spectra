@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["28", "27"]
+        otp: ["29", "28", "27"]
         rebar3: ["3.25"]
         include:
           - otp: "28"
@@ -30,6 +30,7 @@ jobs:
           rebar3-version: ${{ matrix.rebar3 }}
 
       - name: Download and Setup ELP
+        if: matrix.elp_build != ''
         run: |
           mkdir -p bin
           wget -q ${{ matrix.elp_build }} -O elp.tar.gz
@@ -61,6 +62,7 @@ jobs:
         run: make proper
 
       - name: Type check
+        if: matrix.elp_build != ''
         run: make type_check
 
       - name: Check format
@@ -73,6 +75,7 @@ jobs:
         run: make hank
 
       - name: Lint
+        if: matrix.elp_build != ''
         run: make lint
 
       - name: Generate coverage report
