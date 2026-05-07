@@ -232,6 +232,8 @@ to the declared Erlang type. This is intentional.
 apply_only(#sp_map{fields = Fields} = Map, Only) ->
     FilteredFields = [F || #literal_map_field{name = N} = F <- Fields, lists:member(N, Only)],
     Map#sp_map{fields = FilteredFields};
+apply_only(#sp_rec{meta = Meta} = Rec, Only) ->
+    Rec#sp_rec{meta = Meta#{only => Only}};
 apply_only(#sp_union{types = Types} = Union, Only) ->
     Union#sp_union{types = [apply_only(T, Only) || T <- Types]};
 apply_only(#sp_type_with_variables{type = Inner} = TypeWithVars, Only) ->

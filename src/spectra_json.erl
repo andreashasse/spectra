@@ -101,9 +101,10 @@ to_json(
     of
         continue ->
             RecordType0 = spectra_type_info:get_record(TypeInfo, RecordName),
-            RecordType = spectra_abstract_code:apply_ref_meta(
-                RecordType0, RecordRef#sp_rec_ref.meta
-            ),
+            #sp_rec{} =
+                RecordType = spectra_abstract_code:apply_ref_meta(
+                    RecordType0, RecordRef#sp_rec_ref.meta
+                ),
             record_to_json(TypeInfo, RecordType, Record, TypeArgs, Config);
         Result ->
             Result
@@ -445,7 +446,8 @@ record_to_json(
     #sp_rec{
         name = RecordName,
         fields = Fields,
-        arity = Arity
+        arity = Arity,
+        meta = Meta
     },
     Record,
     TypeArgs,
@@ -457,7 +459,18 @@ record_to_json(
 ->
     [RecordName | FieldsData] = tuple_to_list(Record),
     RecFieldTypes = spectra_util:record_replace_vars(Fields, TypeArgs),
-    RecFieldTypesWithData = lists:zip(RecFieldTypes, FieldsData),
+    RecFieldTypesWithData0 = lists:zip(RecFieldTypes, FieldsData),
+    RecFieldTypesWithData =
+        case Meta of
+            #{only := Only} ->
+                [
+                    {F, D}
+                 || {#sp_rec_field{name = N} = F, D} <- RecFieldTypesWithData0,
+                    lists:member(N, Only)
+                ];
+            _ ->
+                RecFieldTypesWithData0
+        end,
     do_record_to_json(TypeInfo, RecFieldTypesWithData, Config);
 record_to_json(_TypeInfo, RecordType, Record, TypeArgs, _Config) ->
     {error, [sp_error:type_mismatch(RecordType, Record, #{type_args => TypeArgs})]}.
@@ -584,9 +597,10 @@ do_from_json(
     case spectra_codec:try_codec_decode(json, TypeInfo, Module, TypeRef, RecordRef, Json, Config) of
         continue ->
             RecordType0 = spectra_type_info:get_record(TypeInfo, RecordName),
-            RecordType = spectra_abstract_code:apply_ref_meta(
-                RecordType0, RecordRef#sp_rec_ref.meta
-            ),
+            #sp_rec{} =
+                RecordType = spectra_abstract_code:apply_ref_meta(
+                    RecordType0, RecordRef#sp_rec_ref.meta
+                ),
             record_from_json(TypeInfo, RecordType, Json, TypeArgs, Config);
         Result ->
             Result
@@ -1131,33 +1145,42 @@ record_from_json(
     Config :: spectra:sp_config()
 ) ->
     {ok, dynamic()} | {error, [spectra:error()]}.
-do_record_from_json(TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo}, Json, Config) when
+do_record_from_json(
+    TypeInfo, #sp_rec{name = RecordName, fields = RecordInfo, meta = Meta}, Json, Config
+) when
     is_map(Json)
 ->
+    Only = maps:get(only, Meta, all),
     Fun = fun(
         #sp_rec_field{name = FieldName, binary_name = BinaryName, type = FieldType} = Type,
         {FieldsAcc, ConsumedFields}
     ) ->
-        case Json of
-            #{BinaryName := RecordFieldData} ->
-                case do_from_json(TypeInfo, FieldType, RecordFieldData, Config) of
-                    {ok, FieldJson} ->
-                        {ok, {[FieldJson | FieldsAcc], [BinaryName | ConsumedFields]}};
-                    {error, Errs} ->
-                        Errs2 =
-                            lists:map(
-                                fun(Err) -> sp_error:append_location(Err, FieldName) end,
-                                Errs
-                            ),
-                        {error, Errs2}
-                end;
-            #{} ->
-                case spectra_type:can_be_missing(TypeInfo, FieldType) of
-                    {true, MissingValue} ->
-                        {ok, {[MissingValue | FieldsAcc], ConsumedFields}};
-                    false ->
-                        RemainingJson = maps:without(ConsumedFields, Json),
-                        {error, [sp_error:missing_data(Type, RemainingJson, [FieldName])]}
+        IsIncluded = Only =:= all orelse lists:member(FieldName, Only),
+        case IsIncluded of
+            false ->
+                {ok, {[undefined | FieldsAcc], ConsumedFields}};
+            true ->
+                case Json of
+                    #{BinaryName := RecordFieldData} ->
+                        case do_from_json(TypeInfo, FieldType, RecordFieldData, Config) of
+                            {ok, FieldJson} ->
+                                {ok, {[FieldJson | FieldsAcc], [BinaryName | ConsumedFields]}};
+                            {error, Errs} ->
+                                Errs2 =
+                                    lists:map(
+                                        fun(Err) -> sp_error:append_location(Err, FieldName) end,
+                                        Errs
+                                    ),
+                                {error, Errs2}
+                        end;
+                    #{} ->
+                        case spectra_type:can_be_missing(TypeInfo, FieldType) of
+                            {true, MissingValue} ->
+                                {ok, {[MissingValue | FieldsAcc], ConsumedFields}};
+                            false ->
+                                RemainingJson = maps:without(ConsumedFields, Json),
+                                {error, [sp_error:missing_data(Type, RemainingJson, [FieldName])]}
+                        end
                 end
         end
     end,

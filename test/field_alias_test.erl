@@ -40,6 +40,10 @@
 -spectra(#{field_aliases => #{emp_id => <<"employeeId">>, full_name => <<"fullName">>}}).
 -type employee_ref() :: #employee{}.
 
+%% only through a record ref: expose just emp_id.
+-spectra(#{only => [emp_id]}).
+-type employee_id_only() :: #employee{}.
+
 %% only through a local type reference
 -spectra(#{only => [first_name]}).
 -type only_local_ref() :: base_person().
@@ -476,4 +480,36 @@ rec_ref_alias_schema_test() ->
     Schema = json:decode(iolist_to_binary(SchemaJson)),
     ?assertMatch(#{<<"properties">> := #{<<"employeeId">> := _, <<"fullName">> := _}}, Schema),
     ?assertNot(maps:is_key(<<"emp_id">>, maps:get(<<"properties">>, Schema))),
+    ?assertNot(maps:is_key(<<"full_name">>, maps:get(<<"properties">>, Schema))).
+
+%% only through a record ref: expose just emp_id.
+
+only_rec_ref_encode_test() ->
+    ?assertEqual(
+        {ok, #{<<"emp_id">> => 42}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            {type, employee_id_only, 0},
+            #employee{emp_id = 42, full_name = <<"Alice">>},
+            [pre_encoded]
+        )
+    ).
+
+only_rec_ref_decode_test() ->
+    ?assertEqual(
+        {ok, #employee{emp_id = 42, full_name = undefined}},
+        spectra:decode(
+            json,
+            ?MODULE,
+            {type, employee_id_only, 0},
+            #{<<"emp_id">> => 42},
+            [pre_decoded]
+        )
+    ).
+
+only_rec_ref_schema_test() ->
+    SchemaJson = spectra:schema(json_schema, ?MODULE, {type, employee_id_only, 0}),
+    Schema = json:decode(iolist_to_binary(SchemaJson)),
+    ?assertMatch(#{<<"properties">> := #{<<"emp_id">> := _}}, Schema),
     ?assertNot(maps:is_key(<<"full_name">>, maps:get(<<"properties">>, Schema))).

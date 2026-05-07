@@ -119,9 +119,10 @@ do_to_schema(TypeInfo, #sp_rec_ref{record_name = N} = RecordRef, Config) ->
     of
         continue ->
             RecordType0 = spectra_type_info:get_record(TypeInfo, N),
-            RecordType = spectra_abstract_code:apply_ref_meta(
-                RecordType0, RecordRef#sp_rec_ref.meta
-            ),
+            #sp_rec{} =
+                RecordType = spectra_abstract_code:apply_ref_meta(
+                    RecordType0, RecordRef#sp_rec_ref.meta
+                ),
             Schema = record_to_schema_internal(TypeInfo, RecordType, Config),
             merge_type_doc_into_schema(TypeInfo, RecordType, Schema, Config);
         Schema ->
@@ -356,8 +357,13 @@ record_to_schema_internal(TypeInfo, #sp_rec{} = Record, Config) ->
 
 -spec record_fields_to_schema(spectra:type_info(), #sp_rec{}, spectra:sp_config()) ->
     json_schema_object().
-record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields}, Config) ->
-    {Properties, Required} = process_record_fields(TypeInfo, Fields, #{}, [], Config),
+record_fields_to_schema(TypeInfo, #sp_rec{fields = Fields, meta = Meta}, Config) ->
+    FilteredFields =
+        case Meta of
+            #{only := Only} -> [F || #sp_rec_field{name = N} = F <- Fields, lists:member(N, Only)];
+            _ -> Fields
+        end,
+    {Properties, Required} = process_record_fields(TypeInfo, FilteredFields, #{}, [], Config),
     #{
         type => <<"object">>,
         properties => Properties,
