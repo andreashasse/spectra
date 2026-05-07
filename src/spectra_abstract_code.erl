@@ -783,7 +783,7 @@ eval_literal_list(Exprs, Wrap) ->
         false -> undefined
     end.
 
--spec eval_literal_cons(dynamic()) -> undefined | {value, term()}.
+-spec eval_literal_cons(dynamic()) -> undefined | {value, dynamic()}.
 eval_literal_cons({nil, _}) ->
     {value, []};
 eval_literal_cons({cons, _, Head, Tail}) ->
