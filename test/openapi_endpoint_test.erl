@@ -266,10 +266,8 @@ generate_parameter_without_description_test() ->
             [pre_encoded]
         ),
 
-    [Parameter] = maps:get(
-        <<"parameters">>,
-        maps:get(<<"get">>, maps:get(<<"/items/{id}">>, maps:get(<<"paths">>, OpenAPISpec)))
-    ),
+    #{<<"paths">> := #{<<"/items/{id}">> := #{<<"get">> := #{<<"parameters">> := [Parameter]}}}} =
+        OpenAPISpec,
     ?assertNot(maps:is_key(<<"description">>, Parameter)).
 
 %% Test that deprecated comes from type doc
@@ -293,10 +291,8 @@ generate_parameter_deprecated_test() ->
             [pre_encoded]
         ),
 
-    [Parameter] = maps:get(
-        <<"parameters">>,
-        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
-    ),
+    #{<<"paths">> := #{<<"/items">> := #{<<"get">> := #{<<"parameters">> := [Parameter]}}}} =
+        OpenAPISpec,
     ?assertMatch(#{<<"deprecated">> := true}, Parameter).
 
 %% Test that non-deprecated parameter does not include the field
@@ -320,10 +316,8 @@ generate_parameter_not_deprecated_test() ->
             [pre_encoded]
         ),
 
-    [Parameter] = maps:get(
-        <<"parameters">>,
-        maps:get(<<"get">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
-    ),
+    #{<<"paths">> := #{<<"/items">> := #{<<"get">> := #{<<"parameters">> := [Parameter]}}}} =
+        OpenAPISpec,
     ?assertNot(maps:is_key(<<"deprecated">>, Parameter)).
 
 %% Test generating OpenAPI spec from single endpoint
@@ -436,8 +430,7 @@ openapi_with_components_test() ->
 
     ?assertMatch(#{<<"components">> := #{<<"schemas">> := _}}, OpenAPISpec),
 
-    Components = maps:get(<<"components">>, OpenAPISpec),
-    Schemas = maps:get(<<"schemas">>, Components),
+    #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
 
     ?assert(maps:is_key(<<"User">>, Schemas) orelse maps:is_key(<<"user">>, Schemas)),
     ?assert(
@@ -464,7 +457,7 @@ openapi_without_documentation_test() ->
         ),
 
     #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
-    UserSchema = maps:get(<<"User">>, Schemas),
+    #{<<"User">> := UserSchema} = Schemas,
 
     %% Verify basic schema structure exists
     ?assertMatch(#{type := <<"object">>}, UserSchema),
@@ -741,22 +734,17 @@ response_header_deprecated_test() ->
             [pre_encoded]
         ),
 
-    Header = maps:get(
-        <<"X-Old-Header">>,
-        maps:get(
-            <<"headers">>,
-            maps:get(
-                <<"200">>,
-                maps:get(
-                    <<"responses">>,
-                    maps:get(
-                        <<"get">>,
-                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
-                    )
-                )
-            )
-        )
-    ),
+    #{
+        <<"paths">> := #{
+            <<"/items">> := #{
+                <<"get">> := #{
+                    <<"responses">> := #{
+                        <<"200">> := #{<<"headers">> := #{<<"X-Old-Header">> := Header}}
+                    }
+                }
+            }
+        }
+    } = OpenAPISpec,
     ?assertMatch(#{<<"deprecated">> := true}, Header).
 
 %% Test that non-deprecated response header does not include the field
@@ -779,22 +767,17 @@ response_header_not_deprecated_test() ->
             [pre_encoded]
         ),
 
-    Header = maps:get(
-        <<"X-Rate-Limit">>,
-        maps:get(
-            <<"headers">>,
-            maps:get(
-                <<"200">>,
-                maps:get(
-                    <<"responses">>,
-                    maps:get(
-                        <<"get">>,
-                        maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec))
-                    )
-                )
-            )
-        )
-    ),
+    #{
+        <<"paths">> := #{
+            <<"/items">> := #{
+                <<"get">> := #{
+                    <<"responses">> := #{
+                        <<"200">> := #{<<"headers">> := #{<<"X-Rate-Limit">> := Header}}
+                    }
+                }
+            }
+        }
+    } = OpenAPISpec,
     ?assertNot(maps:is_key(<<"deprecated">>, Header)).
 
 %% Test adding multiple response headers
@@ -876,14 +859,15 @@ response_builder_basic_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
     ?assertMatch(
         #{
-            description := <<"Success">>,
-            schema := {record, user_list},
-            module := ?MODULE
+            responses := #{
+                200 := #{
+                    description := <<"Success">>, schema := {record, user_list}, module := ?MODULE
+                }
+            }
         },
-        AddedResponse
+        Endpoint
     ).
 
 %% Test response builder with custom content type
@@ -900,8 +884,7 @@ response_builder_with_content_type_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
-    ?assertMatch(#{content_type := <<"application/xml">>}, AddedResponse).
+    ?assertMatch(#{responses := #{200 := #{content_type := <<"application/xml">>}}}, Endpoint).
 
 %% Test response builder with headers
 response_builder_with_headers_test() ->
@@ -931,10 +914,9 @@ response_builder_with_headers_test() ->
     Endpoint1 = spectra_openapi:endpoint(get, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{200 := AddedResponse}} = Endpoint,
     ?assertMatch(
-        #{headers := #{<<"X-Rate-Limit">> := _, <<"X-Request-ID">> := _}},
-        AddedResponse
+        #{responses := #{200 := #{headers := #{<<"X-Rate-Limit">> := _, <<"X-Request-ID">> := _}}}},
+        Endpoint
     ).
 
 %% Test response builder with everything
@@ -969,16 +951,19 @@ response_builder_complete_test() ->
     Endpoint1 = spectra_openapi:endpoint(post, <<"/users">>),
     Endpoint = spectra_openapi:add_response(Endpoint1, Response),
 
-    #{responses := #{201 := AddedResponse}} = Endpoint,
     ?assertMatch(
         #{
-            description := <<"User created">>,
-            schema := {record, user},
-            module := ?MODULE,
-            content_type := <<"application/json">>,
-            headers := #{<<"Location">> := _, <<"X-Request-ID">> := _}
+            responses := #{
+                201 := #{
+                    description := <<"User created">>,
+                    schema := {record, user},
+                    module := ?MODULE,
+                    content_type := <<"application/json">>,
+                    headers := #{<<"Location">> := _, <<"X-Request-ID">> := _}
+                }
+            }
         },
-        AddedResponse
+        Endpoint
     ).
 
 %% Test multiple responses built with builder pattern
@@ -1185,10 +1170,8 @@ request_body_without_description_test() ->
             [pre_encoded]
         ),
 
-    RequestBody = maps:get(
-        <<"requestBody">>,
-        maps:get(<<"post">>, maps:get(<<"/items">>, maps:get(<<"paths">>, OpenAPISpec)))
-    ),
+    #{<<"paths">> := #{<<"/items">> := #{<<"post">> := #{<<"requestBody">> := RequestBody}}}} =
+        OpenAPISpec,
     ?assertNot(maps:is_key(<<"description">>, RequestBody)).
 
 %% Test that info description is included in the generated OpenAPI output
@@ -1226,7 +1209,8 @@ info_without_description_test() ->
             [pre_encoded]
         ),
 
-    ?assertNot(maps:is_key(<<"description">>, maps:get(<<"info">>, OpenAPISpec))).
+    #{<<"info">> := Info} = OpenAPISpec,
+    ?assertNot(maps:is_key(<<"description">>, Info)).
 
 %% Test info extended fields: summary, termsOfService, contact, license
 info_extended_fields_test() ->
@@ -1247,11 +1231,17 @@ info_extended_fields_test() ->
             [pre_encoded]
         ),
 
-    Info = maps:get(<<"info">>, OpenAPISpec),
-    ?assertMatch(#{<<"summary">> := <<"Short summary">>}, Info),
-    ?assertMatch(#{<<"termsOfService">> := <<"https://example.com/tos">>}, Info),
-    ?assertMatch(#{<<"contact">> := #{<<"name">> := <<"Support">>}}, Info),
-    ?assertMatch(#{<<"license">> := #{<<"name">> := <<"MIT">>}}, Info).
+    ?assertMatch(
+        #{
+            <<"info">> := #{
+                <<"summary">> := <<"Short summary">>,
+                <<"termsOfService">> := <<"https://example.com/tos">>,
+                <<"contact">> := #{<<"name">> := <<"Support">>},
+                <<"license">> := #{<<"name">> := <<"MIT">>}
+            }
+        },
+        OpenAPISpec
+    ).
 
 %% Test that absent info fields are not included in output
 info_extended_fields_absent_test() ->
@@ -1265,7 +1255,7 @@ info_extended_fields_absent_test() ->
             [pre_encoded]
         ),
 
-    Info = maps:get(<<"info">>, OpenAPISpec),
+    #{<<"info">> := Info} = OpenAPISpec,
     ?assertNot(maps:is_key(<<"summary">>, Info)),
     ?assertNot(maps:is_key(<<"termsOfService">>, Info)),
     ?assertNot(maps:is_key(<<"contact">>, Info)),

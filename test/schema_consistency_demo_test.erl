@@ -31,11 +31,13 @@ atom_vs_tuple_consistency_test() ->
     % Both should be identical and include metadata
     ?assertEqual(DecodedFromTuple, DecodedFromAtom),
 
-    % Verify metadata is present
-    ?assertEqual(<<"User Age">>, maps:get(<<"title">>, DecodedFromAtom)),
-    ?assertEqual(<<"Age of a user in years">>, maps:get(<<"description">>, DecodedFromAtom)),
-    ?assertEqual([18, 25, 42, 65], maps:get(<<"examples">>, DecodedFromAtom)),
-
-    % Verify the schema structure is correct
-    ?assertEqual(<<"integer">>, maps:get(<<"type">>, DecodedFromAtom)),
-    ?assertEqual(0, maps:get(<<"minimum">>, DecodedFromAtom)).
+    ?assertMatch(
+        #{
+            <<"title">> := <<"User Age">>,
+            <<"description">> := <<"Age of a user in years">>,
+            <<"examples">> := [18, 25, 42, 65],
+            <<"type">> := <<"integer">>,
+            <<"minimum">> := 0
+        },
+        DecodedFromAtom
+    ).

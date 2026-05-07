@@ -83,24 +83,47 @@ shrink_tuple_gen(Fields) ->
         [exactly(#sp_tuple{fields = any})] ++ [exactly(F) || F <- Fields]
     ).
 
+%% Binary field name generator — usually the atom default, occasionally a camelCase alias
+my_json_field_name() ->
+    frequency([
+        {3, ?LET(A, my_atom(), atom_to_binary(A, utf8))},
+        {1,
+            oneof([
+                <<"firstName">>,
+                <<"lastName">>,
+                <<"userId">>,
+                <<"itemId">>,
+                <<"createdAt">>,
+                <<"updatedAt">>
+            ])}
+    ]).
+
 %% Map field generator
 map_field() ->
     ?SIZED(Size, map_field(Size)).
 
 map_field(Size) ->
     oneof([
-        ?LET({Name, Type}, {my_atom(), sp_type(Size)}, #literal_map_field{
-            kind = assoc,
-            name = Name,
-            binary_name = atom_to_binary(Name, utf8),
-            val_type = Type
-        }),
-        ?LET({Name, Type}, {my_atom(), sp_type(Size)}, #literal_map_field{
-            kind = exact,
-            name = Name,
-            binary_name = atom_to_binary(Name, utf8),
-            val_type = Type
-        }),
+        ?LET(
+            {Name, BinaryName, Type},
+            {my_atom(), my_json_field_name(), sp_type(Size)},
+            #literal_map_field{
+                kind = assoc,
+                name = Name,
+                binary_name = BinaryName,
+                val_type = Type
+            }
+        ),
+        ?LET(
+            {Name, BinaryName, Type},
+            {my_atom(), my_json_field_name(), sp_type(Size)},
+            #literal_map_field{
+                kind = exact,
+                name = Name,
+                binary_name = BinaryName,
+                val_type = Type
+            }
+        ),
         ?LET(
             {KeyType, ValueType},
             {sp_type(Size), sp_type(Size)},
@@ -132,12 +155,17 @@ sp_map(Size) ->
         ?LET(
             Fields0,
             vector(Len, map_field(Size)),
-            shrink_map_gen(dedupe_by(fun map_field_key/1, Fields0))
+            shrink_map_gen(
+                dedupe_by(fun map_field_bin_key/1, dedupe_by(fun map_field_key/1, Fields0))
+            )
         )
     ).
 
 map_field_key(#literal_map_field{name = Name}) -> {literal, Name};
 map_field_key(#typed_map_field{key_type = KT}) -> {typed, KT}.
+
+map_field_bin_key(#literal_map_field{binary_name = BN}) -> {literal_bin, BN};
+map_field_bin_key(#typed_map_field{key_type = KT}) -> {typed, KT}.
 
 %% Generator for maps with shrinking support
 shrink_map_gen([]) ->
@@ -155,11 +183,11 @@ sp_rec() ->
 
 sp_rec_field(Size) ->
     ?LET(
-        {FieldName, FieldType},
-        {my_atom(), sp_type(Size)},
+        {FieldName, BinaryName, FieldType},
+        {my_atom(), my_json_field_name(), sp_type(Size)},
         #sp_rec_field{
             name = FieldName,
-            binary_name = atom_to_binary(FieldName, utf8),
+            binary_name = BinaryName,
             type = FieldType
         }
     ).
@@ -172,7 +200,8 @@ sp_rec(Size) ->
             {Name, Fields0},
             {my_atom(), non_empty(vector(Len, sp_rec_field(Size)))},
             begin
-                Fields = dedupe_by(fun(#sp_rec_field{name = FN}) -> FN end, Fields0),
+                Fields1 = dedupe_by(fun(#sp_rec_field{name = FN}) -> FN end, Fields0),
+                Fields = dedupe_by(fun(#sp_rec_field{binary_name = BN}) -> BN end, Fields1),
                 #sp_rec{
                     name = Name,
                     fields = Fields,

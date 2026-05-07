@@ -2,8 +2,10 @@
 
 -include("../include/spectra_internal.hrl").
 
--export([types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2]).
--ignore_xref([types_in_module_path/1, apply_only/2]).
+-export([
+    types_in_module/1, types_in_module_path/1, types_in_forms/2, apply_only/2, apply_field_aliases/2
+]).
+-ignore_xref([types_in_module_path/1, apply_only/2, apply_field_aliases/2]).
 
 -define(TYPE_INFO_FUNCTION, '__spectra_type_info__').
 
@@ -112,19 +114,23 @@ process_type_form(TypeWithKey, PendingDoc, Rest, NamedTypes) ->
     end.
 
 -spec attach_doc(type_form_result(), map()) -> type_form_result().
-attach_doc({{type, _Name, _Arity} = Key, Type}, #{only := Only} = DocMap) ->
-    FilteredType = apply_only(Type, validate_only(Only)),
-    CleanDocMap = maps:remove(only, maps:remove(type_parameters, DocMap)),
-    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FilteredType, CleanDocMap), DocMap)};
 attach_doc({{type, _Name, _Arity} = Key, Type}, DocMap) ->
-    {Key,
-        apply_type_parameters(
-            spectra_type:add_doc_to_type(Type, maps:remove(type_parameters, DocMap)), DocMap
-        )};
+    Aliases = maps:get(field_aliases, DocMap, #{}),
+    OnlyFiltered =
+        case DocMap of
+            #{only := Only} -> apply_only(Type, validate_only(Only));
+            #{} -> Type
+        end,
+    FinalType = apply_field_aliases(OnlyFiltered, validate_field_aliases(Aliases)),
+    CleanDocMap = maps:without([field_aliases, only, type_parameters], DocMap),
+    {Key, apply_type_parameters(spectra_type:add_doc_to_type(FinalType, CleanDocMap), DocMap)};
 attach_doc({{record, _Name} = Key, Record}, DocMap) ->
+    Aliases = maps:get(field_aliases, DocMap, #{}),
+    AliasedRecord = apply_field_aliases(Record, validate_field_aliases(Aliases)),
+    CleanDocMap = maps:remove(field_aliases, maps:remove(type_parameters, DocMap)),
     {Key,
         apply_type_parameters(
-            spectra_type:add_doc_to_type(Record, maps:remove(type_parameters, DocMap)), DocMap
+            spectra_type:add_doc_to_type(AliasedRecord, CleanDocMap), DocMap
         )};
 attach_doc({{function, _Name, _Arity} = Key, FuncSpecs}, DocMap) ->
     Doc = spectra_type:normalize_function_doc(DocMap),
@@ -142,6 +148,63 @@ validate_only(Only) when is_list(Only) ->
     end;
 validate_only(Only) ->
     erlang:error({invalid_spectra_field, only, Only}).
+
+-spec validate_field_aliases(term()) -> #{atom() | integer() => binary()}.
+validate_field_aliases(Aliases) when is_map(Aliases) ->
+    maps:fold(
+        fun
+            (K, V, Acc) when (is_atom(K) orelse is_integer(K)), is_binary(V) -> Acc#{K => V};
+            (K, V, _Acc) -> erlang:error({invalid_spectra_field, field_aliases, {K, V}})
+        end,
+        #{},
+        Aliases
+    );
+validate_field_aliases(Aliases) ->
+    erlang:error({invalid_spectra_field, field_aliases, Aliases}).
+
+-spec apply_field_aliases(spectra:sp_type(), #{atom() | integer() => binary()}) ->
+    spectra:sp_type().
+apply_field_aliases(#sp_map{fields = Fields} = Map, Aliases) ->
+    Updated = [alias_map_field(F, Aliases) || F <- Fields],
+    check_unique_binary_names([BN || #literal_map_field{binary_name = BN} <- Updated]),
+    Map#sp_map{fields = Updated};
+apply_field_aliases(#sp_rec{fields = Fields} = Rec, Aliases) ->
+    Updated = [alias_rec_field(F, Aliases) || F <- Fields],
+    check_unique_binary_names([BN || #sp_rec_field{binary_name = BN} <- Updated]),
+    Rec#sp_rec{fields = Updated};
+apply_field_aliases(#sp_union{types = Types} = Union, Aliases) ->
+    Union#sp_union{types = [apply_field_aliases(T, Aliases) || T <- Types]};
+apply_field_aliases(#sp_type_with_variables{type = Inner} = TWV, Aliases) ->
+    TWV#sp_type_with_variables{type = apply_field_aliases(Inner, Aliases)};
+apply_field_aliases(Other, _Aliases) ->
+    Other.
+
+-spec alias_map_field(spectra:map_field(), #{atom() | integer() => binary()}) ->
+    spectra:map_field().
+alias_map_field(#literal_map_field{name = Name} = F, Aliases) ->
+    case Aliases of
+        #{Name := Alias} -> F#literal_map_field{binary_name = Alias};
+        _ -> F
+    end;
+alias_map_field(F, _Aliases) ->
+    F.
+
+-spec alias_rec_field(#sp_rec_field{}, #{atom() | integer() => binary()}) -> #sp_rec_field{}.
+alias_rec_field(#sp_rec_field{name = Name} = F, Aliases) ->
+    case Aliases of
+        #{Name := Alias} -> F#sp_rec_field{binary_name = Alias};
+        _ -> F
+    end.
+
+-spec check_unique_binary_names([binary()]) -> ok.
+check_unique_binary_names(Names) ->
+    Sorted = lists:sort(Names),
+    case Sorted -- lists:usort(Sorted) of
+        [] ->
+            ok;
+        [Dup | _] ->
+            erlang:error({invalid_spectra_field, field_aliases, {duplicate_json_name, Dup}})
+    end.
 
 -doc """
 Filters the fields of a map type to only those named in `Only`.
