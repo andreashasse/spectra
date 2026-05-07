@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `field_aliases` support in the `-spectra()` attribute for records and map types. Use `field_aliases => #{internal_name => <<"external_name">>}` to rename fields in JSON, OpenAPI, and other encoded formats without changing the Erlang record or map key names.
-- `apply_field_aliases/2` is now exported as part of the public API, enabling Elixir wrappers and other callers to apply alias mappings directly.
-
-### Fixed
-- `apply_only` field filtering is now applied before `field_aliases` renaming, so `only` lists refer to internal Erlang field names as expected rather than external alias names.
 
 ## [0.12.1] - 2026-04-24
 
