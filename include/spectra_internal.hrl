@@ -14,7 +14,8 @@
 -record(sp_rec_field, {
     name :: atom(),
     binary_name :: binary(),
-    type :: spectra:sp_type()
+    type :: spectra:sp_type(),
+    default = undefined :: undefined | {value, term()}
 }).
 -record(sp_rec, {
     name :: atom(),

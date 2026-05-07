@@ -1081,6 +1081,10 @@ map_typed_field_from_json(
             Err
     end.
 
+-spec field_default_value(#sp_rec_field{}) -> term().
+field_default_value(#sp_rec_field{default = {value, V}}) -> V;
+field_default_value(#sp_rec_field{default = undefined}) -> undefined.
+
 -spec struct_default_value(undefined | map(), atom() | integer()) -> {ok, term()} | error.
 struct_default_value(undefined, _FieldName) ->
     error;
@@ -1158,7 +1162,7 @@ do_record_from_json(
         IsIncluded = Only =:= all orelse lists:member(FieldName, Only),
         case IsIncluded of
             false ->
-                {ok, {[undefined | FieldsAcc], ConsumedFields}};
+                {ok, {[field_default_value(Type) | FieldsAcc], ConsumedFields}};
             true ->
                 case Json of
                     #{BinaryName := RecordFieldData} ->

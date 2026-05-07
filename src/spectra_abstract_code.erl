@@ -425,7 +425,7 @@ field_info_to_type({char, _, Value}) when is_integer(Value) ->
 field_info_to_type({integer, _, Value}) when is_integer(Value) ->
     [#sp_literal{value = Value, binary_value = integer_to_binary(Value)}];
 field_info_to_type(Op) when element(1, Op) =:= op ->
-    Value = integer_value(Op),
+    Value = spectra_safe_erl_eval:integer_value(Op),
     [#sp_literal{value = Value, binary_value = integer_to_binary(Value)}];
 field_info_to_type({var, _, VarName}) when is_atom(VarName) ->
     [#sp_var{name = VarName}];
@@ -569,8 +569,8 @@ field_info_to_type({TypeOrOpaque, _, Type, TypeAttrs}) when
             ];
         range ->
             [MinValue, MaxValue] = TypeAttrs,
-            Min = integer_value(MinValue),
-            Max = integer_value(MaxValue),
+            Min = spectra_safe_erl_eval:integer_value(MinValue),
+            Max = spectra_safe_erl_eval:integer_value(MaxValue),
             [
                 #sp_range{
                     type = integer,
@@ -628,43 +628,6 @@ field_info_to_type({TypeOrOpaque, _, Type, TypeAttrs}) when
             [#sp_simple_type{type = none}]
     end.
 
-integer_value({char, _, Value}) when is_integer(Value) ->
-    Value;
-integer_value({integer, _, Value}) when is_integer(Value) ->
-    Value;
-integer_value({op, _, Operator, Left, Right}) ->
-    case Operator of
-        '-' ->
-            integer_value(Left) - integer_value(Right);
-        '+' ->
-            integer_value(Left) + integer_value(Right);
-        '*' ->
-            integer_value(Left) * integer_value(Right);
-        'div' ->
-            integer_value(Left) div integer_value(Right);
-        'rem' ->
-            integer_value(Left) rem integer_value(Right);
-        'band' ->
-            integer_value(Left) band integer_value(Right);
-        'bor' ->
-            integer_value(Left) bor integer_value(Right);
-        'bxor' ->
-            integer_value(Left) bxor integer_value(Right);
-        'bsl' ->
-            integer_value(Left) bsl integer_value(Right);
-        'bsr' ->
-            integer_value(Left) bsr integer_value(Right)
-    end;
-integer_value({op, _, Operator, Unary}) ->
-    case Operator of
-        '-' ->
-            -integer_value(Unary);
-        '+' ->
-            integer_value(Unary);
-        'bnot' ->
-            bnot integer_value(Unary)
-    end.
-
 -spec map_field_info(term()) ->
     [spectra:map_field()].
 map_field_info({_TypeOfType, _, Type, TypeAttrs}) ->
@@ -709,14 +672,14 @@ map_field_info({_TypeOfType, _, Type, TypeAttrs}) ->
     end.
 
 -spec record_field_info(erl_parse__af_field_decl()) -> #sp_rec_field{}.
-record_field_info({record_field, _, {atom, _, FieldName}, _Default}) when
+record_field_info({record_field, _, {atom, _, FieldName}, Default}) when
     is_atom(FieldName)
 ->
-    %% FIXME: Handle default values in record fields. Also handle default values in typed_record_field?
     #sp_rec_field{
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
-        type = #sp_simple_type{type = term}
+        type = #sp_simple_type{type = term},
+        default = spectra_safe_erl_eval:eval_record_default(Default)
     };
 record_field_info({record_field, _, {atom, _, FieldName}}) when is_atom(FieldName) ->
     #sp_rec_field{
@@ -734,7 +697,7 @@ record_field_info({typed_record_field, {record_field, _, {atom, _, FieldName}}, 
         type = TypeInfo
     };
 record_field_info(
-    {typed_record_field, {record_field, _, {atom, _, FieldName}, _Default}, Type}
+    {typed_record_field, {record_field, _, {atom, _, FieldName}, Default}, Type}
 ) when
     is_atom(FieldName)
 ->
@@ -742,7 +705,8 @@ record_field_info(
     #sp_rec_field{
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
-        type = TypeInfo
+        type = TypeInfo,
+        default = spectra_safe_erl_eval:eval_record_default(Default)
     }.
 
 %% Helper functions for bounded_fun handling
