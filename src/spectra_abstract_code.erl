@@ -425,7 +425,7 @@ field_info_to_type({char, _, Value}) when is_integer(Value) ->
 field_info_to_type({integer, _, Value}) when is_integer(Value) ->
     [#sp_literal{value = Value, binary_value = integer_to_binary(Value)}];
 field_info_to_type(Op) when element(1, Op) =:= op ->
-    Value = integer_value(Op),
+    Value = spectra_safe_erl_eval:integer_value(Op),
     [#sp_literal{value = Value, binary_value = integer_to_binary(Value)}];
 field_info_to_type({var, _, VarName}) when is_atom(VarName) ->
     [#sp_var{name = VarName}];
@@ -569,8 +569,8 @@ field_info_to_type({TypeOrOpaque, _, Type, TypeAttrs}) when
             ];
         range ->
             [MinValue, MaxValue] = TypeAttrs,
-            Min = integer_value(MinValue),
-            Max = integer_value(MaxValue),
+            Min = spectra_safe_erl_eval:integer_value(MinValue),
+            Max = spectra_safe_erl_eval:integer_value(MaxValue),
             [
                 #sp_range{
                     type = integer,
@@ -628,43 +628,6 @@ field_info_to_type({TypeOrOpaque, _, Type, TypeAttrs}) when
             [#sp_simple_type{type = none}]
     end.
 
-integer_value({char, _, Value}) when is_integer(Value) ->
-    Value;
-integer_value({integer, _, Value}) when is_integer(Value) ->
-    Value;
-integer_value({op, _, Operator, Left, Right}) ->
-    case Operator of
-        '-' ->
-            integer_value(Left) - integer_value(Right);
-        '+' ->
-            integer_value(Left) + integer_value(Right);
-        '*' ->
-            integer_value(Left) * integer_value(Right);
-        'div' ->
-            integer_value(Left) div integer_value(Right);
-        'rem' ->
-            integer_value(Left) rem integer_value(Right);
-        'band' ->
-            integer_value(Left) band integer_value(Right);
-        'bor' ->
-            integer_value(Left) bor integer_value(Right);
-        'bxor' ->
-            integer_value(Left) bxor integer_value(Right);
-        'bsl' ->
-            integer_value(Left) bsl integer_value(Right);
-        'bsr' ->
-            integer_value(Left) bsr integer_value(Right)
-    end;
-integer_value({op, _, Operator, Unary}) ->
-    case Operator of
-        '-' ->
-            -integer_value(Unary);
-        '+' ->
-            integer_value(Unary);
-        'bnot' ->
-            bnot integer_value(Unary)
-    end.
-
 -spec map_field_info(term()) ->
     [spectra:map_field()].
 map_field_info({_TypeOfType, _, Type, TypeAttrs}) ->
@@ -716,7 +679,7 @@ record_field_info({record_field, _, {atom, _, FieldName}, Default}) when
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
         type = #sp_simple_type{type = term},
-        default = eval_record_default(Default)
+        default = spectra_safe_erl_eval:eval_record_default(Default)
     };
 record_field_info({record_field, _, {atom, _, FieldName}}) when is_atom(FieldName) ->
     #sp_rec_field{
@@ -743,78 +706,8 @@ record_field_info(
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
         type = TypeInfo,
-        default = eval_record_default(Default)
+        default = spectra_safe_erl_eval:eval_record_default(Default)
     }.
-
--spec eval_record_default(dynamic()) -> undefined | {value, term()}.
-eval_record_default({atom, _, Value}) when is_atom(Value) ->
-    {value, Value};
-eval_record_default({float, _, Value}) when is_float(Value) ->
-    {value, Value};
-eval_record_default({nil, _}) ->
-    {value, []};
-eval_record_default({string, _, Value}) when is_list(Value) ->
-    {value, Value};
-eval_record_default({bin, _, Segments}) ->
-    try
-        Parts = [bin_segment_value(S) || S <- Segments],
-        {value, iolist_to_binary(Parts)}
-    catch
-        _:_ -> undefined
-    end;
-eval_record_default({tuple, _, Elements}) ->
-    eval_literal_list(Elements, fun erlang:list_to_tuple/1);
-eval_record_default({cons, _, _Head, _Tail} = Expr) ->
-    eval_literal_cons(Expr);
-eval_record_default({map, _, Assocs}) ->
-    eval_literal_map(Assocs);
-eval_record_default(Expr) ->
-    try
-        {value, integer_value(Expr)}
-    catch
-        _:_ -> undefined
-    end.
-
--spec eval_literal_list(list(), fun((list()) -> term())) -> undefined | {value, term()}.
-eval_literal_list(Exprs, Wrap) ->
-    Results = [eval_record_default(E) || E <- Exprs],
-    case lists:all(fun(R) -> R =/= undefined end, Results) of
-        true -> {value, Wrap([V || {value, V} <- Results])};
-        false -> undefined
-    end.
-
--spec eval_literal_cons(dynamic()) -> undefined | {value, dynamic()}.
-eval_literal_cons({nil, _}) ->
-    {value, []};
-eval_literal_cons({cons, _, Head, Tail}) ->
-    case {eval_record_default(Head), eval_literal_cons(Tail)} of
-        {{value, H}, {value, T}} -> {value, [H | T]};
-        _ -> undefined
-    end;
-eval_literal_cons(_) ->
-    undefined.
-
--spec eval_literal_map(list()) -> undefined | {value, term()}.
-eval_literal_map(Assocs) ->
-    Pairs = [eval_map_assoc(A) || A <- Assocs],
-    case lists:all(fun(R) -> R =/= undefined end, Pairs) of
-        true -> {value, maps:from_list([KV || {value, KV} <- Pairs])};
-        false -> undefined
-    end.
-
--spec eval_map_assoc(dynamic()) -> undefined | {value, {term(), term()}}.
-eval_map_assoc({map_field_assoc, _, K, V}) ->
-    case {eval_record_default(K), eval_record_default(V)} of
-        {{value, KV}, {value, VV}} -> {value, {KV, VV}};
-        _ -> undefined
-    end;
-eval_map_assoc(_) ->
-    undefined.
-
--spec bin_segment_value(dynamic()) -> iodata().
-bin_segment_value({bin_element, _, {string, _, S}, default, default}) -> S;
-bin_segment_value({bin_element, _, {char, _, V}, default, default}) -> V;
-bin_segment_value({bin_element, _, Expr, default, default}) -> integer_value(Expr).
 
 %% Helper functions for bounded_fun handling
 -spec bound_fun_constraints(list()) -> #{atom() => term()}.
