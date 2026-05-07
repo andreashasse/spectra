@@ -709,14 +709,14 @@ map_field_info({_TypeOfType, _, Type, TypeAttrs}) ->
     end.
 
 -spec record_field_info(erl_parse__af_field_decl()) -> #sp_rec_field{}.
-record_field_info({record_field, _, {atom, _, FieldName}, _Default}) when
+record_field_info({record_field, _, {atom, _, FieldName}, Default}) when
     is_atom(FieldName)
 ->
-    %% FIXME: Handle default values in record fields. Also handle default values in typed_record_field?
     #sp_rec_field{
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
-        type = #sp_simple_type{type = term}
+        type = #sp_simple_type{type = term},
+        default = eval_record_default(Default)
     };
 record_field_info({record_field, _, {atom, _, FieldName}}) when is_atom(FieldName) ->
     #sp_rec_field{
@@ -734,7 +734,7 @@ record_field_info({typed_record_field, {record_field, _, {atom, _, FieldName}}, 
         type = TypeInfo
     };
 record_field_info(
-    {typed_record_field, {record_field, _, {atom, _, FieldName}, _Default}, Type}
+    {typed_record_field, {record_field, _, {atom, _, FieldName}, Default}, Type}
 ) when
     is_atom(FieldName)
 ->
@@ -742,8 +742,18 @@ record_field_info(
     #sp_rec_field{
         name = FieldName,
         binary_name = atom_to_binary(FieldName, utf8),
-        type = TypeInfo
+        type = TypeInfo,
+        default = eval_record_default(Default)
     }.
+
+-spec eval_record_default(term()) -> undefined | {value, term()}.
+eval_record_default(DefaultExpr) ->
+    try
+        {value, Value, _} = erl_eval:expr(DefaultExpr, []),
+        {value, Value}
+    catch
+        _:_ -> undefined
+    end.
 
 %% Helper functions for bounded_fun handling
 -spec bound_fun_constraints(list()) -> #{atom() => term()}.

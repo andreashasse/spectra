@@ -26,7 +26,8 @@ missing_test() ->
                     #sp_rec_field{
                         name = age,
                         binary_name = <<"age">>,
-                        type = #sp_simple_type{type = pos_integer}
+                        type = #sp_simple_type{type = pos_integer},
+                        default = {value, 1}
                     }
                 ],
             arity = 3,
@@ -42,7 +43,7 @@ missing_test() ->
     ?assertMatch(
         {error, [#sp_error{location = [age], type = missing_data}]},
         spectra:decode(json, ?MODULE, {record, person}, #{<<"name">> => <<"John">>}, [pre_decoded]),
-        "Default value not picked up here, should it?"
+        "Included fields are mandatory regardless of record default"
     ).
 
 extra_fields_test() ->
