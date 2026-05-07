@@ -110,7 +110,7 @@ eval_map_assoc({map_field_assoc, _, K, V}) ->
 eval_map_assoc(_) ->
     undefined.
 
--spec bin_segment_value(dynamic()) -> iodata().
+-spec bin_segment_value(dynamic()) -> dynamic().
 bin_segment_value({bin_element, _, {string, _, S}, default, default}) -> S;
 bin_segment_value({bin_element, _, {char, _, V}, default, default}) -> V;
 bin_segment_value({bin_element, _, Expr, default, default}) -> integer_value(Expr).
