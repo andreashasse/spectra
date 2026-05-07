@@ -34,7 +34,7 @@ injects_function_when_only_export_present_test() ->
     ?assertEqual(Module, TypeInfo#type_info.module),
     %% The injected value reflects the module's declared types.
     Types = TypeInfo#type_info.types,
-    ?assert(maps:is_key({only_export_type, 0}, Types)).
+    ?assertMatch(#{{only_export_type, 0} := _}, Types).
 
 injects_function_when_export_and_spec_present_test() ->
     %% Module opts into the transform and provides -export and a hand-written
@@ -44,7 +44,7 @@ injects_function_when_export_and_spec_present_test() ->
     TypeInfo = Module:'__spectra_type_info__'(),
     ?assertEqual(Module, TypeInfo#type_info.module),
     Types = TypeInfo#type_info.types,
-    ?assert(maps:is_key({only_spec_type, 0}, Types)).
+    ?assertMatch(#{{only_spec_type, 0} := _}, Types).
 
 types_in_forms_does_not_orphan_spectra_doc_on_handwritten_spec_test() ->
     %% Module opts into the transform and fully defines
