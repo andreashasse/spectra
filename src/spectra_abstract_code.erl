@@ -747,12 +747,13 @@ record_field_info(
     }.
 
 -spec eval_record_default(dynamic()) -> undefined | {value, term()}.
-eval_record_default(DefaultExpr) ->
-    try
-        {value, Value, _} = erl_eval:expr(DefaultExpr, []),
-        {value, Value}
-    catch
-        _:_ -> undefined
+eval_record_default({atom, _, Value}) when is_atom(Value) -> {value, Value};
+eval_record_default({float, _, Value}) when is_float(Value) -> {value, Value};
+eval_record_default({nil, _}) -> {value, []};
+eval_record_default({string, _, Value}) when is_list(Value) -> {value, Value};
+eval_record_default(Expr) ->
+    try {value, integer_value(Expr)}
+    catch _:_ -> undefined
     end.
 
 %% Helper functions for bounded_fun handling
