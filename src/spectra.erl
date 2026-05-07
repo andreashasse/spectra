@@ -29,7 +29,9 @@
 -type sp_type_meta() :: #{
     doc => type_doc(),
     name => sp_type_reference(),
-    parameters => term()
+    parameters => term(),
+    only => [atom()],
+    field_aliases => #{atom() | integer() => binary()}
 }.
 
 -type sp_function_spec_meta() :: #{
