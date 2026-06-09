@@ -12,9 +12,11 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["28", "27"]
+        otp: ["29", "28", "27"]
         rebar3: ["3.25"]
         include:
+          # ELP (used by the lint and type_check steps) ships per-OTP builds.
+          # There is no OTP 29 build yet, so those steps are skipped on OTP 29.
           - otp: "28"
             elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-02-27/elp-linux-x86_64-unknown-linux-gnu-otp-28.tar.gz"
           - otp: "27"
@@ -30,6 +32,7 @@ jobs:
           rebar3-version: ${{ matrix.rebar3 }}
 
       - name: Download and Setup ELP
+        if: matrix.elp_build
         run: |
           mkdir -p bin
           wget -q ${{ matrix.elp_build }} -O elp.tar.gz
@@ -61,6 +64,7 @@ jobs:
         run: make proper
 
       - name: Type check
+        if: matrix.elp_build
         run: make type_check
 
       - name: Check format
@@ -73,6 +77,7 @@ jobs:
         run: make hank
 
       - name: Lint
+        if: matrix.elp_build
         run: make lint
 
       - name: Generate coverage report
