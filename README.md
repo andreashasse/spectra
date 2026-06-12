@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.13.1"}
+    {spectra, "~> 0.13.2"}
 ]}.
 ```
 
@@ -606,6 +606,8 @@ The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
 - `contact` — contact information map with optional `name`, `url`, `email` fields (binary values)
 - `license` — license map with required `name` and optional `url` or `identifier` (binary values)
 - `servers` — list of server objects, each with required `url` and optional `description` (binary values)
+- `security_schemes` — map of named [Security Scheme Objects](https://spec.openapis.org/oas/v3.1.0#security-scheme-object), emitted under `components.securitySchemes`. This is what makes Swagger UI render the **Authorize** button. Values are passed through as JSON, so any scheme type works (`apiKey`, `http`/`bearer`, `oauth2`, `openIdConnect`), e.g. `#{<<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>, bearerFormat => <<"JWT">>}}`
+- `security` — list of [Security Requirement Objects](https://spec.openapis.org/oas/v3.1.0#security-requirement-object) emitted at the top level as the global default applied to every operation, e.g. `[#{<<"bearer_auth">> => []}]` (the list holds required scopes, empty for `apiKey`/`http`)
 
 
 ## Error Handling

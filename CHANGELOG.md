@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-06-12
+
+### Added
+- OpenAPI security schemes. `spectra_openapi:endpoints_to_openapi/2,3` now accepts two optional metadata keys: `security_schemes` (a map of named [Security Scheme Objects](https://spec.openapis.org/oas/v3.1.0#security-scheme-object), emitted under `components.securitySchemes`) and `security` (a list of [Security Requirement Objects](https://spec.openapis.org/oas/v3.1.0#security-requirement-object), emitted at the top level). This is what makes Swagger UI render the **Authorize** button. Scheme values are passed through as JSON values (like schemas), so any scheme type works — `apiKey`, `http`/`bearer`, `oauth2`, `openIdConnect`.
+
 ## [0.13.1] - 2026-05-07
 
 ### Added

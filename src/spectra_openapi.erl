@@ -100,6 +100,8 @@
 -type openapi_server() :: #{url := binary(), description => binary()}.
 -type openapi_contact() :: #{name => binary(), url => binary(), email => binary()}.
 -type openapi_license() :: #{name := binary(), url => binary(), identifier => binary()}.
+-type openapi_security_scheme() :: json:encode_value().
+-type openapi_security_requirement() :: #{binary() => [binary()]}.
 -type openapi_metadata() ::
     #{
         title := binary(),
@@ -109,7 +111,9 @@
         terms_of_service => binary(),
         contact => openapi_contact(),
         license => openapi_license(),
-        servers => [openapi_server()]
+        servers => [openapi_server()],
+        security_schemes => #{binary() => openapi_security_scheme()},
+        security => [openapi_security_requirement()]
     }.
 -type endpoint_spec() ::
     #{
@@ -176,7 +180,12 @@
             },
         paths := #{binary() => path_operations()},
         servers => [openapi_server()],
-        components => #{schemas => #{binary() => openapi_schema()}}
+        security => [openapi_security_requirement()],
+        components =>
+            #{
+                schemas => #{binary() => openapi_schema()},
+                securitySchemes => #{binary() => openapi_security_scheme()}
+            }
     }.
 
 -doc """
@@ -599,7 +608,9 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
             ),
 
         SchemaRefs = collect_schema_refs(Endpoints, Config),
-        ComponentsResult = generate_components(SchemaRefs, Config),
+        ComponentsResult = add_security_schemes(
+            generate_components(SchemaRefs, Config), MetaData
+        ),
         BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
         Info = lists:foldl(
             fun({MetaKey, InfoKey}, Acc) ->
@@ -620,7 +631,8 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
         BaseSpec = #{
             openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
         },
-        OpenAPISpec = copy_if_present(servers, MetaData, BaseSpec),
+        WithServers = copy_if_present(servers, MetaData, BaseSpec),
+        OpenAPISpec = copy_if_present(security, MetaData, WithServers),
         spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options)
     after
         spectra_module_types:clear_local()
@@ -783,6 +795,13 @@ copy_if_present(Key, Source, Target) ->
     case maps:get(Key, Source, undefined) of
         undefined -> Target;
         Value -> Target#{Key => Value}
+    end.
+
+-spec add_security_schemes(map(), openapi_metadata()) -> map().
+add_security_schemes(Components, MetaData) ->
+    case maps:get(security_schemes, MetaData, undefined) of
+        undefined -> Components;
+        SecuritySchemes -> Components#{securitySchemes => SecuritySchemes}
     end.
 
 -spec generate_response_header(response_header_spec(), spectra:sp_config()) -> openapi_header().
