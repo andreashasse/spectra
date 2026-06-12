@@ -319,6 +319,96 @@ openapi_spec_completeness_test() ->
     ?assert(is_map(Paths)),
     ?assert(map_size(Paths) > 0).
 
+%% Test that security schemes from metadata land under components.securitySchemes.
+%% The scheme value is passed through as a JSON value, so assert against the
+%% actually-serialized JSON where keys are encoded to strings.
+security_schemes_in_components_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    SecuritySchemes =
+        #{
+            <<"api_key">> =>
+                #{
+                    type => <<"apiKey">>,
+                    in => <<"header">>,
+                    name => <<"x-api-key">>,
+                    description => <<"API key">>
+                }
+        },
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes => SecuritySchemes
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+    Decoded = json:decode(iolist_to_binary(json:encode(OpenAPISpec))),
+    ?assertMatch(
+        #{
+            <<"components">> :=
+                #{
+                    <<"securitySchemes">> :=
+                        #{
+                            <<"api_key">> :=
+                                #{
+                                    <<"type">> := <<"apiKey">>,
+                                    <<"in">> := <<"header">>,
+                                    <<"name">> := <<"x-api-key">>,
+                                    <<"description">> := <<"API key">>
+                                }
+                        }
+                }
+        },
+        Decoded
+    ).
+
+%% Test that a global security requirement is emitted at the top level.
+security_requirement_at_top_level_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{
+                        <<"api_key">> =>
+                            #{type => <<"apiKey">>, in => <<"header">>, name => <<"x-api-key">>}
+                    },
+                security => [#{<<"api_key">> => []}]
+            },
+            [Endpoint],
+            [pre_encoded]
+        ),
+    ?assertMatch(#{<<"security">> := [#{<<"api_key">> := []}]}, OpenAPISpec).
+
+%% Test that security keys are absent when no security metadata is provided.
+no_security_without_metadata_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+    ?assertNot(maps:is_key(<<"security">>, OpenAPISpec)),
+    Components = maps:get(<<"components">>, OpenAPISpec, #{}),
+    ?assertNot(maps:is_key(<<"securitySchemes">>, Components)).
+
 %% Test that complex nested structures are properly formed
 complex_nested_structure_test() ->
     %% Test endpoint with all possible features
