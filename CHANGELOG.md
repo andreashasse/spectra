@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-06-14
+
+### Fixed
+- Encoding an `iolist()` or `iodata()` value that is not a valid iolist (e.g. a list containing a byte outside `0..255` such as `[-1]` or `[256]`) now returns a structured `{error, [spectra:error()]}` instead of crashing with a raw `badarg` from `erlang:iolist_to_binary/1`. This also fixes a union-disambiguation inconsistency where such a value produced a different exception type from JSON encoding than from schema generation.
+
 ## [0.13.3] - 2026-06-14
 
 ### Fixed

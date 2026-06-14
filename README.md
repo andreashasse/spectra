@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.13.3"}
+    {spectra, "~> 0.13.4"}
 ]}.
 ```
 
