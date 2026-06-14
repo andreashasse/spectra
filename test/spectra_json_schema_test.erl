@@ -43,6 +43,9 @@ validate_with_python(Schema) ->
 -type mixed_enum() :: admin | 42 | true.
 %% Map types
 -type my_map() :: #{name := string(), age := integer()}.
+%% Exact (`:=`) field whose type can be missing must not be required,
+%% matching the decoder which tolerates its absence.
+-type my_map_with_optional() :: #{name := string(), age := integer() | undefined}.
 -type my_flexible_map() :: #{config := string(), timeout := integer()}.
 %% Generic map types (allow additional properties)
 -type my_generic_map() :: #{atom() => integer()}.
@@ -331,6 +334,29 @@ map_types_test() ->
         FlexibleMapSchema
     ),
     validate_with_python(FlexibleMapSchema).
+
+%% Exact map field whose type can be missing (`age := integer() | undefined`)
+%% must be excluded from required, mirroring record_with_optional_fields_test
+%% and the decoder's handling of `{exact, {true, _}}`.
+map_with_optional_field_test() ->
+    Schema = spectra:schema(
+        json_schema, ?MODULE, {type, my_map_with_optional, 0}, [pre_encoded]
+    ),
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            properties =>
+                #{
+                    <<"name">> => #{type => <<"string">>},
+                    <<"age">> => #{type => <<"integer">>}
+                },
+            required => [<<"name">>],
+            additionalProperties => false
+        },
+        Schema
+    ),
+    validate_with_python(Schema).
 
 %% Test generic map types with additional properties
 generic_map_types_test() ->

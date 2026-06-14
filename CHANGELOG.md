@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-06-14
+
+### Fixed
+- JSON schema no longer marks nilable exact map/struct fields as required. The schema generator treated every exact (`:=`) map field as required based on the field kind alone, so a field whose type can be missing (e.g. `field | nil` / `field | undefined`) — including Elixir struct fields, which all emit as exact — was wrongly listed in `required` even though the decoder tolerates its absence. An exact field is now required only when its type cannot be missing, matching the decoder and the record schema path.
+
 ## [0.13.2] - 2026-06-12
 
 ### Added
