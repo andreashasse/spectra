@@ -326,10 +326,13 @@ process_map_fields(
 ) ->
     FieldSchema = do_to_schema(TypeInfo, FieldType, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
+    %% A field is required only when it is exact (`:=`) and cannot be missing.
+    %% Optional (`=>`) fields and exact fields whose type can be missing
+    %% (e.g. `field | nil`) are absent-tolerant, matching the decoder.
     NewRequired =
-        case Kind of
-            exact -> [BinaryName | Required];
-            assoc -> Required
+        case {Kind, spectra_type:can_be_missing(TypeInfo, FieldType)} of
+            {exact, false} -> [BinaryName | Required];
+            _ -> Required
         end,
     process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional, Config);
 process_map_fields(
