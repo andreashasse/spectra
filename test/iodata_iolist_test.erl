@@ -162,3 +162,19 @@ iolist_unicode_test() ->
     {ok, Decoded} = spectra:decode(json, ?MODULE, my_iolist, EncodedBinary),
     Expected = [<<"hello 世界"/utf8>>],
     ?assertEqual(Expected, Decoded).
+
+%%% Invalid input — must return a structured error, not crash with badarg %%%
+
+iolist_negative_byte_returns_error_test() ->
+    %% -1 is not a valid byte, so this is not a valid iolist.
+    ?assertMatch({error, [_]}, spectra:encode(json, ?MODULE, my_iolist, [-1])).
+
+iolist_too_large_byte_returns_error_test() ->
+    %% 256 is out of the 0..255 byte range.
+    ?assertMatch({error, [_]}, spectra:encode(json, ?MODULE, my_iolist, [256])).
+
+iodata_negative_byte_returns_error_test() ->
+    ?assertMatch({error, [_]}, spectra:encode(json, ?MODULE, my_iodata, [-1])).
+
+iodata_too_large_byte_returns_error_test() ->
+    ?assertMatch({error, [_]}, spectra:encode(json, ?MODULE, my_iodata, [256])).

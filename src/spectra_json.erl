@@ -788,15 +788,26 @@ check_type_from_json(Type, Json) ->
 check_type_to_json(iodata, Json) when is_binary(Json) ->
     {true, Json};
 check_type_to_json(iodata, Json) when is_list(Json) ->
-    {true, iolist_to_binary(Json)};
+    iolist_to_json(Json);
 check_type_to_json(iolist, Json) when is_list(Json) ->
-    {true, iolist_to_binary(Json)};
+    iolist_to_json(Json);
 check_type_to_json(nonempty_string, Json) when is_list(Json), Json =/= [] ->
     do_string_to_json(nonempty_string, Json);
 check_type_to_json(string, Json) when is_list(Json) ->
     do_string_to_json(string, Json);
 check_type_to_json(Type, Json) ->
     check_type(Type, Json).
+
+%% A list typed as iodata/iolist is only valid if it is a proper iolist.
+%% `iolist_to_binary/1` raises badarg on malformed input (e.g. `[-1]`, `[256]`),
+%% so catch it and report `false`, which the caller turns into a type_mismatch.
+iolist_to_json(Json) ->
+    try
+        {true, iolist_to_binary(Json)}
+    catch
+        error:badarg ->
+            false
+    end.
 
 check_type(integer, Json) when is_integer(Json) ->
     {true, Json};
