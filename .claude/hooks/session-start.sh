@@ -38,6 +38,10 @@ log() { echo "[session-start] $*"; }
 # curl with retries so a transient network blip doesn't hard-fail the session.
 fetch() { curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "$@"; }
 
+# Only reach for sudo when we're not already root; minimal containers (or a
+# root session user) may not have sudo installed at all.
+if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+
 # --- Erlang/OTP -------------------------------------------------------------
 if [ -x "$OTP_DIR/bin/erl" ] && \
    [ "$("$OTP_DIR/bin/erl" -noshell -eval 'io:format("~s",[erlang:system_info(otp_release)]),halt().' 2>/dev/null)" -ge 27 ] 2>/dev/null; then
@@ -50,14 +54,14 @@ else
   echo "${OTP_SHA256}  ${tmp}/otp.tar.gz" | sha256sum -c - >/dev/null || {
     log "ERROR: OTP checksum mismatch, aborting."; exit 1;
   }
-  sudo rm -rf "$OTP_DIR"
-  sudo mkdir -p "$OTP_DIR"
-  sudo tar -xzf "$tmp/otp.tar.gz" -C "$OTP_DIR" --strip-components=1
+  $SUDO rm -rf "$OTP_DIR"
+  $SUDO mkdir -p "$OTP_DIR"
+  $SUDO tar -xzf "$tmp/otp.tar.gz" -C "$OTP_DIR" --strip-components=1
   # Precompiled OTP is relocatable; its Install script fixes up ROOTDIR paths.
-  ( cd "$OTP_DIR" && sudo ./Install -minimal "$OTP_DIR" >/dev/null )
-  sudo ln -sf "$OTP_DIR/bin/erl"     /usr/local/bin/erl
-  sudo ln -sf "$OTP_DIR/bin/erlc"    /usr/local/bin/erlc
-  sudo ln -sf "$OTP_DIR/bin/escript" /usr/local/bin/escript
+  ( cd "$OTP_DIR" && $SUDO ./Install -minimal "$OTP_DIR" >/dev/null )
+  $SUDO ln -sf "$OTP_DIR/bin/erl"     /usr/local/bin/erl
+  $SUDO ln -sf "$OTP_DIR/bin/erlc"    /usr/local/bin/erlc
+  $SUDO ln -sf "$OTP_DIR/bin/escript" /usr/local/bin/escript
   log "OTP installed."
 fi
 
@@ -79,7 +83,7 @@ else
   if ! "$tmp/rebar3" version >/dev/null 2>&1; then
     log "ERROR: downloaded rebar3 escript did not run, aborting."; exit 1
   fi
-  sudo mv "$tmp/rebar3" /usr/local/bin/rebar3
+  $SUDO mv "$tmp/rebar3" /usr/local/bin/rebar3
   log "rebar3 installed ($(rebar3 version 2>/dev/null))."
 fi
 
