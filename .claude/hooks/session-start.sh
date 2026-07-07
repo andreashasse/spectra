@@ -23,8 +23,20 @@ OTP_VERSION="27.3.4.14"
 OTP_DIR="/opt/otp"
 # Ubuntu 24.04 (noble) is what the remote container runs.
 OTP_BUILD="ubuntu-24.04"
+# SHA256 of the OTP-${OTP_VERSION}.tar.gz artifact, taken from builds.hex.pm's
+# builds.txt manifest. Verified before extraction so we never install (and run
+# the ./Install script from) a tampered or truncated download.
+OTP_SHA256="0d3fc311e126856b9494f8b3e5c4630091968863186f59a7a187f49d5b878b3d"
+
+# Clean up any temp dirs we create, even on failure.
+TMPDIRS=()
+cleanup() { local d; for d in "${TMPDIRS[@]:-}"; do [ -n "$d" ] && rm -rf "$d"; done; return 0; }
+trap cleanup EXIT
 
 log() { echo "[session-start] $*"; }
+
+# curl with retries so a transient network blip doesn't hard-fail the session.
+fetch() { curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "$@"; }
 
 # --- Erlang/OTP -------------------------------------------------------------
 if [ -x "$OTP_DIR/bin/erl" ] && \
@@ -32,9 +44,12 @@ if [ -x "$OTP_DIR/bin/erl" ] && \
   log "OTP already installed at $OTP_DIR, skipping."
 else
   log "Installing Erlang/OTP $OTP_VERSION ..."
-  tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/otp.tar.gz" \
+  tmp="$(mktemp -d)"; TMPDIRS+=("$tmp")
+  fetch -o "$tmp/otp.tar.gz" \
     "https://builds.hex.pm/builds/otp/${OTP_BUILD}/OTP-${OTP_VERSION}.tar.gz"
+  echo "${OTP_SHA256}  ${tmp}/otp.tar.gz" | sha256sum -c - >/dev/null || {
+    log "ERROR: OTP checksum mismatch, aborting."; exit 1;
+  }
   sudo rm -rf "$OTP_DIR"
   sudo mkdir -p "$OTP_DIR"
   sudo tar -xzf "$tmp/otp.tar.gz" -C "$OTP_DIR" --strip-components=1
@@ -43,22 +58,29 @@ else
   sudo ln -sf "$OTP_DIR/bin/erl"     /usr/local/bin/erl
   sudo ln -sf "$OTP_DIR/bin/erlc"    /usr/local/bin/erlc
   sudo ln -sf "$OTP_DIR/bin/escript" /usr/local/bin/escript
-  rm -rf "$tmp"
   log "OTP installed."
 fi
 
+export PATH="$OTP_DIR/bin:$PATH"
+
 # --- rebar3 -----------------------------------------------------------------
-if [ -x /usr/local/bin/rebar3 ] && \
-   PATH="$OTP_DIR/bin:$PATH" /usr/local/bin/rebar3 version >/dev/null 2>&1; then
-  log "rebar3 already installed, skipping."
+# The versioned rebar3 URLs live on GitHub (blocked by egress policy), so we
+# use the official unversioned S3 escript, which always serves latest stable.
+# We don't pin a version; instead we verify the escript actually runs under our
+# OTP before trusting it.
+if [ -x /usr/local/bin/rebar3 ] && rebar3 version >/dev/null 2>&1; then
+  log "rebar3 already installed ($(rebar3 version 2>/dev/null))."
 else
   log "Installing rebar3 ..."
-  tmp="$(mktemp -d)"
-  curl -fsSL -o "$tmp/rebar3" "https://s3.amazonaws.com/rebar3/rebar3"
+  tmp="$(mktemp -d)"; TMPDIRS+=("$tmp")
+  fetch -o "$tmp/rebar3" "https://s3.amazonaws.com/rebar3/rebar3"
   chmod +x "$tmp/rebar3"
+  # Sanity-check the escript before installing it into a system location.
+  if ! "$tmp/rebar3" version >/dev/null 2>&1; then
+    log "ERROR: downloaded rebar3 escript did not run, aborting."; exit 1
+  fi
   sudo mv "$tmp/rebar3" /usr/local/bin/rebar3
-  rm -rf "$tmp"
-  log "rebar3 installed."
+  log "rebar3 installed ($(rebar3 version 2>/dev/null))."
 fi
 
 # --- Persist PATH for the session -------------------------------------------
@@ -67,4 +89,6 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo "export PATH=\"$OTP_DIR/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 fi
 
-log "Toolchain ready: $(PATH="$OTP_DIR/bin:$PATH" erl -noshell -eval 'io:format("OTP ~s",[erlang:system_info(otp_release)]),halt().') / $(PATH="$OTP_DIR/bin:$PATH" /usr/local/bin/rebar3 version 2>/dev/null | head -1)"
+otp_release="$(erl -noshell -eval 'io:format("~s",[erlang:system_info(otp_release)]),halt().' 2>/dev/null)"
+rebar_version="$(rebar3 version 2>/dev/null)"
+log "Toolchain ready: OTP ${otp_release} / ${rebar_version}"
