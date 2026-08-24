@@ -44,7 +44,7 @@ Gap analysis of OpenAPI 3.1 fields not yet supported in `spectra_openapi.erl`.
 - [ ] Per-operation `servers` override
 - [ ] `security` / security schemes
 - [ ] Top-level `externalDocs` on the OpenAPI object
-- [ ] `webhooks` (OpenAPI 3.1)
+- [x] `webhooks` (OpenAPI 3.1)
 
 ## Not in scope for now
 - [ ] to/from Dynamo DB
