@@ -542,12 +542,22 @@ spectra_openapi:with_request_body(Endpoint, Module, Schema, ContentType :: binar
 spectra_openapi:with_parameter(Endpoint, Module, ParameterSpec) ->
     endpoint_spec().
 
+%% Create a webhook, keyed by event name instead of a URL path
+spectra_openapi:webhook(Name, Method) ->
+    webhook_spec().
+spectra_openapi:webhook(Name, Method, Doc) ->
+    webhook_spec().
+
 %% Generate complete OpenAPI spec (returns encoded JSON iodata)
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 
 %% Generate complete OpenAPI spec with options
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
+
+%% Generate complete OpenAPI spec including webhooks
+spectra_openapi:to_openapi(Metadata, Endpoints, Webhooks, Options) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 ```
 
@@ -597,7 +607,32 @@ For both `with_request_body` and `with_parameter`, `description` and `deprecated
 -type create_user_request() :: #create_user_request{}.
 ```
 
-The `Metadata` map in `endpoints_to_openapi/2,3` supports the following fields:
+### Webhooks
+
+OpenAPI 3.1 [webhooks](https://spec.openapis.org/oas/v3.1.0#oasWebhooks) describe requests your API *sends out*, rather than requests it receives. Build them with `webhook/2,3` and pass them to `to_openapi/4`; they are emitted under the spec's top-level `webhooks` key.
+
+A webhook is keyed by an **event name** instead of a URL path, because the consumer owns the URL your API calls. The direction is inverted relative to an endpoint: the request body is the payload your API *sends*, and the responses describe what the consumer is expected to *return*.
+
+```erlang
+Webhook0 = spectra_openapi:webhook(<<"userCreated">>, post, #{
+    summary => <<"Sent when a user is created">>
+}),
+Webhook1 = spectra_openapi:with_request_body(Webhook0, my_module, {type, user, 0}),
+Webhook = spectra_openapi:add_response(
+    Webhook1, spectra_openapi:response(200, <<"Acknowledged">>)
+),
+{ok, Json} = spectra_openapi:to_openapi(Meta, Endpoints, [Webhook], []).
+```
+
+Notes:
+- Responses, request bodies and parameters use the same `add_response/2`, `with_request_body/3,4` and `with_parameter/3` functions as endpoints.
+- Only `header` and `cookie` parameters are allowed. `path` and `query` raise an error — the consumer owns the URL, so there is nothing for your API to template into.
+- Responses are optional, matching OpenAPI 3.1.
+- One event name can carry several methods; a webhook value is a Path Item Object, exactly like a `paths` entry.
+- Webhook schemas share `components/schemas` with endpoints, so a type used by both is emitted once.
+- A global `security` requirement (below) is emitted at the top level and therefore applies to webhook operations too, even though its meaning is inverted there — it would describe your API authenticating *to* the consumer. Per-operation security is not supported yet.
+
+The `Metadata` map in `endpoints_to_openapi/2,3` and `to_openapi/4` supports the following fields:
 - `title` — API title (binary, required)
 - `version` — API version (binary, required)
 - `summary` — short summary of the API (binary)

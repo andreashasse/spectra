@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- OpenAPI 3.1 webhooks. New `spectra_openapi:webhook/2,3` builds a webhook specification, and new `spectra_openapi:to_openapi/4` generates a spec from both endpoints and webhooks, emitting the latter under the document's top-level [`webhooks`](https://spec.openapis.org/oas/v3.1.0#oasWebhooks) key. A webhook is keyed by an event name rather than a URL path, because the consumer owns the URL; the direction is inverted relative to an endpoint, so the request body is the payload the API sends and the responses describe what the consumer returns. `add_response/2`, `with_request_body/3,4` and `with_parameter/3` accept webhooks as well as endpoints, and webhook schemas share `components/schemas` with endpoints. `with_parameter/3` raises `{parameter_location_not_supported_on_webhook, Name, In}` for `path` and `query` parameters, which can never be satisfied on a webhook. `endpoints_to_openapi/2,3` are unchanged and emit no `webhooks` key.
+
 ## [0.13.4] - 2026-06-14
 
 ### Fixed

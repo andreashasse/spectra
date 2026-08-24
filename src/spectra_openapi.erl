@@ -4,9 +4,11 @@
 
 -export([
     endpoint/2, endpoint/3,
+    webhook/2, webhook/3,
     with_request_body/3, with_request_body/4,
     with_parameter/3,
     endpoints_to_openapi/2, endpoints_to_openapi/3,
+    to_openapi/4,
     response/2,
     response_with_body/3, response_with_body/4,
     response_with_header/4,
@@ -16,11 +18,14 @@
 -ignore_xref([
     {spectra_openapi, endpoint, 2},
     {spectra_openapi, endpoint, 3},
+    {spectra_openapi, webhook, 2},
+    {spectra_openapi, webhook, 3},
     {spectra_openapi, with_request_body, 3},
     {spectra_openapi, with_request_body, 4},
     {spectra_openapi, with_parameter, 3},
     {spectra_openapi, endpoints_to_openapi, 2},
     {spectra_openapi, endpoints_to_openapi, 3},
+    {spectra_openapi, to_openapi, 4},
     {spectra_openapi, response, 2},
     {spectra_openapi, response_with_body, 3},
     {spectra_openapi, response_with_body, 4},
@@ -30,6 +35,7 @@
 
 -export_type([
     endpoint_spec/0,
+    webhook_spec/0,
     endpoint_doc/0,
     response_spec/0,
     parameter_spec/0,
@@ -37,7 +43,8 @@
     http_method/0,
     http_status_code/0,
     openapi_metadata/0,
-    openapi_spec/0
+    openapi_spec/0,
+    openapi_webhooks/0
 ]).
 
 -define(DEFAULT_CONTENT_TYPE, <<"application/json">>).
@@ -124,7 +131,21 @@
         request_body => request_body_spec(),
         doc => endpoint_doc()
     }.
+%% An OpenAPI 3.1 webhook. Keyed by an event name rather than a URL path: the
+%% consumer owns the URL, so there is nothing to template. The direction is
+%% inverted relative to an endpoint - request_body is what this API sends out,
+%% and responses document what the consumer is expected to send back.
+-type webhook_spec() ::
+    #{
+        name := binary(),
+        method := http_method(),
+        responses := #{http_status_code() => response_spec()},
+        parameters := [parameter_spec()],
+        request_body => request_body_spec(),
+        doc => endpoint_doc()
+    }.
 -type path_operations() :: #{http_method() => openapi_operation()}.
+-type openapi_webhooks() :: #{binary() => path_operations()}.
 -type openapi_operation() ::
     #{
         summary => binary(),
@@ -179,6 +200,7 @@
                 license => openapi_license()
             },
         paths := #{binary() => path_operations()},
+        webhooks => openapi_webhooks(),
         servers => [openapi_server()],
         security => [openapi_security_requirement()],
         components =>
@@ -248,6 +270,79 @@ endpoint(Method, Path, Doc) when is_atom(Method) andalso is_binary(Path) andalso
     }.
 
 -doc """
+Creates a webhook specification.
+
+Equivalent to calling webhook/3 with an empty documentation map.
+
+### Returns
+Webhook map with name and method set
+""".
+-doc #{
+    equiv => webhook(Name, Method, #{}),
+    params =>
+        #{
+            "Method" => "HTTP method the API uses when calling the consumer (usually post)",
+            "Name" => "Event name identifying the webhook (e.g., \"userCreated\")"
+        }
+}.
+
+-spec webhook(Name :: binary(), Method :: http_method()) -> webhook_spec().
+webhook(Name, Method) when is_binary(Name) andalso is_atom(Method) ->
+    webhook(Name, Method, #{}).
+
+-doc """
+Creates a webhook specification with documentation.
+
+Webhooks are emitted under the OpenAPI 3.1 top-level `webhooks` key. Unlike an
+endpoint, a webhook is keyed by an event name instead of a URL path, because the
+consumer owns the URL that this API calls.
+
+The direction is inverted relative to an endpoint: the request body is the
+payload this API *sends*, and the responses describe what the consumer is
+expected to *return* (for example 200 to acknowledge delivery).
+
+Responses, a request body and header parameters are added with the same
+add_response/2, with_request_body/3-4 and with_parameter/3 functions used for
+endpoints. Path and query parameters are rejected - there is no URL under this
+API's control to put them in.
+
+### Documentation Fields
+The Doc map takes the same fields as endpoint/3: summary, description,
+operationId, tags, deprecated and externalDocs.
+
+### Example
+```erlang
+Webhook = spectra_openapi:webhook(<<"userCreated">>, post, #{summary => <<"User created">>}),
+Webhook1 = spectra_openapi:with_request_body(Webhook, Module, {type, user, 0}),
+Webhook2 = spectra_openapi:add_response(
+    Webhook1, spectra_openapi:response(200, <<"Acknowledged">>)
+).
+```
+
+### Returns
+Webhook map with name, method, and documentation set
+""".
+-doc #{
+    params =>
+        #{
+            "Doc" => "Documentation map with summary, description, operationId, tags, etc.",
+            "Method" => "HTTP method the API uses when calling the consumer (usually post)",
+            "Name" => "Event name identifying the webhook (e.g., \"userCreated\")"
+        }
+}.
+
+-spec webhook(Name :: binary(), Method :: http_method(), Doc :: endpoint_doc()) ->
+    webhook_spec().
+webhook(Name, Method, Doc) when is_binary(Name) andalso is_atom(Method) andalso is_map(Doc) ->
+    #{
+        name => Name,
+        method => Method,
+        responses => #{},
+        parameters => [],
+        doc => Doc
+    }.
+
+-doc """
 Creates a response builder for constructing response specifications.
 
 This function creates a response builder that can be incrementally configured with body and headers
@@ -299,13 +394,16 @@ Updated endpoint map with the response added
 -doc #{
     params =>
         #{
-            "Endpoint" => "Endpoint map to add the response to",
+            "Endpoint" => "Endpoint or webhook map to add the response to",
             "Response" => "Response specification built with response/2 and related functions"
         }
 }.
 
--spec add_response(Endpoint :: endpoint_spec(), Response :: response_spec()) ->
-    endpoint_spec().
+-spec add_response(
+    Endpoint :: endpoint_spec() | webhook_spec(),
+    Response :: response_spec()
+) ->
+    endpoint_spec() | webhook_spec().
 add_response(Endpoint, Response) when is_map(Endpoint) andalso is_map(Response) ->
     {StatusCode, ResponseWithoutStatusCode} = maps:take(status_code, Response),
     Responses = maps:get(responses, Endpoint, #{}),
@@ -446,18 +544,18 @@ Updated endpoint map with request body set
 -doc #{
     params =>
         #{
-            "Endpoint" => "Endpoint map to add the request body to",
+            "Endpoint" => "Endpoint or webhook map to add the request body to",
             "Module" => "Module containing the type definition",
             "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
         }
 }.
 
 -spec with_request_body(
-    Endpoint :: endpoint_spec(),
+    Endpoint :: endpoint_spec() | webhook_spec(),
     Module :: module(),
     Schema :: spectra:sp_type_or_ref()
 ) ->
-    endpoint_spec().
+    endpoint_spec() | webhook_spec().
 with_request_body(Endpoint, Module, Schema) when
     is_map(Endpoint) andalso is_atom(Module)
 ->
@@ -494,19 +592,19 @@ Updated endpoint map with request body set
             "ContentType" =>
                 "Content type binary for the request body (e.g., <<\"application/xml\">>). "
                 "Must be a binary — passing a map will cause a function_clause error.",
-            "Endpoint" => "Endpoint map to add the request body to",
+            "Endpoint" => "Endpoint or webhook map to add the request body to",
             "Module" => "Module containing the type definition",
             "Schema" => "Schema reference or direct type (spectra:sp_type_or_ref())"
         }
 }.
 
 -spec with_request_body(
-    Endpoint :: endpoint_spec(),
+    Endpoint :: endpoint_spec() | webhook_spec(),
     Module :: module(),
     Schema :: spectra:sp_type_or_ref(),
     ContentType :: binary()
 ) ->
-    endpoint_spec().
+    endpoint_spec() | webhook_spec().
 with_request_body(Endpoint, Module, Schema, ContentType) when
     is_map(Endpoint) andalso is_atom(Module) andalso is_binary(ContentType)
 ->
@@ -534,18 +632,18 @@ Updated endpoint map with the new parameter added
 -doc #{
     params =>
         #{
-            "Endpoint" => "Endpoint map to add the parameter to",
+            "Endpoint" => "Endpoint or webhook map to add the parameter to",
             "Module" => "Module containing the type definition",
             "ParameterSpec" => "Parameter specification map"
         }
 }.
 
 -spec with_parameter(
-    Endpoint :: endpoint_spec(),
+    Endpoint :: endpoint_spec() | webhook_spec(),
     Module :: module(),
     ParameterSpec :: parameter_input_spec()
 ) ->
-    endpoint_spec().
+    endpoint_spec() | webhook_spec().
 with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
     is_map(Endpoint) andalso
         is_atom(Module) andalso
@@ -557,9 +655,27 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
         [] -> ok;
         UnknownKeys -> error({unsupported_parameter_spec_keys, UnknownKeys})
     end,
+    ok = check_parameter_location(Endpoint, ParameterSpec),
     Parameters = maps:get(parameters, Endpoint, []),
     ParameterWithModule = ParameterSpec#{module => Module},
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
+
+%% A webhook is delivered to a URL the consumer owns, so there is nothing for
+%% this API to template into a path and no query string it controls. Only
+%% header and cookie parameters can be filled in; reject the rest instead of
+%% emitting a parameter that can never be satisfied. A webhook_spec() is told
+%% apart from an endpoint_spec() by its name key (endpoints carry path).
+-spec check_parameter_location(
+    endpoint_spec() | webhook_spec(),
+    parameter_input_spec()
+) ->
+    ok.
+check_parameter_location(#{name := WebhookName}, #{in := In}) when
+    In =:= path orelse In =:= query
+->
+    error({parameter_location_not_supported_on_webhook, WebhookName, In});
+check_parameter_location(_Endpoint, _ParameterSpec) ->
+    ok.
 
 -doc """
 Generates a complete OpenAPI 3.1 specification from a list of endpoints.
@@ -594,20 +710,51 @@ endpoints_to_openapi(MetaData, Endpoints) ->
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
+    to_openapi(MetaData, Endpoints, [], Options).
+
+-doc """
+Generates a complete OpenAPI 3.1 specification from endpoints and webhooks.
+
+Webhooks are emitted under the top-level `webhooks` key, keyed by the event name
+given to webhook/2-3. Their schemas share `components/schemas` with the
+endpoints, so a type used by both is emitted once.
+
+Note that a global `security` requirement in the metadata is emitted at the
+top level and therefore applies to webhook operations too, even though its
+meaning is inverted there (it would describe this API authenticating to the
+consumer). Per-operation security is not supported yet.
+
+### Returns
+{ok, OpenAPISpec} containing the complete OpenAPI 3.1 document, or {error, Errors} if generation fails
+""".
+-doc #{
+    params =>
+        #{
+            "Endpoints" =>
+                "List of endpoint specifications created with endpoint/2 and with_* functions",
+            "MetaData" => "OpenAPI metadata map with title and version",
+            "Options" => "Encode options passed through to spectra:encode/5",
+            "Webhooks" =>
+                "List of webhook specifications created with webhook/2-3 and with_* functions"
+        }
+}.
+
+-spec to_openapi(
+    MetaData :: openapi_metadata(),
+    Endpoints :: [endpoint_spec()],
+    Webhooks :: [webhook_spec()],
+    Options :: [spectra:encode_option()]
+) ->
+    {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
+to_openapi(MetaData, Endpoints, Webhooks, Options) when
+    is_list(Endpoints) andalso is_list(Webhooks)
+->
     Config = spectra:get_config(),
     try
-        PathGroups = group_endpoints_by_path(Endpoints),
-        Paths =
-            maps:fold(
-                fun(Path, PathEndpoints, Acc) ->
-                    PathOps = generate_path_operations(PathEndpoints, Config),
-                    Acc#{Path => PathOps}
-                end,
-                #{},
-                PathGroups
-            ),
+        Paths = generate_path_items(group_by(path, Endpoints), Config),
+        WebhookItems = generate_path_items(group_by(name, Webhooks), Config),
 
-        SchemaRefs = collect_schema_refs(Endpoints, Config),
+        SchemaRefs = collect_schema_refs(Endpoints ++ Webhooks, Config),
         ComponentsResult = add_security_schemes(
             generate_components(SchemaRefs, Config), MetaData
         ),
@@ -631,26 +778,46 @@ endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
         BaseSpec = #{
             openapi => <<"3.1.0">>, info => Info, paths => Paths, components => ComponentsResult
         },
-        WithServers = copy_if_present(servers, MetaData, BaseSpec),
+        WithWebhooks =
+            case map_size(WebhookItems) of
+                0 -> BaseSpec;
+                _ -> BaseSpec#{webhooks => WebhookItems}
+            end,
+        WithServers = copy_if_present(servers, MetaData, WithWebhooks),
         OpenAPISpec = copy_if_present(security, MetaData, WithServers),
         spectra:encode(json, ?MODULE, {type, openapi_spec, 0}, OpenAPISpec, Options)
     after
         spectra_module_types:clear_local()
     end.
 
--spec group_endpoints_by_path([endpoint_spec()]) -> #{binary() => [endpoint_spec()]}.
-group_endpoints_by_path(Endpoints) ->
+%% Endpoints group by path, webhooks by event name; both produce Path Item
+%% Objects, so the same grouping and operation generation serves both.
+-spec group_by(path | name, [endpoint_spec() | webhook_spec()]) ->
+    #{binary() => [endpoint_spec() | webhook_spec()]}.
+group_by(Key, Specs) ->
     lists:foldl(
-        fun(Endpoint, Acc) ->
-            #{path := Path} = Endpoint,
-            PathEndpoints = maps:get(Path, Acc, []),
-            Acc#{Path => [Endpoint | PathEndpoints]}
+        fun(Spec, Acc) ->
+            GroupKey = maps:get(Key, Spec),
+            Group = maps:get(GroupKey, Acc, []),
+            Acc#{GroupKey => [Spec | Group]}
         end,
         #{},
-        Endpoints
+        Specs
     ).
 
--spec generate_path_operations([endpoint_spec()], spectra:sp_config()) -> path_operations().
+-spec generate_path_items(
+    #{binary() => [endpoint_spec() | webhook_spec()]},
+    spectra:sp_config()
+) ->
+    #{binary() => path_operations()}.
+generate_path_items(Groups, Config) ->
+    maps:map(fun(_Key, Specs) -> generate_path_operations(Specs, Config) end, Groups).
+
+-spec generate_path_operations(
+    [endpoint_spec() | webhook_spec()],
+    spectra:sp_config()
+) ->
+    path_operations().
 generate_path_operations(Endpoints, Config) ->
     lists:foldl(
         fun(#{method := Method} = Endpoint, Acc) ->
@@ -661,7 +828,8 @@ generate_path_operations(Endpoints, Config) ->
         Endpoints
     ).
 
--spec generate_operation(endpoint_spec(), spectra:sp_config()) -> openapi_operation().
+-spec generate_operation(endpoint_spec() | webhook_spec(), spectra:sp_config()) ->
+    openapi_operation().
 generate_operation(Endpoint, Config) ->
     %% Start with documentation if present
     Operation = maps:get(doc, Endpoint, #{}),
@@ -862,7 +1030,7 @@ generate_parameter(
     Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
 
--spec collect_schema_refs([endpoint_spec()], spectra:sp_config()) ->
+-spec collect_schema_refs([endpoint_spec() | webhook_spec()], spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
 collect_schema_refs(Endpoints, Config) ->
     lists:foldl(
@@ -874,7 +1042,7 @@ collect_schema_refs(Endpoints, Config) ->
         Endpoints
     ).
 
--spec collect_endpoint_schema_refs(endpoint_spec(), spectra:sp_config()) ->
+-spec collect_endpoint_schema_refs(endpoint_spec() | webhook_spec(), spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
 collect_endpoint_schema_refs(
     #{responses := Responses, parameters := Parameters} =
