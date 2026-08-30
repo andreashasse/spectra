@@ -53,6 +53,8 @@
 -type http_status_code() :: 100..599.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
+%% Operation Object fields set by the caller. Copied verbatim into the emitted
+%% operation, so every key here must also appear in openapi_operation().
 -type endpoint_doc() ::
     #{
         summary => binary(),
@@ -60,7 +62,8 @@
         operationId => binary(),
         tags => [binary()],
         deprecated => boolean(),
-        externalDocs => #{description => binary(), url := binary()}
+        externalDocs => #{description => binary(), url := binary()},
+        security => [openapi_security_requirement()]
     }.
 -type request_body_spec() ::
     #{
@@ -154,6 +157,7 @@
         tags => [binary()],
         deprecated => boolean(),
         externalDocs => #{description => binary(), url := binary()},
+        security => [openapi_security_requirement()],
         responses => #{binary() => openapi_response()},
         requestBody => openapi_request_body(),
         parameters => [openapi_parameter()]
@@ -719,10 +723,11 @@ Webhooks are emitted under the top-level `webhooks` key, keyed by the event name
 given to webhook/2-3. Their schemas share `components/schemas` with the
 endpoints, so a type used by both is emitted once.
 
-Note that a global `security` requirement in the metadata is emitted at the
-top level and therefore applies to webhook operations too, even though its
-meaning is inverted there (it would describe this API authenticating to the
-consumer). Per-operation security is not supported yet.
+A global `security` requirement in the metadata is emitted at the top level and
+therefore applies to webhook operations too, per OpenAPI - even though its
+meaning is inverted there, since it would describe this API authenticating to
+the consumer. Give a webhook its own `security` in its Doc map to override that,
+or `security => []` to opt it out entirely.
 
 ### Returns
 {ok, OpenAPISpec} containing the complete OpenAPI 3.1 document, or {error, Errors} if generation fails
