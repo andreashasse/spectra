@@ -584,6 +584,7 @@ The `Doc` map in `endpoint/3` can contain any of the following OpenAPI operation
 - `tags` — list of tags for grouping (list of binaries)
 - `deprecated` — whether the endpoint is deprecated (boolean)
 - `externalDocs` — external documentation link (map with `url` and optional `description`)
+- `security` — list of [Security Requirement Objects](https://spec.openapis.org/oas/v3.1.0#security-requirement-object) for this operation alone, overriding the global `security` default. `[]` opts the operation out of the global requirement entirely. Works on webhooks as well as endpoints, which is how an API can authenticate inbound calls one way and sign its outgoing webhooks another.
 
 ```erlang
 spectra_openapi:endpoint(get, <<"/users">>, #{
@@ -630,7 +631,24 @@ Notes:
 - Responses are optional, matching OpenAPI 3.1.
 - One event name can carry several methods; a webhook value is a Path Item Object, exactly like a `paths` entry.
 - Webhook schemas share `components/schemas` with endpoints, so a type used by both is emitted once.
-- A global `security` requirement (below) is emitted at the top level and therefore applies to webhook operations too, even though its meaning is inverted there — it would describe your API authenticating *to* the consumer. Per-operation security is not supported yet.
+- A global `security` requirement (below) is emitted at the top level and therefore applies to webhook operations too, per OpenAPI — even though its meaning is inverted there, since it would describe your API authenticating *to* the consumer. Override it by giving the webhook its own `security` in its `Doc` map, or `security => []` to opt out entirely:
+
+```erlang
+%% The API authenticates callers with a bearer token; its webhooks are signed
+%% with an HMAC header instead.
+Meta = #{
+    title => ~"My API", version => ~"1.0.0",
+    security_schemes => #{
+        ~"bearer_auth" => #{type => ~"http", scheme => ~"bearer"},
+        ~"webhook_signature" =>
+            #{type => ~"apiKey", in => ~"header", name => ~"x-signature"}
+    },
+    security => [#{~"bearer_auth" => []}]
+},
+Webhook = spectra_openapi:webhook(~"userCreated", post, #{
+    security => [#{~"webhook_signature" => []}]
+}).
+```
 
 The `Metadata` map in `endpoints_to_openapi/2,3` and `to_openapi/4` supports the following fields:
 - `title` — API title (binary, required)

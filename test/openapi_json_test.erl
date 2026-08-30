@@ -1552,3 +1552,112 @@ webhook_spec_validates_test() ->
         {error, {validation_failed, Result}} ->
             ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
     end.
+
+%% Test that a webhook can declare its own security requirement, overriding the
+%% API's global default. This is what lets an API authenticate inbound calls one
+%% way and sign its outgoing webhooks another.
+webhook_security_overrides_global_test() ->
+    Webhook =
+        spectra_openapi:webhook(<<"userCreated">>, post, #{
+            security => [#{<<"webhook_signature">> => []}]
+        }),
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{
+                        <<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>},
+                        <<"webhook_signature">> =>
+                            #{
+                                type => <<"apiKey">>,
+                                in => <<"header">>,
+                                name => <<"x-signature">>
+                            }
+                    },
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [Endpoint],
+            [Webhook],
+            [pre_encoded]
+        ),
+    %% The global default stays as the API's own auth ...
+    ?assertMatch(#{<<"security">> := [#{<<"bearer_auth">> := []}]}, OpenAPISpec),
+    %% ... while the webhook operation carries its own instead.
+    ?assertMatch(
+        #{
+            <<"webhooks">> :=
+                #{
+                    <<"userCreated">> :=
+                        #{<<"post">> := #{<<"security">> := [#{<<"webhook_signature">> := []}]}}
+                }
+        },
+        OpenAPISpec
+    ),
+    %% The endpoint does not gain one, so it keeps inheriting the global default.
+    #{<<"paths">> := #{<<"/health">> := #{<<"get">> := Operation}}} = OpenAPISpec,
+    ?assertNot(maps:is_key(<<"security">>, Operation)).
+
+%% Test that an endpoint can override the global security requirement too - this
+%% is a per-operation field, not a webhook-specific one.
+endpoint_security_overrides_global_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/public">>, #{security => []}),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{<<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>}},
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [Endpoint],
+            [],
+            [pre_encoded]
+        ),
+    ?assertMatch(
+        #{<<"paths">> := #{<<"/public">> := #{<<"get">> := #{<<"security">> := []}}}},
+        OpenAPISpec
+    ).
+
+%% Test that an empty security list clears the global requirement for a single
+%% webhook. Webhooks inherit the API's global default (per OpenAPI, top-level
+%% security applies to every operation), so this is how a webhook opts out.
+webhook_security_empty_list_opts_out_test() ->
+    Webhook = spectra_openapi:webhook(<<"userCreated">>, post, #{security => []}),
+    {ok, Json} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{<<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>}},
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [],
+            [Webhook],
+            []
+        ),
+    OpenAPISpec = json:decode(iolist_to_binary(Json)),
+    ?assertMatch(
+        #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := #{<<"security">> := []}}}},
+        OpenAPISpec
+    ),
+    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            {skip, Reason};
+        {error, {validation_failed, Result}} ->
+            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
+    end.
