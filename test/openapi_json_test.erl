@@ -1491,7 +1491,19 @@ webhook_without_responses_test() ->
             #{title => <<"API">>, version => <<"1.0.0">>}, [], [Webhook], [pre_encoded]
         ),
     #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := Operation}}} = OpenAPISpec,
-    ?assertNot(maps:is_key(<<"responses">>, Operation)).
+    ?assertNot(maps:is_key(<<"responses">>, Operation)),
+
+    %% Assert the omission against the real validator too, not just the shape:
+    %% "responses are optional" is a claim about OpenAPI 3.1 itself, so the
+    %% validator is the thing that can falsify it.
+    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
+        ok ->
+            ok;
+        {skip, Reason} ->
+            {skip, Reason};
+        {error, {validation_failed, Result}} ->
+            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
+    end.
 
 %% Test that the webhooks key is absent when no webhooks are given, so existing
 %% specs are unchanged.
