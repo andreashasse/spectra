@@ -60,7 +60,7 @@
 
 schema(TypeName) ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {type, TypeName, 0}),
-    Schema = json:decode(iolist_to_binary(SchemaJson)),
+    #{} = Schema = json:decode(iolist_to_binary(SchemaJson)),
     json_schema_validator_helper:validate_or_skip(Schema),
     Schema.
 
