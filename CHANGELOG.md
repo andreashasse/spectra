@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-11
+
 ### Fixed
 - `-spectra()` doc annotations (`title`, `description`, `deprecated`, `examples`, `examples_function`) are no longer dropped when a type is inlined into another schema. Only the type that schema generation was entered with kept its annotations. Every type resolved while inlining lost them silently, so `deprecated => true` on a type used as a map field produced nothing in the output. This covers map field values, record fields, union branches, list and non-empty list elements, optional map values, and remote types from other modules.
 - `type_parameters` were unaffected and keep working alongside a doc annotation on the same type.
