@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.13.4"}
+    {spectra, "~> 0.14.0"}
 ]}.
 ```
 
@@ -457,6 +457,44 @@ person_examples() ->
 ```
 
 The function specified in `examples_function` must be exported.
+
+Annotations follow the type wherever it is used. A type annotated with `title`,
+`description`, `deprecated`, `examples` or `examples_function` carries that
+metadata into every schema it is inlined into — map field values, record
+fields, union branches, list elements and remote types — not only when it is
+the type schema generation starts from:
+
+```erlang
+-spectra(#{title => <<"Payer">>, deprecated => true}).
+-type payer() :: binary().
+
+%% properties.payer in this schema gets both the title and deprecated => true
+-type request() :: #{payer := payer()}.
+```
+
+When a type alias and the type it resolves to annotate the same key, the
+annotation written nearest the use site wins; keys only one of them sets are
+kept from both.
+
+Three positions do not carry the annotation:
+
+- A union whose members all resolve to literals collapses into a single `enum`
+  schema, so an annotation on a member type of such a union is dropped. There
+  is no per-member sub-schema to attach it to. An annotation on the union type
+  itself is kept.
+- A type handled by a [custom codec](#custom-codecs) gets its schema from the
+  codec, and an annotation on that type is dropped. This applies wherever the
+  type appears, including when schema generation starts from it. An annotation
+  on a plain type that *aliases* a codec-handled type is kept, and is merged
+  over the schema the codec produced.
+- A parameterized type, such as `-type box(T) :: #{v := T}`, loses its
+  annotation when it is instantiated. This is a known gap rather than a
+  deliberate limit.
+
+Because the annotation now reaches every position a type appears in, `examples`
+are validated and converted at each of them, and an `examples_function` is
+called once per position. An example that does not encode as its own type
+raises `{invalid_example, ...}` from schema generation.
 
 ## Field Filtering with `only`
 

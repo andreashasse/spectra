@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-11
+
+### Fixed
+- `-spectra()` doc annotations (`title`, `description`, `deprecated`, `examples`, `examples_function`) are no longer dropped when a type is inlined into another schema. Only the type that schema generation was entered with kept its annotations. Every type resolved while inlining lost them silently, so `deprecated => true` on a type used as a map field produced nothing in the output. This covers map field values, record fields, union branches, list and non-empty list elements, optional map values, and remote types from other modules.
+- `type_parameters` were unaffected and keep working alongside a doc annotation on the same type.
+
+### Changed
+- Generated JSON Schema and OpenAPI output changes for annotated sub-schemas: nested properties now carry the titles, descriptions, deprecation flags and examples their types declare.
+- Where a type alias and the type it resolves to set the same key, the annotation nearest the use site wins. This matches how an alias of a documented record already behaved.
+- `examples` on an annotated type are now validated and converted at every position the type is inlined into, not only when it is the entry point. An example that does not encode as its own type raises `{invalid_example, Type, Term, Errors}`, which previously surfaced only if that type was used as an entry point.
+- `examples_function` is likewise invoked once per position the type appears in, rather than once per schema. Keep it cheap and free of side effects.
+
+Three positions still cannot carry a nested annotation, all unchanged by this release: a union whose members all resolve to literals (it collapses to one `enum` schema), a type whose schema comes from a custom codec, and a parameterized type such as `-type box(T) :: ...`. See the README for details.
+
 ## [0.13.4] - 2026-06-14
 
 ### Fixed
