@@ -59,6 +59,12 @@
 to_schema(TypeInfo, Type, Config) ->
     to_schema_for_sp_type(TypeInfo, Type, Config).
 
+%% Every descent into a type — map field values, record fields, union branches,
+%% list elements — and every resolution of a reference must go through here, so
+%% that a type's `-spectra()` doc annotation travels with it wherever it is
+%% inlined. Calling do_to_schema/3 directly silently drops the annotation.
+%% Docs merge along the resolution chain: on conflicting keys the annotation
+%% written nearest the use site wins.
 -spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
     json_schema_object().
 to_schema_for_sp_type(TypeInfo, Type, Config) ->
@@ -87,7 +93,7 @@ do_to_schema(
             TypeWithoutVars = spectra_abstract_code:apply_ref_meta(
                 TypeWithoutVars0, UserTypeRef#sp_user_type_ref.meta
             ),
-            do_to_schema(TypeInfo, TypeWithoutVars, Config);
+            to_schema_for_sp_type(TypeInfo, TypeWithoutVars, Config);
         Schema ->
             Schema
     end;
@@ -107,7 +113,7 @@ do_to_schema(
             TypeResolved = spectra_abstract_code:apply_ref_meta(
                 TypeResolved0, RemoteRef#sp_remote_type.meta
             ),
-            do_to_schema(RemoteTypeInfo, TypeResolved, Config);
+            to_schema_for_sp_type(RemoteTypeInfo, TypeResolved, Config);
         Schema ->
             Schema
     end;
@@ -197,10 +203,10 @@ do_to_schema(_TypeInfo, #sp_literal{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}, Config) ->
-    ItemSchema = do_to_schema(TypeInfo, ItemType, Config),
+    ItemSchema = to_schema_for_sp_type(TypeInfo, ItemType, Config),
     #{type => <<"array">>, items => ItemSchema};
 do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}, Config) ->
-    ItemSchema = do_to_schema(TypeInfo, ItemType, Config),
+    ItemSchema = to_schema_for_sp_type(TypeInfo, ItemType, Config),
     #{
         type => <<"array">>,
         items => ItemSchema,
@@ -220,7 +226,7 @@ do_to_schema(TypeInfo, #sp_union{types = Types}, Config) ->
         )
     of
         {[_MissingLiteral], [SingleType]} ->
-            do_to_schema(TypeInfo, SingleType, Config);
+            to_schema_for_sp_type(TypeInfo, SingleType, Config);
         {[], NonMissingTypes} ->
             case try_generate_enum_schema(NonMissingTypes, TypeInfo, Config) of
                 not_all_literals ->
@@ -324,7 +330,7 @@ process_map_fields(
     HasAdditional,
     Config
 ) ->
-    FieldSchema = do_to_schema(TypeInfo, FieldType, Config),
+    FieldSchema = to_schema_for_sp_type(TypeInfo, FieldType, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
     %% A field is required only when it is exact (`:=`) and cannot be missing.
     %% Optional (`=>`) fields and exact fields whose type can be missing
@@ -390,7 +396,7 @@ process_record_fields(
     Required,
     Config
 ) ->
-    FieldSchema = do_to_schema(TypeInfo, FieldType, Config),
+    FieldSchema = to_schema_for_sp_type(TypeInfo, FieldType, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
     NewRequired =
         case spectra_type:can_be_missing(TypeInfo, FieldType) of
@@ -402,7 +408,7 @@ process_record_fields(
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
 generate_anyof_schema(TypeInfo, Types, Config) ->
-    Schemas = lists:map(fun(T) -> do_to_schema(TypeInfo, T, Config) end, Types),
+    Schemas = lists:map(fun(T) -> to_schema_for_sp_type(TypeInfo, T, Config) end, Types),
     #{anyOf => Schemas}.
 
 try_generate_enum_schema(Types, TypeInfo, Config) ->

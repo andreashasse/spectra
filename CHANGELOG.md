@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `-spectra()` doc annotations (`title`, `description`, `deprecated`, `examples`, `examples_function`) are no longer dropped when a type is inlined into another schema. Only the type that schema generation was entered with kept its annotations; every type resolved while inlining — map field values, record fields, union branches, list and non-empty list elements, optional map values, and remote types from other modules — silently lost them, so e.g. `deprecated => true` on a type used as a map field produced nothing in the output. Every recursive descent now merges the resolved type's doc into the schema it generates. `type_parameters` were unaffected and keep working alongside a doc annotation on the same type. Where a type alias and the type it resolves to set the same key, the annotation nearest the use site wins, matching how an alias of a documented record already behaved. This changes generated JSON Schema and OpenAPI output for anyone using annotated sub-schemas: nested properties now carry the titles, descriptions, deprecation flags and examples their types declare.
+
 ## [0.13.4] - 2026-06-14
 
 ### Fixed

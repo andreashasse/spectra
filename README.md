@@ -458,6 +458,24 @@ person_examples() ->
 
 The function specified in `examples_function` must be exported.
 
+Annotations follow the type wherever it is used. A type annotated with `title`,
+`description`, `deprecated` or `examples` carries that metadata into every
+schema it is inlined into — map field values, record fields, union branches,
+list elements and remote types — not only when it is the type schema
+generation starts from:
+
+```erlang
+-spectra(#{title => <<"Payer">>, deprecated => true}).
+-type payer() :: binary().
+
+%% properties.payer in this schema gets both the title and deprecated => true
+-type request() :: #{payer := payer()}.
+```
+
+When a type alias and the type it resolves to annotate the same key, the
+annotation written nearest the use site wins; keys only one of them sets are
+kept from both.
+
 ## Field Filtering with `only`
 
 The `only` key in the `-spectra()` attribute restricts which fields are included when encoding, decoding, and generating schemas for a map type. It works for plain Erlang maps and Elixir structs alike, similarly to Jason's `only` option.
