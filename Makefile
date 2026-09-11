@@ -84,13 +84,16 @@ release:
 	@echo ""
 	@read -r -p "Enter the next tag (e.g., v1.0.0): " tag && [ -n "$$tag" ] || { echo "Tag cannot be empty. Aborted."; exit 1; }; \
 	read -r -p "Did you update the README install instructions _AND_ CHANGELOG.md? (Y/N) " a && [ "$$a" = "Y" ] || { echo "Aborted."; exit 1; }; \
-	rebar3 compile && \
-	rebar3 hex build && \
-	rebar3 hex publish && \
-	git tag "$$tag" && \
-	git push origin "$$tag" && \
-	gh release create "$$tag" --title "v$$tag" --notes "$$(sed -n "/## \[$$tag\]/,/## \[/p" CHANGELOG.md | sed '$$d' | tail -n +2)" && \
-	echo "Released and tagged as $$tag"\
+	git tag "$$tag" || exit 1; \
+	if rebar3 compile && rebar3 hex build && rebar3 hex publish; then \
+		git push origin "$$tag" && \
+		gh release create "$$tag" --title "v$$tag" --notes "$$(sed -n "/## \[$$tag\]/,/## \[/p" CHANGELOG.md | sed '$$d' | tail -n +2)" && \
+		echo "Released and tagged as $$tag"; \
+	else \
+		echo "Publish failed, removing local tag $$tag."; \
+		git tag -d "$$tag"; \
+		exit 1; \
+	fi
 
 perf: compile
 	@echo "Running performance benchmark..."
