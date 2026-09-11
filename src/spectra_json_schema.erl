@@ -65,6 +65,12 @@ to_schema(TypeInfo, Type, Config) ->
 %% inlined. Calling do_to_schema/3 directly silently drops the annotation.
 %% Docs merge along the resolution chain: on conflicting keys the annotation
 %% written nearest the use site wins.
+%%
+%% A doc only reaches a type node through spectra_abstract_code, which attaches
+%% it to the top node of a stored named type or record, so today only the two
+%% reference-resolution sites below observably change the output. The descent
+%% sites hold the invariant for callers that build an sp_type() tree by hand
+%% with a doc on a structural child, as the Elixir wrappers do.
 -spec to_schema_for_sp_type(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
     json_schema_object().
 to_schema_for_sp_type(TypeInfo, Type, Config) ->

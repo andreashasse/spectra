@@ -1,9 +1,11 @@
 -module(spectra_json_schema_inline_doc_test).
 
-%% Doc annotations (title, description, deprecated, examples) must travel with
-%% a type wherever it is inlined — map fields, union branches, list elements,
-%% optional map values and remote types — not only when schema generation is
-%% entered with that type.
+%% Doc annotations (title, description, deprecated, examples,
+%% examples_function) must travel with a type wherever it is inlined — map
+%% fields, record fields, union branches, list elements, optional map values
+%% and remote types — not only when schema generation is entered with that
+%% type. A type without an annotation must stay bare, and a child's annotation
+%% must not leak onto its parent.
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -70,6 +72,11 @@
 
 -type account_holder() :: #account{}.
 
+-type plain() :: binary().
+
+%% Neither the holder nor the bare field type carries an annotation.
+-type plain_holder() :: #{plain := plain(), payer := payer()}.
+
 -type nested_payer() :: #{inner := request()}.
 
 -type aliased_payer_holder() :: #{payer := session_payer()}.
@@ -113,48 +120,36 @@ nested_map_field_keeps_doc_test() ->
     ?assertEqual(#{<<"payer">> => payer_doc()}, maps:get(<<"properties">>, Inner)).
 
 union_branch_keeps_doc_test() ->
-    ?assertMatch(
+    #{<<"anyOf">> := [ObjectBranch, LegacyBranch]} = schema(object_or_legacy),
+    %% The undocumented branch must stay bare — no doc leaking across branches.
+    ?assertEqual(
         #{
-            <<"anyOf">> := [
-                #{<<"type">> := <<"object">>},
-                #{
-                    <<"type">> := <<"string">>,
-                    <<"title">> := <<"Legacy Name">>,
-                    <<"description">> := <<"Superseded by payer">>,
-                    <<"deprecated">> := true,
-                    <<"examples">> := [<<"old-style">>]
-                }
-            ]
+            <<"type">> => <<"object">>,
+            <<"additionalProperties">> => false,
+            <<"properties">> => #{<<"id">> => #{<<"type">> => <<"integer">>}},
+            <<"required">> => [<<"id">>]
         },
-        schema(object_or_legacy)
+        ObjectBranch
+    ),
+    ?assertEqual(
+        #{
+            <<"type">> => <<"string">>,
+            <<"title">> => <<"Legacy Name">>,
+            <<"description">> => <<"Superseded by payer">>,
+            <<"deprecated">> => true,
+            <<"examples">> => [<<"old-style">>]
+        },
+        LegacyBranch
     ).
 
 list_element_keeps_doc_test() ->
-    ?assertMatch(
-        #{
-            <<"type">> := <<"array">>,
-            <<"items">> := #{
-                <<"title">> := <<"Payer">>,
-                <<"description">> := <<"The party paying for the session">>,
-                <<"deprecated">> := true,
-                <<"examples">> := [<<"alice">>, <<"bob">>]
-            }
-        },
-        schema(payer_list)
-    ).
+    #{<<"type">> := <<"array">>, <<"items">> := Items} = schema(payer_list),
+    ?assertEqual(payer_doc(), Items).
 
 nonempty_list_element_keeps_doc_test() ->
-    ?assertMatch(
-        #{
-            <<"type">> := <<"array">>,
-            <<"minItems">> := 1,
-            <<"items">> := #{
-                <<"title">> := <<"Payer">>,
-                <<"deprecated">> := true
-            }
-        },
-        schema(nonempty_payer_list)
-    ).
+    #{<<"type">> := <<"array">>, <<"minItems">> := 1, <<"items">> := Items} =
+        schema(nonempty_payer_list),
+    ?assertEqual(payer_doc(), Items).
 
 optional_map_value_keeps_doc_test() ->
     Schema = schema(optional_payer),
@@ -230,4 +225,15 @@ examples_function_keeps_doc_when_inlined_test() ->
             <<"examples">> => [<<"ace">>, <<"kit">>]
         },
         Nickname
+    ).
+
+%% Negative: a type with no annotation gains no doc keys, and the annotation on
+%% a sibling field does not leak onto it or onto the parent schema.
+undocumented_type_stays_bare_test() ->
+    Schema = schema(plain_holder),
+    #{<<"properties">> := #{<<"plain">> := Plain}} = Schema,
+    ?assertEqual(#{<<"type">> => <<"string">>}, Plain),
+    ?assertEqual(
+        [<<"additionalProperties">>, <<"properties">>, <<"required">>, <<"type">>],
+        lists:sort(maps:keys(maps:remove(<<"$schema">>, Schema)))
     ).
