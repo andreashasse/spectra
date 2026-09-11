@@ -459,10 +459,10 @@ person_examples() ->
 The function specified in `examples_function` must be exported.
 
 Annotations follow the type wherever it is used. A type annotated with `title`,
-`description`, `deprecated` or `examples` carries that metadata into every
-schema it is inlined into — map field values, record fields, union branches,
-list elements and remote types — not only when it is the type schema
-generation starts from:
+`description`, `deprecated`, `examples` or `examples_function` carries that
+metadata into every schema it is inlined into — map field values, record
+fields, union branches, list elements and remote types — not only when it is
+the type schema generation starts from:
 
 ```erlang
 -spectra(#{title => <<"Payer">>, deprecated => true}).
@@ -475,6 +475,16 @@ generation starts from:
 When a type alias and the type it resolves to annotate the same key, the
 annotation written nearest the use site wins; keys only one of them sets are
 kept from both.
+
+Two positions cannot carry a nested annotation, because there is no sub-schema
+to attach it to:
+
+- A union whose members all resolve to literals collapses into a single `enum`
+  schema, so an annotation on a member type of such a union is dropped. An
+  annotation on the union type itself is kept.
+- A type handled by a [custom codec](#custom-codecs) gets its schema from the
+  codec, and the codec's schema is used as-is. This applies wherever the type
+  appears, including when schema generation starts from it.
 
 ## Field Filtering with `only`
 

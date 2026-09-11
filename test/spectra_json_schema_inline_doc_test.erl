@@ -9,6 +9,8 @@
 
 -compile([nowarn_unused_type]).
 
+-export([nickname_examples/0]).
+
 -spectra(#{
     title => <<"Payer">>,
     description => <<"The party paying for the session">>,
@@ -26,6 +28,18 @@
 -type deprecated_string() :: binary().
 
 -type object() :: #{id := integer()}.
+
+%% Examples supplied by an MFA rather than as literal terms.
+-spectra(#{
+    title => <<"Nickname">>,
+    examples_function => {?MODULE, nickname_examples, []}
+}).
+-type nickname() :: binary().
+
+-record(account, {
+    owner :: payer(),
+    nickname :: nickname()
+}).
 
 %% A type carrying both a doc annotation and type_parameters. Both have to end
 %% up on the same inlined schema.
@@ -54,9 +68,14 @@
 
 -type url_holder() :: #{success_url := url()}.
 
+-type account_holder() :: #account{}.
+
 -type nested_payer() :: #{inner := request()}.
 
 -type aliased_payer_holder() :: #{payer := session_payer()}.
+
+nickname_examples() ->
+    [<<"ace">>, <<"kit">>].
 
 schema(TypeName) ->
     SchemaJson = spectra:schema(json_schema, ?MODULE, {type, TypeName, 0}),
@@ -193,4 +212,22 @@ alias_doc_wins_over_inlined_doc_test() ->
             }
         },
         schema(aliased_payer_holder)
+    ).
+
+%% The record field descent is a separate code path from the map field one.
+record_field_keeps_doc_test() ->
+    #{<<"properties">> := Properties} = schema(account_holder),
+    ?assertEqual(payer_doc(), maps:get(<<"owner">>, Properties)).
+
+%% examples_function is evaluated and its values converted for an inlined type,
+%% the same as literal examples.
+examples_function_keeps_doc_when_inlined_test() ->
+    #{<<"properties">> := #{<<"nickname">> := Nickname}} = schema(account_holder),
+    ?assertEqual(
+        #{
+            <<"type">> => <<"string">>,
+            <<"title">> => <<"Nickname">>,
+            <<"examples">> => [<<"ace">>, <<"kit">>]
+        },
+        Nickname
     ).
