@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-09-14
+
 ### Fixed
 - Encoding a struct type (a map type with a `__struct__` field, e.g. from Elixir) with non-map data (a string, integer, list, or atom) crashed with a raw `badmap` error instead of returning `{error, [spectra:error()]}`. Plain map types, list types, record types, and decoding were unaffected — only the struct branch of `to_json/4` was missing its `is_map/1` guard.
 
