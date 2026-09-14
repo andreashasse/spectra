@@ -13,14 +13,15 @@ jobs:
     strategy:
       matrix:
         otp: ["29", "28", "27"]
-        rebar3: ["3.25"]
+        rebar3: ["3.27"]
         include:
           # ELP (used by the lint and type_check steps) ships per-OTP builds.
-          # There is no OTP 29 build yet, so those steps are skipped on OTP 29.
+          - otp: "29"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-29.tar.gz"
           - otp: "28"
-            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-02-27/elp-linux-x86_64-unknown-linux-gnu-otp-28.tar.gz"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-28.5.tar.gz"
           - otp: "27"
-            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-02-27/elp-linux-x86_64-unknown-linux-gnu-otp-27.3.tar.gz"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-27.3.tar.gz"
 
     steps:
       - uses: actions/checkout@v4
