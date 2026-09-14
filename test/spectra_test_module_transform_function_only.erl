@@ -1,3 +1,4 @@
+% elp:ignore L0002 - ELP cannot run the spectra_transform parse_transform
 -module(spectra_test_module_transform_function_only).
 
 -compile({parse_transform, spectra_transform}).

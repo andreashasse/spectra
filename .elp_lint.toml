@@ -32,10 +32,3 @@ include_tests = false
 
 [linters.W0056]
 include_tests = false
-
-# The custom `spectra_transform` parse_transform used only by the test
-# suite can't be resolved when ELP parses test modules that use it in
-# isolation, which trips this lint. Restore the previous behavior of
-# not linting test files for this diagnostic.
-[linters.L0002]
-include_tests = false
