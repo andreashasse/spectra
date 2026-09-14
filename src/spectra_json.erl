@@ -147,7 +147,7 @@ to_json(TypeInfo, #sp_nonempty_list{} = Type, Data, Config) ->
     nonempty_list_to_json(TypeInfo, Type, Data, Config);
 to_json(TypeInfo, #sp_list{} = ListType, Data, Config) when is_list(Data) ->
     list_to_json(TypeInfo, ListType, Data, Config);
-to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data, Config) ->
+to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data, Config) when is_map(Data) ->
     case StructName of
         undefined ->
             map_to_json(TypeInfo, Map, Data, Config);
@@ -243,9 +243,7 @@ list_to_json(TypeInfo, #sp_list{type = Type} = ListType, Data, Config) when is_l
     Config :: spectra:sp_config()
 ) ->
     {ok, json:encode_value()} | {error, [spectra:error()]}.
-map_to_json(TypeInfo, #sp_map{fields = Fields}, Data, Config) when
-    is_map(Data)
-->
+map_to_json(TypeInfo, #sp_map{fields = Fields}, Data, Config) ->
     %% Check if this is an Elixir struct and remove __struct__ field for JSON serialization
     DataWithoutStruct =
         case maps:take('__struct__', Data) of
@@ -259,9 +257,7 @@ map_to_json(TypeInfo, #sp_map{fields = Fields}, Data, Config) when
             {ok, maps:from_list(MapFields)};
         {error, Errors} ->
             {error, Errors}
-    end;
-map_to_json(_TypeInfo, MapType, Data, _Config) ->
-    {error, [sp_error:type_mismatch(MapType, Data)]}.
+    end.
 
 -spec map_fields_to_json(
     TypeInfo :: spectra:type_info(),
