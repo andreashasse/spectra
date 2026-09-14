@@ -2,6 +2,8 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-include("../include/spectra.hrl").
+
 -define(SKIP_IF_NO_ELIXIR(Body),
     case code:is_loaded('Elixir.TestUserStruct') of
         false ->
@@ -208,6 +210,21 @@ run_from_json_field_absent_from_struct_errors_gracefully() ->
     TypeInfo = spectra_type_info:new(?MODULE, false),
     Result = spectra:decode(json, TypeInfo, extra_field_struct_type(), JsonBinary),
     ?assertMatch({error, _}, Result).
+
+%% --- Fix #3: to_json/4 crashed with badmap for non-map data on struct types ---
+
+to_json_non_map_data_returns_error_test() ->
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    Type = struct_type(),
+    lists:foreach(
+        fun(BadData) ->
+            ?assertMatch(
+                {error, [#sp_error{type = type_mismatch}]},
+                spectra:encode(json, TypeInfo, Type, BadData)
+            )
+        end,
+        [<<"a string">>, 42, [1, 2, 3], an_atom]
+    ).
 
 %% --- Fix #2: apply_only/2 must recurse into #sp_type_with_variables{} ---
 
