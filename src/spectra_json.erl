@@ -1096,9 +1096,9 @@ field_default_value(#sp_rec_field{default = undefined}) -> undefined.
 struct_default_value(undefined, _FieldName) ->
     error;
 struct_default_value(Defaults, FieldName) ->
-    case maps:find(FieldName, Defaults) of
-        {ok, V} when V =/= nil, V =/= undefined -> {ok, V};
-        _ -> error
+    case Defaults of
+        #{FieldName := V} when V =/= nil, V =/= undefined -> {ok, V};
+        #{} -> error
     end.
 
 -spec append_error_location([spectra:error()], atom() | integer()) -> [spectra:error()].

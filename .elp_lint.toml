@@ -9,3 +9,33 @@ enabled = false
 
 [linters.W0066]
 enabled = false
+
+# The ELP release from 2026-08-10 started always linting test files
+# (previously test files were skipped). These lints are noisy on test
+# fixtures/helpers (over-specified records, intentional nowarn_*,
+# EDoc-style comments in older test helpers, includes kept for type
+# reference) so keep them scoped to non-test code as before.
+[linters.W0003]
+include_tests = false
+
+[linters.W0020]
+include_tests = false
+
+[linters.W0038]
+include_tests = false
+
+[linters.W0054]
+include_tests = false
+
+[linters.W0030]
+include_tests = false
+
+[linters.W0056]
+include_tests = false
+
+# The custom `spectra_transform` parse_transform used only by the test
+# suite can't be resolved when ELP parses test modules that use it in
+# isolation, which trips this lint. Restore the previous behavior of
+# not linting test files for this diagnostic.
+[linters.L0002]
+include_tests = false
