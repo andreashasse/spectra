@@ -32,6 +32,9 @@ validate_with_python(Schema) ->
 %% Union types
 -type my_union() :: integer() | string().
 -type my_optional() :: integer() | undefined.
+-type my_optional_union() :: integer() | string() | undefined.
+-type my_binary_or_string() :: binary() | string().
+-type my_optional_binary_or_string() :: binary() | string() | undefined.
 %% Enum types (unions of literals)
 -type role() :: admin | user | guest.
 -type status() :: active | inactive | pending.
@@ -55,6 +58,8 @@ validate_with_python(Schema) ->
 -record(user, {id :: integer(), name :: string(), email :: string()}).
 -record(product, {id :: integer(), name :: string(), price :: float(), tags :: [string()]}).
 -record(user_with_optional, {id :: integer(), name :: string(), email :: string() | undefined}).
+-record(address, {street :: binary() | string() | undefined}).
+-type address() :: #address{}.
 -record(user_with_role, {id :: integer(), name :: string(), role :: role()}).
 -record(user_with_optional_role, {
     id :: integer(), name :: string(), role :: optional_enum()
@@ -294,6 +299,48 @@ union_types_test() ->
         OptionalSchema
     ),
     validate_with_python(OptionalSchema).
+
+optional_multi_type_union_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, my_optional_union, 0}, [pre_encoded]),
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+        },
+        Schema
+    ),
+    validate_with_python(Schema).
+
+identical_union_members_collapse_test() ->
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
+        spectra:schema(json_schema, ?MODULE, {type, my_binary_or_string, 0}, [pre_encoded])
+    ),
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"string">>
+        },
+        spectra:schema(
+            json_schema, ?MODULE, {type, my_optional_binary_or_string, 0}, [pre_encoded]
+        )
+    ).
+
+record_field_binary_or_string_or_undefined_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {record, address}, [pre_encoded]),
+    ?assertMatch(
+        #{
+            type := <<"object">>,
+            properties := #{<<"street">> := #{type := <<"string">>}},
+            required := []
+        },
+        Schema
+    ),
+    ?assertNot(maps:is_key(anyOf, maps:get(<<"street">>, maps:get(properties, Schema)))),
+    validate_with_python(Schema).
 
 %% Test map type mappings
 map_types_test() ->
