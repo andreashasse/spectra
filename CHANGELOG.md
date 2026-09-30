@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A union of `undefined` (or `nil`) with two or more non-literal types, such as `binary() | string() | undefined`, put the missing value into its JSON Schema as `anyOf: [..., {enum: [null]}]`. The value is never encoded as `null`: in a record field or map value it is left out, and the field is already not `required`. The union now gets the same schema as without the `undefined`, as `T | undefined` already did.
+- Union members with identical schemas are no longer repeated in `anyOf`, and a union whose members all produce the same schema is that schema rather than a one-armed `anyOf`. `binary() | string()` is `{"type": "string"}` instead of `anyOf: [{"type": "string"}, {"type": "string"}]`.
+
 ## [0.14.1] - 2026-09-14
 
 ### Fixed

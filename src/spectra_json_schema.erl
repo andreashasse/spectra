@@ -243,7 +243,7 @@ do_to_schema(TypeInfo, #sp_union{types = Types}, Config) ->
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
             case try_generate_enum_schema(OtherTypes, TypeInfo, Config) of
                 not_all_literals ->
-                    generate_anyof_schema(TypeInfo, Types, Config);
+                    generate_anyof_schema(TypeInfo, OtherTypes, Config);
                 EnumSchema ->
                     EnumSchema
             end
@@ -415,7 +415,10 @@ process_record_fields(
 
 generate_anyof_schema(TypeInfo, Types, Config) ->
     Schemas = lists:map(fun(T) -> to_schema_for_sp_type(TypeInfo, T, Config) end, Types),
-    #{anyOf => Schemas}.
+    case lists:uniq(Schemas) of
+        [Schema] -> Schema;
+        UniqueSchemas -> #{anyOf => UniqueSchemas}
+    end.
 
 try_generate_enum_schema(Types, TypeInfo, Config) ->
     %% First, expand all types to their base forms (resolving references)
