@@ -52,7 +52,7 @@ Only include sections that have entries. Keep entries concise and user-focused.
 
 Keep the entries already under `## [Unreleased]`. Contributors write them in their PRs.
 
-### Credit external contributors
+### Thank contributors
 
 The GitHub release notes are this changelog section (see `make release`). GitHub links every `@login` in them and lists those users as contributors on the release page. So credit each change made by someone other than `andreashasse`.
 
