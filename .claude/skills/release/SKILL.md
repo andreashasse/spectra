@@ -64,7 +64,7 @@ gh pr list --state merged --base main --limit 100 \
   -q '.[] | select(.author.login != "andreashasse" and (.author.is_bot | not)) | "#\(.number) @\(.author.login) \(.title)"'
 ```
 
-For each PR in the output, end its changelog entries with `Thanks @login (#N).` Leave out bots such as Dependabot.
+For each PR in the output, end its changelog entries with `from @login (#N). Thank you!`, for example `- Fix X from @login (#N). Thank you!` Leave out bots such as Dependabot.
 
 ## Step 5: Update Files
 
@@ -91,7 +91,7 @@ After the user selects a version bump, update these files:
 
   ### Fixed
   - Bug fix 1
-  - Bug fix 2 from an external contributor. Thanks @login (#N).
+  - Bug fix 2 from @login (#N). Thank you!
 
   ```
 
