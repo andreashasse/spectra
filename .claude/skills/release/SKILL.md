@@ -50,6 +50,22 @@ Based on the git commits and changes, draft changelog entries organized into sec
 
 Only include sections that have entries. Keep entries concise and user-focused.
 
+Keep the entries already under `## [Unreleased]`. Contributors write them in their PRs.
+
+### Credit external contributors
+
+The GitHub release notes are this changelog section (see `make release`). GitHub links every `@login` in them and lists those users as contributors on the release page. So credit each change made by someone other than `andreashasse`.
+
+List the PRs merged since the last tag:
+```bash
+gh pr list --state merged --base main --limit 100 \
+  --search "merged:>$(git log -1 --format=%cI $(git describe --tags --abbrev=0))" \
+  --json number,title,author \
+  -q '.[] | select(.author.login != "andreashasse" and (.author.is_bot | not)) | "#\(.number) @\(.author.login) \(.title)"'
+```
+
+For each PR in the output, end its changelog entries with `Thanks @login (#N).` Leave out bots such as Dependabot.
+
 ## Step 5: Update Files
 
 After the user selects a version bump, update these files:
@@ -75,6 +91,7 @@ After the user selects a version bump, update these files:
 
   ### Fixed
   - Bug fix 1
+  - Bug fix 2 from an external contributor. Thanks @login (#N).
 
   ```
 
