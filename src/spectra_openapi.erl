@@ -50,7 +50,7 @@
 -define(DEFAULT_CONTENT_TYPE, <<"application/json">>).
 
 -type http_method() :: get | put | post | delete | options | head | patch | trace.
-%% The binary is an OpenAPI 3.1 status code range: <<"1XX">> to <<"5XX">>.
+%% The binary is an OpenAPI 3.1 status code range, "1XX" to "5XX".
 -type http_status_code() :: 100..599 | <<_:24>>.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
