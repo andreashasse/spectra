@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `spectra_openapi:response/2` accepts the OpenAPI 3.1 status code ranges `<<"1XX">>` to `<<"5XX">>` besides integer status codes.
+
 ### Changed
 - A value that matches no member of a union of only literals (an enum such as `red | green | blue`) now gives one `type_mismatch` error whose `ctx` has `allowed_values`, instead of a `no_match` error with one sub-error per literal. JSON only.
 

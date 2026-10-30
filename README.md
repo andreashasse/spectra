@@ -557,7 +557,8 @@ spectra_openapi:endpoint(Method, Path) ->
 spectra_openapi:endpoint(Method, Path, Doc) ->
     endpoint_spec().
 
-%% Build a response, then add it to an endpoint
+%% Build a response, then add it to an endpoint.
+%% StatusCode is an integer 100..599 or a range <<"1XX">> .. <<"5XX">>
 spectra_openapi:response(StatusCode, Description) ->
     response_spec().
 spectra_openapi:response_with_body(Response, Module, Schema) ->

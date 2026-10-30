@@ -1621,3 +1621,36 @@ assert_valid_openapi(OpenAPISpec) ->
         {error, {validation_failed, Result}} ->
             ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
     end.
+
+status_code_range_response_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:add_response(
+                spectra_openapi:endpoint(get, <<"/health">>),
+                spectra_openapi:response(200, <<"OK">>)
+            ),
+            spectra_openapi:response(<<"5XX">>, <<"Server error">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>}, [Endpoint], [pre_encoded]
+        ),
+    ?assertMatch(
+        #{
+            <<"paths">> := #{
+                <<"/health">> := #{
+                    <<"get">> := #{
+                        <<"responses">> := #{
+                            <<"200">> := #{<<"description">> := <<"OK">>},
+                            <<"5XX">> := #{<<"description">> := <<"Server error">>}
+                        }
+                    }
+                }
+            }
+        },
+        OpenAPISpec
+    ),
+    assert_valid_openapi(OpenAPISpec).
+
+status_code_invalid_range_test() ->
+    ?assertError(function_clause, spectra_openapi:response(<<"6XX">>, <<"Nope">>)).
