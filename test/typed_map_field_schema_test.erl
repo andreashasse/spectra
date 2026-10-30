@@ -6,6 +6,8 @@
 
 -compile(nowarn_unused_type).
 
+-define(SCHEMA_VERSION, <<"https://json-schema.org/draft/2020-12/schema">>).
+
 %% Test types with typed map fields - string-like keys (should work with JSON schema)
 -type string_key_map_assoc() :: #{string() => integer()}.
 -type string_key_map_exact() :: #{string() := integer()}.
@@ -26,6 +28,11 @@
 -type local_remote_key_map() :: #{other:label() => binary()}.
 -type otp_remote_key_map() :: #{unicode:unicode_binary() => binary()}.
 
+-type any_value_map() :: #{binary() => term()}.
+-type multi_typed_map() :: #{atom() => integer(), binary() => [binary()]}.
+-type labels() :: #{color | size => binary()}.
+-type tags() :: #{name := binary(), binary() => [binary()]}.
+
 %%====================================================================
 %% JSON Schema Tests - String-like keys should succeed
 %%====================================================================
@@ -35,7 +42,7 @@ schema_string_key_map_assoc_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"integer">>}
         },
         Schema
     ),
@@ -52,7 +59,7 @@ schema_string_key_map_exact_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"integer">>}
         },
         Schema
     ),
@@ -69,7 +76,7 @@ schema_binary_key_map_assoc_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"string">>}
         },
         Schema
     ).
@@ -79,7 +86,7 @@ schema_binary_key_map_exact_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"string">>}
         },
         Schema
     ).
@@ -89,7 +96,7 @@ schema_atom_key_map_assoc_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"string">>}
         },
         Schema
     ).
@@ -99,7 +106,7 @@ schema_atom_key_map_exact_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            additionalProperties := true
+            additionalProperties := #{type := <<"string">>}
         },
         Schema
     ).
@@ -159,3 +166,58 @@ schema_otp_remote_key_map_test() ->
         #{type := <<"object">>},
         spectra:schema(json_schema, ?MODULE, {type, otp_remote_key_map, 0}, [pre_encoded])
     ).
+
+%%====================================================================
+%% JSON Schema Tests - Typed map value schemas
+%%====================================================================
+
+schema_any_value_map_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, any_value_map, 0}, [pre_encoded]),
+    ?assertEqual(
+        #{'$schema' => ?SCHEMA_VERSION, type => <<"object">>, additionalProperties => true}, Schema
+    ),
+    json_schema_validator_helper:validate_or_skip(Schema).
+
+schema_multi_typed_map_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, multi_typed_map, 0}, [pre_encoded]),
+    ?assertEqual(
+        #{
+            '$schema' => ?SCHEMA_VERSION,
+            type => <<"object">>,
+            additionalProperties => #{
+                anyOf => [
+                    #{type => <<"integer">>},
+                    #{type => <<"array">>, items => #{type => <<"string">>}}
+                ]
+            }
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_or_skip(Schema).
+
+schema_constrained_key_map_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, labels, 0}, [pre_encoded]),
+    ?assertEqual(
+        #{
+            '$schema' => ?SCHEMA_VERSION,
+            type => <<"object">>,
+            propertyNames => #{type => <<"string">>, enum => [<<"color">>, <<"size">>]},
+            additionalProperties => #{type => <<"string">>}
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_or_skip(Schema).
+
+schema_literal_and_typed_fields_map_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, tags, 0}, [pre_encoded]),
+    ?assertEqual(
+        #{
+            '$schema' => ?SCHEMA_VERSION,
+            type => <<"object">>,
+            properties => #{<<"name">> => #{type => <<"string">>}},
+            required => [<<"name">>],
+            additionalProperties => #{type => <<"array">>, items => #{type => <<"string">>}}
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_or_skip(Schema).

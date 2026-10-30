@@ -20,7 +20,8 @@
     anyOf => [json_schema_object()],
     properties => #{binary() => json_schema_object()},
     required => [binary()],
-    additionalProperties => boolean(),
+    additionalProperties => boolean() | json_schema_object(),
+    propertyNames => json_schema_object(),
     title => binary(),
     description => binary(),
     deprecated => boolean(),
@@ -46,7 +47,8 @@
     anyOf => [json_schema_object()],
     properties => #{binary() => json_schema_object()},
     required => [binary()],
-    additionalProperties => boolean()
+    additionalProperties => boolean() | json_schema_object(),
+    propertyNames => json_schema_object()
 }.
 
 -export_type([json_schema/0, json_schema_object/0]).
@@ -315,34 +317,71 @@ add_schema_version(Schema) ->
 -spec map_fields_to_schema(spectra:type_info(), [spectra:map_field()], spectra:sp_config()) ->
     json_schema_object().
 map_fields_to_schema(TypeInfo, Fields, Config) ->
-    {Properties, Required, HasAdditional} = process_map_fields(
-        TypeInfo, Fields, #{}, [], false, Config
+    {Properties, Required, KeySchemas, ValueSchemas} = process_map_fields(
+        TypeInfo, Fields, #{}, [], [], [], Config
     ),
     lists:foldl(
         fun({Key, Value, SkipValue}, Acc) ->
             map_add_if_not_value(Acc, Key, Value, SkipValue)
         end,
-        #{type => <<"object">>, additionalProperties => HasAdditional},
-        [{properties, Properties, #{}}, {required, Required, []}]
+        #{type => <<"object">>, additionalProperties => additional_properties(ValueSchemas)},
+        [
+            {properties, Properties, #{}},
+            {required, Required, []},
+            {propertyNames, property_names(Properties, KeySchemas), undefined}
+        ]
     ).
+
+-spec additional_properties([json_schema_object()]) -> boolean() | json_schema_object().
+additional_properties([]) ->
+    false;
+additional_properties(ValueSchemas) ->
+    case lists:member(#{}, ValueSchemas) of
+        true -> true;
+        false -> any_of_schemas(ValueSchemas)
+    end.
+
+%% propertyNames constrains every key, so it is only emitted when the map has no
+%% literal fields whose names it would also have to admit.
+-spec property_names(map(), [json_schema_object()]) -> json_schema_object() | undefined.
+property_names(Properties, [_ | _] = KeySchemas) when map_size(Properties) =:= 0 ->
+    case lists:any(fun is_constrained_key_schema/1, KeySchemas) of
+        true -> any_of_schemas(KeySchemas);
+        false -> undefined
+    end;
+property_names(_Properties, _KeySchemas) ->
+    undefined.
+
+-spec is_constrained_key_schema(json_schema_object()) -> boolean().
+is_constrained_key_schema(Schema) ->
+    maps:size(maps:with([enum, pattern, minLength, maxLength], Schema)) > 0.
+
+-spec any_of_schemas([json_schema_object(), ...]) -> json_schema_object().
+any_of_schemas(Schemas) ->
+    case lists:uniq(Schemas) of
+        [Schema] -> Schema;
+        UniqueSchemas -> #{anyOf => UniqueSchemas}
+    end.
 
 -spec process_map_fields(
     spectra:type_info(),
     [spectra:map_field()],
     map(),
     [binary()],
-    boolean(),
+    [json_schema_object()],
+    [json_schema_object()],
     spectra:sp_config()
 ) ->
-    {map(), [binary()], boolean()}.
-process_map_fields(_TypeInfo, [], Properties, Required, HasAdditional, _Config) ->
-    {Properties, Required, HasAdditional};
+    {map(), [binary()], [json_schema_object()], [json_schema_object()]}.
+process_map_fields(_TypeInfo, [], Properties, Required, KeySchemas, ValueSchemas, _Config) ->
+    {Properties, Required, lists:reverse(KeySchemas), lists:reverse(ValueSchemas)};
 process_map_fields(
     TypeInfo,
     [#literal_map_field{kind = Kind, binary_name = BinaryName, val_type = FieldType} | Rest],
     Properties,
     Required,
-    HasAdditional,
+    KeySchemas,
+    ValueSchemas,
     Config
 ) ->
     FieldSchema = to_schema_for_sp_type(TypeInfo, FieldType, Config),
@@ -355,23 +394,33 @@ process_map_fields(
             {exact, false} -> [BinaryName | Required];
             _ -> Required
         end,
-    process_map_fields(TypeInfo, Rest, NewProperties, NewRequired, HasAdditional, Config);
+    process_map_fields(
+        TypeInfo, Rest, NewProperties, NewRequired, KeySchemas, ValueSchemas, Config
+    );
 process_map_fields(
     TypeInfo,
     [#typed_map_field{key_type = KeyType, val_type = ValType} = Field | Rest],
     Properties,
     Required,
-    _HasAdditional,
+    KeySchemas,
+    ValueSchemas,
     Config
 ) ->
     case can_be_json_key(TypeInfo, KeyType, Config) of
         false ->
             erlang:error({type_not_supported, Field});
         true ->
-            %% Validate that key and value types can generate JSON schemas (will crash if not)
-            _ = do_to_schema(TypeInfo, KeyType, Config),
-            _ = do_to_schema(TypeInfo, ValType, Config),
-            process_map_fields(TypeInfo, Rest, Properties, Required, true, Config)
+            KeySchema = do_to_schema(TypeInfo, KeyType, Config),
+            ValueSchema = to_schema_for_sp_type(TypeInfo, ValType, Config),
+            process_map_fields(
+                TypeInfo,
+                Rest,
+                Properties,
+                Required,
+                [KeySchema | KeySchemas],
+                [ValueSchema | ValueSchemas],
+                Config
+            )
     end.
 
 -spec record_to_schema_internal(spectra:type_info(), #sp_rec{}, spectra:sp_config()) ->
@@ -423,11 +472,7 @@ process_record_fields(
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
 generate_anyof_schema(TypeInfo, Types, Config) ->
-    Schemas = lists:map(fun(T) -> to_schema_for_sp_type(TypeInfo, T, Config) end, Types),
-    case lists:uniq(Schemas) of
-        [Schema] -> Schema;
-        UniqueSchemas -> #{anyOf => UniqueSchemas}
-    end.
+    any_of_schemas(lists:map(fun(T) -> to_schema_for_sp_type(TypeInfo, T, Config) end, Types)).
 
 try_generate_enum_schema(Types, TypeInfo, Config) ->
     %% First, expand all types to their base forms (resolving references)
