@@ -73,6 +73,14 @@
 -type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
 -type module_types_cache() :: persistent | local | none.
+-doc """
+How a field whose type can be missing (`T | undefined`, `T | nil`) is encoded
+when its value is the missing marker. `omit` (the default) leaves the field out
+of the JSON object and out of the schema's `required` list. `null` writes it as
+JSON `null`, and the schema allows `null` for it. Set it with
+`{spectra, [{nil_fields, null}]}`.
+""".
+-type nil_fields() :: omit | null.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
 -doc """
@@ -136,6 +144,7 @@ Return type for codec `decode/4` callbacks. See `spectra_codec`.
     codec_decode_result/0,
     codec_key/0,
     module_types_cache/0,
+    nil_fields/0,
     schema_option/0,
     sp_config/0
 ]).
@@ -616,7 +625,8 @@ get_config() ->
         module_types_cache = valid_module_types_cache(
             application:get_env(spectra, module_types_cache, local)
         ),
-        codecs = application:get_env(spectra, codecs, #{})
+        codecs = application:get_env(spectra, codecs, #{}),
+        nil_fields = valid_nil_fields(application:get_env(spectra, nil_fields, omit))
     }.
 
 -spec valid_module_types_cache(term()) -> module_types_cache().
@@ -624,6 +634,11 @@ valid_module_types_cache(persistent) -> persistent;
 valid_module_types_cache(local) -> local;
 valid_module_types_cache(none) -> none;
 valid_module_types_cache(Value) -> erlang:error({invalid_config, module_types_cache, Value}).
+
+-spec valid_nil_fields(term()) -> nil_fields().
+valid_nil_fields(omit) -> omit;
+valid_nil_fields(null) -> null;
+valid_nil_fields(Value) -> erlang:error({invalid_config, nil_fields, Value}).
 
 -spec maybe_clear_local_cache(sp_config()) -> ok.
 maybe_clear_local_cache(#sp_config{module_types_cache = local}) ->
