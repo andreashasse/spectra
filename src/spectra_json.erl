@@ -515,9 +515,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
     end.
 
 -spec add_missing_field(Key, [{Key, json:encode_value()}], spectra:sp_config()) ->
-    [{Key, json:encode_value()}]
-when
-    Key :: json:encode_value().
+    [{Key, json:encode_value()}].
 add_missing_field(_Key, Fields, #sp_config{nil_fields = omit}) ->
     Fields;
 add_missing_field(Key, Fields, #sp_config{nil_fields = null}) ->

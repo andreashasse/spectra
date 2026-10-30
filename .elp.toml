@@ -46,6 +46,7 @@ ignore_modules = [
     "no_parse_trans",
     "nominal_test",
     "nonempty_list_test",
+    "nil_fields_test",
     "nonempty_string_test",
     "number_test",
     "opaque_test",
