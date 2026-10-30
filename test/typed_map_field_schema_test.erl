@@ -22,6 +22,10 @@
 -type float_key_map_assoc() :: #{float() => integer()}.
 -type float_key_map_exact() :: #{float() := integer()}.
 
+%% Typed map fields whose key is a remote type
+-type local_remote_key_map() :: #{other:label() => binary()}.
+-type otp_remote_key_map() :: #{unicode:unicode_binary() => binary()}.
+
 %%====================================================================
 %% JSON Schema Tests - String-like keys should succeed
 %%====================================================================
@@ -138,4 +142,20 @@ schema_float_key_map_exact_test() ->
     ?assertError(
         {type_not_supported, _},
         spectra:schema(json_schema, ?MODULE, {type, float_key_map_exact, 0}, [pre_encoded])
+    ).
+
+%%====================================================================
+%% JSON Schema Tests - Remote string key types
+%%====================================================================
+
+schema_remote_key_map_test() ->
+    ?assertMatch(
+        #{type := <<"object">>},
+        spectra:schema(json_schema, ?MODULE, {type, local_remote_key_map, 0}, [pre_encoded])
+    ).
+
+schema_otp_remote_key_map_test() ->
+    ?assertMatch(
+        #{type := <<"object">>},
+        spectra:schema(json_schema, ?MODULE, {type, otp_remote_key_map, 0}, [pre_encoded])
     ).

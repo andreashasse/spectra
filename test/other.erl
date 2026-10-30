@@ -7,8 +7,9 @@
 %% Enum types for testing
 -type status() :: active | inactive | pending.
 -type priority() :: low | medium | high.
+-type label() :: binary().
 
--export_type([account/0, status/0, priority/0]).
+-export_type([account/0, status/0, priority/0, label/0]).
 
 -spec account_to_json(account()) -> json:encode_value().
 account_to_json(Account) ->

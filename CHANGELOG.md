@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- JSON Schema generation no longer crashes with `type_not_supported` on a typed map whose key is a remote string type, such as Elixir `%{optional(String.t()) => String.t()}` or Erlang `#{unicode:unicode_binary() => binary()}`.
+
 ## [0.15.0] - 2026-10-30
 
 ### Added

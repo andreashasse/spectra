@@ -276,8 +276,8 @@ do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Config) ->
 %% Helper functions
 
 %% Check if a type can be used as a JSON object key (must be string-like)
--spec can_be_json_key(spectra:type_info(), spectra:sp_type()) -> boolean().
-can_be_json_key(_TypeInfo, #sp_simple_type{type = Type}) when
+-spec can_be_json_key(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) -> boolean().
+can_be_json_key(_TypeInfo, #sp_simple_type{type = Type}, _Config) when
     Type =:= string orelse
         Type =:= binary orelse
         Type =:= nonempty_string orelse
@@ -285,17 +285,26 @@ can_be_json_key(_TypeInfo, #sp_simple_type{type = Type}) when
         Type =:= atom
 ->
     true;
-can_be_json_key(_TypeInfo, #sp_literal{value = Value}) when is_atom(Value) ->
+can_be_json_key(_TypeInfo, #sp_literal{value = Value}, _Config) when is_atom(Value) ->
     true;
-can_be_json_key(TypeInfo, #sp_union{types = Types}) ->
-    lists:all(fun(T) -> can_be_json_key(TypeInfo, T) end, Types);
-can_be_json_key(TypeInfo, #sp_user_type_ref{
-    type_name = TypeName, variables = TypeArgs, arity = TypeArity
-}) ->
+can_be_json_key(TypeInfo, #sp_union{types = Types}, Config) ->
+    lists:all(fun(T) -> can_be_json_key(TypeInfo, T, Config) end, Types);
+can_be_json_key(
+    TypeInfo,
+    #sp_user_type_ref{type_name = TypeName, variables = TypeArgs, arity = TypeArity},
+    Config
+) ->
     Type = spectra_type_info:get_type(TypeInfo, TypeName, TypeArity),
     TypeWithoutVars = spectra_util:apply_args(TypeInfo, Type, TypeArgs),
-    can_be_json_key(TypeInfo, TypeWithoutVars);
-can_be_json_key(_TypeInfo, _Type) ->
+    can_be_json_key(TypeInfo, TypeWithoutVars, Config);
+can_be_json_key(
+    _TypeInfo, #sp_remote_type{mfargs = {Module, TypeName, Args}, arity = TypeArity}, Config
+) ->
+    RemoteTypeInfo = spectra_module_types:get(Module, Config),
+    Type = spectra_type_info:get_type(RemoteTypeInfo, TypeName, TypeArity),
+    TypeWithoutVars = spectra_util:apply_args(RemoteTypeInfo, Type, Args),
+    can_be_json_key(RemoteTypeInfo, TypeWithoutVars, Config);
+can_be_json_key(_TypeInfo, _Type, _Config) ->
     false.
 
 %% Add JSON Schema version to the schema
@@ -355,7 +364,7 @@ process_map_fields(
     _HasAdditional,
     Config
 ) ->
-    case can_be_json_key(TypeInfo, KeyType) of
+    case can_be_json_key(TypeInfo, KeyType, Config) of
         false ->
             erlang:error({type_not_supported, Field});
         true ->
