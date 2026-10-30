@@ -33,6 +33,9 @@
 -type create_user_request() :: #create_user_request{}.
 -type error_response() :: #error_response{}.
 
+-spectra(#{description => <<"HMAC signature of the webhook payload">>}).
+-type signature() :: string().
+
 %% Test that OpenAPI spec generates JSON-serializable structures
 openapi_json_serializable_test() ->
     %% Create a comprehensive API with multiple endpoints
@@ -1270,6 +1273,346 @@ openapi_3_1_validation_test() ->
     ?assertMatch(#{<<"openapi">> := <<"3.1.0">>}, OpenAPISpec),
 
     %% Validate against OpenAPI 3.1 spec using Python validator
+    assert_valid_openapi(OpenAPISpec).
+
+%% Test that a webhook lands under the top-level "webhooks" key.
+webhook_at_top_level_test() ->
+    Webhook =
+        spectra_openapi:add_response(
+            spectra_openapi:with_request_body(
+                spectra_openapi:webhook(<<"userCreated">>, post),
+                ?MODULE,
+                {type, user, 0}
+            ),
+            spectra_openapi:response(200, <<"Acknowledged">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>},
+            [],
+            [Webhook],
+            [pre_encoded]
+        ),
+    ?assertMatch(
+        #{
+            <<"webhooks">> :=
+                #{
+                    <<"userCreated">> :=
+                        #{
+                            <<"post">> :=
+                                #{
+                                    <<"requestBody">> :=
+                                        #{
+                                            <<"content">> :=
+                                                #{
+                                                    <<"application/json">> :=
+                                                        #{<<"schema">> := _}
+                                                },
+                                            <<"required">> := true
+                                        },
+                                    <<"responses">> :=
+                                        #{<<"200">> := #{<<"description">> := <<"Acknowledged">>}}
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that webhooks and endpoints share components/schemas.
+webhook_schemas_shared_with_endpoints_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/users">>),
+            spectra_openapi:response_with_body(
+                spectra_openapi:response(200, <<"A user">>), ?MODULE, {type, user, 0}
+            )
+        ),
+    Webhook =
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(<<"userCreated">>, post), ?MODULE, {type, user, 0}
+        ),
+    {ok, Json} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [Webhook],
+            []
+        ),
+    OpenAPISpec = json:decode(iolist_to_binary(Json)),
+    #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
+    ?assertEqual([<<"User0">>], maps:keys(Schemas)),
+    Ref = <<"#/components/schemas/User0">>,
+    ?assertMatch(
+        #{
+            <<"paths">> :=
+                #{
+                    <<"/users">> :=
+                        #{
+                            <<"get">> :=
+                                #{
+                                    <<"responses">> :=
+                                        #{
+                                            <<"200">> :=
+                                                #{
+                                                    <<"content">> :=
+                                                        #{
+                                                            <<"application/json">> :=
+                                                                #{
+                                                                    <<"schema">> := #{
+                                                                        <<"$ref">> := Ref
+                                                                    }
+                                                                }
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                },
+            <<"webhooks">> :=
+                #{
+                    <<"userCreated">> :=
+                        #{
+                            <<"post">> :=
+                                #{
+                                    <<"requestBody">> :=
+                                        #{
+                                            <<"content">> :=
+                                                #{
+                                                    <<"application/json">> :=
+                                                        #{<<"schema">> := #{<<"$ref">> := Ref}}
+                                                }
+                                        }
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that one webhook name can carry several operations.
+webhook_multiple_methods_per_name_test() ->
+    Created = spectra_openapi:webhook(<<"userChanged">>, post),
+    Deleted = spectra_openapi:webhook(<<"userChanged">>, delete),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>},
+            [],
+            [Created, Deleted],
+            [pre_encoded]
+        ),
+    #{<<"webhooks">> := #{<<"userChanged">> := Operations}} = OpenAPISpec,
+    ?assertEqual([<<"delete">>, <<"post">>], lists:sort(maps:keys(Operations))).
+
+%% Test that a header parameter is accepted on a webhook.
+webhook_header_parameter_test() ->
+    Webhook =
+        spectra_openapi:with_parameter(
+            spectra_openapi:webhook(<<"userCreated">>, post),
+            ?MODULE,
+            #{
+                name => <<"x-signature">>,
+                in => header,
+                required => true,
+                schema => {type, signature, 0}
+            }
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>}, [], [Webhook], [pre_encoded]
+        ),
+    ?assertMatch(
+        #{
+            <<"webhooks">> :=
+                #{
+                    <<"userCreated">> :=
+                        #{
+                            <<"post">> :=
+                                #{
+                                    <<"parameters">> :=
+                                        [
+                                            #{
+                                                <<"name">> := <<"x-signature">>,
+                                                <<"in">> := <<"header">>
+                                            }
+                                        ]
+                                }
+                        }
+                }
+        },
+        OpenAPISpec
+    ).
+
+%% Test that path and query parameters are rejected on a webhook.
+webhook_rejects_path_and_query_parameters_test() ->
+    Webhook = spectra_openapi:webhook(<<"userCreated">>, post),
+    ?assertError(
+        {parameter_location_not_supported_on_webhook, <<"userCreated">>, path},
+        spectra_openapi:with_parameter(
+            Webhook,
+            ?MODULE,
+            #{name => <<"id">>, in => path, required => true, schema => {type, signature, 0}}
+        )
+    ),
+    ?assertError(
+        {parameter_location_not_supported_on_webhook, <<"userCreated">>, query},
+        spectra_openapi:with_parameter(
+            Webhook,
+            ?MODULE,
+            #{name => <<"id">>, in => query, required => true, schema => {type, signature, 0}}
+        )
+    ).
+
+%% Test that a webhook needs no responses.
+webhook_without_responses_test() ->
+    Webhook =
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(<<"userCreated">>, post), ?MODULE, {type, user, 0}
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>}, [], [Webhook], [pre_encoded]
+        ),
+    #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := Operation}}} = OpenAPISpec,
+    ?assertNot(maps:is_key(<<"responses">>, Operation)),
+
+    assert_valid_openapi(OpenAPISpec).
+
+%% Test that the webhooks key is absent when no webhooks are given.
+no_webhooks_key_without_webhooks_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>}, [Endpoint], [pre_encoded]
+        ),
+    ?assertNot(maps:is_key(<<"webhooks">>, OpenAPISpec)).
+
+%% Test that a spec carrying webhooks validates as real OpenAPI 3.1.
+webhook_spec_validates_test() ->
+    Webhook =
+        spectra_openapi:add_response(
+            spectra_openapi:with_request_body(
+                spectra_openapi:webhook(<<"userCreated">>, post, #{
+                    summary => <<"Sent when a user is created">>
+                }),
+                ?MODULE,
+                {type, user, 0}
+            ),
+            spectra_openapi:response(200, <<"Acknowledged">>)
+        ),
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{title => <<"API">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [Webhook],
+            [pre_encoded]
+        ),
+    assert_valid_openapi(OpenAPISpec).
+
+%% Test that a webhook's security overrides the global requirement.
+webhook_security_overrides_global_test() ->
+    Webhook =
+        spectra_openapi:webhook(<<"userCreated">>, post, #{
+            security => [#{<<"webhook_signature">> => []}]
+        }),
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/health">>),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{
+                        <<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>},
+                        <<"webhook_signature">> =>
+                            #{
+                                type => <<"apiKey">>,
+                                in => <<"header">>,
+                                name => <<"x-signature">>
+                            }
+                    },
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [Endpoint],
+            [Webhook],
+            [pre_encoded]
+        ),
+    ?assertMatch(#{<<"security">> := [#{<<"bearer_auth">> := []}]}, OpenAPISpec),
+    ?assertMatch(
+        #{
+            <<"webhooks">> :=
+                #{
+                    <<"userCreated">> :=
+                        #{<<"post">> := #{<<"security">> := [#{<<"webhook_signature">> := []}]}}
+                }
+        },
+        OpenAPISpec
+    ),
+    #{<<"paths">> := #{<<"/health">> := #{<<"get">> := Operation}}} = OpenAPISpec,
+    ?assertNot(maps:is_key(<<"security">>, Operation)).
+
+%% Test that an endpoint's security overrides the global requirement.
+endpoint_security_overrides_global_test() ->
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:endpoint(get, <<"/public">>, #{security => []}),
+            spectra_openapi:response(200, <<"OK">>)
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{<<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>}},
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [Endpoint],
+            [],
+            [pre_encoded]
+        ),
+    ?assertMatch(
+        #{<<"paths">> := #{<<"/public">> := #{<<"get">> := #{<<"security">> := []}}}},
+        OpenAPISpec
+    ).
+
+%% Test that an empty security list opts a webhook out.
+webhook_security_empty_list_opts_out_test() ->
+    Webhook = spectra_openapi:webhook(<<"userCreated">>, post, #{security => []}),
+    {ok, Json} =
+        spectra_openapi:to_openapi(
+            #{
+                title => <<"API">>,
+                version => <<"1.0.0">>,
+                security_schemes =>
+                    #{<<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>}},
+                security => [#{<<"bearer_auth">> => []}]
+            },
+            [],
+            [Webhook],
+            []
+        ),
+    OpenAPISpec = json:decode(iolist_to_binary(Json)),
+    ?assertMatch(
+        #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := #{<<"security">> := []}}}},
+        OpenAPISpec
+    ),
+    assert_valid_openapi(OpenAPISpec).
+
+assert_valid_openapi(OpenAPISpec) ->
     case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
         ok ->
             ok;
