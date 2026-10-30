@@ -15,7 +15,7 @@ hank:
 	rebar3 hank
 
 lint:
-	@output=$$(elp lint --rebar --read-config); \
+	@output=$$(elp lint --rebar --read-config) || exit 1; \
 	echo "$$output"; \
 	if [ -n "$$output" ]; then \
 		exit 1; \
