@@ -446,7 +446,7 @@ union(Fun, TypeInfo, #sp_union{types = Types} = T, BinaryString, Opts, Config) -
     end.
 
 do_first(_Fun, _TypeInfo, [], _BinaryString, _Opts, _Config, Errors) ->
-    {error, Errors};
+    {error, lists:reverse(Errors)};
 do_first(Fun, TypeInfo, [Type | Rest], BinaryString, Opts, Config, ErrorsAcc) ->
     case Fun(TypeInfo, Type, BinaryString, Opts, Config) of
         {ok, Result} ->
@@ -554,7 +554,7 @@ union_to_binary_string(TypeInfo, #sp_union{types = Types} = T, Data, Opts, Confi
     end.
 
 do_first_to_binary_string(_TypeInfo, [], _Data, _Opts, _Config, Errors) ->
-    {error, Errors};
+    {error, lists:reverse(Errors)};
 do_first_to_binary_string(TypeInfo, [Type | Rest], Data, Opts, Config, ErrorsAcc) ->
     case to_binary_string(TypeInfo, Type, Data, Opts, Config) of
         {ok, Result} ->

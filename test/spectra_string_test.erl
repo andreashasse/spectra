@@ -932,8 +932,8 @@ to_string_union_error_accumulation_test() ->
     ],
     ?assertEqual(
         [
-            {#sp_simple_type{type = boolean}, [#sp_error{type = type_mismatch}]},
-            {#sp_simple_type{type = integer}, [#sp_error{type = type_mismatch}]}
+            {#sp_simple_type{type = integer}, [#sp_error{type = type_mismatch}]},
+            {#sp_simple_type{type = boolean}, [#sp_error{type = type_mismatch}]}
         ],
         ActualErrors
     ),

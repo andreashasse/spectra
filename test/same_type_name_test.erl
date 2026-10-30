@@ -73,7 +73,6 @@ map1_to_json_bad_test() ->
                 UnionType,
                 #{a1 => hej},
                 [
-                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]},
                     {
                         MapType,
                         [
@@ -82,7 +81,8 @@ map1_to_json_bad_test() ->
                                 a1
                             )
                         ]
-                    }
+                    },
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]}
                 ]
             )
         ]},
@@ -94,8 +94,8 @@ map1_to_json_bad_test() ->
                 UnionType,
                 pelle,
                 [
-                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]},
-                    {MapType, [sp_error:type_mismatch(MapType, pelle)]}
+                    {MapType, [sp_error:type_mismatch(MapType, pelle)]},
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]}
                 ]
             )
         ]},
@@ -118,7 +118,6 @@ map1_from_json_bad_test() ->
                 UnionType,
                 #{a1 => hej},
                 [
-                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]},
                     {
                         MapType,
                         [
@@ -127,7 +126,8 @@ map1_from_json_bad_test() ->
                                 a1
                             )
                         ]
-                    }
+                    },
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, #{a1 => hej})]}
                 ]
             )
         ]},
@@ -139,8 +139,8 @@ map1_from_json_bad_test() ->
                 UnionType,
                 pelle,
                 [
-                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]},
-                    {MapType, [sp_error:type_mismatch(MapType, pelle)]}
+                    {MapType, [sp_error:type_mismatch(MapType, pelle)]},
+                    {ErrorLiteral, [sp_error:type_mismatch(ErrorLiteral, pelle)]}
                 ]
             )
         ]},

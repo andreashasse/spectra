@@ -722,10 +722,10 @@ BadSourceJson = <<"[{\"number\":\"+1-555-123-4567\",\"verified\":{\"source\":\"a
 
 - `location` — list of field names / list indices tracing the path from the root to the failing value, e.g. `[contacts, 0, verified, source]`
 - `type` — one of:
-  - `type_mismatch` — value did not match the expected type
+  - `type_mismatch` — value did not match the expected type; for a union of only literals (an enum such as `red | green | blue`) `ctx` also has `allowed_values`
   - `missing_data` — a required field was absent
   - `not_matched_fields` — an exact typed-map field had no matching keys in the data (for example an empty map for `#{binary() := binary()}`); `ctx` carries a `message` suggesting an optional key (`=>`) instead
-  - `no_match` — no branch of a union type matched (sub-errors per branch are in `ctx`)
+  - `no_match` — no branch of a union type matched (sub-errors per branch are in `ctx`, in the order the branches are declared)
 - `ctx` — map with at least `#{type => ExpectedType, value => ActualValue}`; for `no_match` also includes `#{errors => [{BranchType, [#sp_error{}]}]}`
 
 ### Raised Exceptions

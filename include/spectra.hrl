@@ -6,6 +6,7 @@
         value => dynamic(),
         errors => [{spectra:sp_type(), [#sp_error{}]}],
         message => string(),
+        allowed_values => [term()],
         type_args => [{atom(), spectra:sp_type()}],
         err_type => atom(),
         err_reason => term()

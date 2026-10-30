@@ -25,7 +25,12 @@ validate_non_atom_enum_test() ->
     % Test with invalid data
     {error, Errors} = to_json_non_atom_enum(InvalidData),
     ?assertMatch(
-        [#sp_error{type = no_match, ctx = #{type := NonAtomEnumType, value := InvalidData}}],
+        [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{type := NonAtomEnumType, value := InvalidData, allowed_values := [1, 3]}
+            }
+        ],
         Errors
     ),
 
@@ -41,7 +46,12 @@ validate_non_atom_enum_test() ->
     % Test from_json with invalid data
     {error, FromErrors} = from_json_non_atom_enum(InvalidJson),
     ?assertMatch(
-        [#sp_error{type = no_match, ctx = #{type := NonAtomEnumType, value := InvalidJson}}],
+        [
+            #sp_error{
+                type = type_mismatch,
+                ctx = #{type := NonAtomEnumType, value := InvalidJson, allowed_values := [1, 3]}
+            }
+        ],
         FromErrors
     ).
 
@@ -64,7 +74,7 @@ validate_role_test() ->
     % Test with invalid data
     {error, Errors} = to_json_role(InvalidData),
     ?assertMatch(
-        [#sp_error{type = no_match, ctx = #{type := RoleType, value := InvalidData}}],
+        [#sp_error{type = type_mismatch, ctx = #{type := RoleType, value := InvalidData}}],
         Errors
     ),
 
@@ -82,7 +92,7 @@ validate_role_test() ->
     % Test from_json with invalid data
     {error, FromErrors} = from_json_role(InvalidJson),
     ?assertMatch(
-        [#sp_error{type = no_match, ctx = #{type := RoleType, value := InvalidJson}}],
+        [#sp_error{type = type_mismatch, ctx = #{type := RoleType, value := InvalidJson}}],
         FromErrors
     ).
 

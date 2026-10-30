@@ -917,13 +917,24 @@ to_binary_for_pattern(Type, Pat, V) when is_list(V) ->
 union(Fun, TypeInfo, #sp_union{types = Types} = T, Json, Config) ->
     case do_first(Fun, TypeInfo, Types, Json, Config, []) of
         {error, UnionErrors} ->
-            {error, [sp_error:no_match(T, Json, UnionErrors)]};
+            {error, [union_error(T, Json, UnionErrors)]};
         Result ->
             Result
     end.
 
+%% A union of only literals is an enum: one mismatch listing the allowed values
+%% says more than one literal mismatch per member.
+union_error(#sp_union{types = Types} = T, Json, UnionErrors) ->
+    case lists:all(fun(Type) -> is_record(Type, sp_literal) end, Types) of
+        true ->
+            AllowedValues = [Value || #sp_literal{value = Value} <- Types],
+            sp_error:type_mismatch(T, Json, #{allowed_values => AllowedValues});
+        false ->
+            sp_error:no_match(T, Json, UnionErrors)
+    end.
+
 do_first(_Fun, _TypeInfo, [], _Json, _Config, Errors) ->
-    {error, Errors};
+    {error, lists:reverse(Errors)};
 do_first(Fun, TypeInfo, [Type | Rest], Json, Config, ErrorsAcc) ->
     case Fun(TypeInfo, Type, Json, Config) of
         {ok, Result} ->

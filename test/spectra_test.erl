@@ -269,7 +269,7 @@ encode_type_json_nested_map_test() ->
 encode_type_json_error_test() ->
     % Invalid data - atom that doesn't match status type
     {error, Errors} = spectra:encode(json, ?MODULE, status, invalid_status),
-    ?assertMatch([#sp_error{type = no_match}], Errors).
+    ?assertMatch([#sp_error{type = type_mismatch}], Errors).
 
 %%====================================================================
 %% encode_record/4 tests - JSON format
@@ -480,7 +480,7 @@ error_handling_decode_test() ->
     % Invalid enum value
     JsonInvalidStatus = <<"\"invalid\"">>,
     {error, Errors2} = spectra:decode(json, ?MODULE, status, JsonInvalidStatus),
-    ?assertMatch([#sp_error{type = no_match}], Errors2),
+    ?assertMatch([#sp_error{type = type_mismatch}], Errors2),
 
     % Missing required field
     JsonMissingField = <<"{\"id\":1,\"name\":\"Alice\"}">>,
@@ -511,7 +511,7 @@ error_handling_invalid_json_test() ->
 error_handling_encode_test() ->
     % Wrong type for status
     {error, Errors1} = spectra:encode(json, ?MODULE, status, wrong_atom),
-    ?assertMatch([#sp_error{type = no_match}], Errors1),
+    ?assertMatch([#sp_error{type = type_mismatch}], Errors1),
 
     % Negative number for pos_integer
     {error, Errors2} = spectra:encode(json, ?MODULE, user_id, -5),

@@ -27,7 +27,7 @@ validate_accesses_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = no_match,
+                type = type_mismatch,
                 ctx =
                     #{
                         type :=
@@ -63,7 +63,7 @@ validate_accesses_test() ->
     ?assertMatch(
         [
             #sp_error{
-                type = no_match,
+                type = type_mismatch,
                 ctx =
                     #{
                         type :=
