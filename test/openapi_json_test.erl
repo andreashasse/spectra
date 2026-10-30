@@ -1273,18 +1273,9 @@ openapi_3_1_validation_test() ->
     ?assertMatch(#{<<"openapi">> := <<"3.1.0">>}, OpenAPISpec),
 
     %% Validate against OpenAPI 3.1 spec using Python validator
-    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
-        ok ->
-            ok;
-        {skip, Reason} ->
-            {skip, Reason};
-        {error, {validation_failed, Result}} ->
-            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
-    end.
+    assert_valid_openapi(OpenAPISpec).
 
-%% Test that a webhook lands under the top-level "webhooks" key as a Path Item
-%% Object, keyed by the event name rather than a URL path. The request body is
-%% what the API sends out; the responses document what the consumer sends back.
+%% Test that a webhook lands under the top-level "webhooks" key.
 webhook_at_top_level_test() ->
     Webhook =
         spectra_openapi:add_response(
@@ -1328,8 +1319,7 @@ webhook_at_top_level_test() ->
         OpenAPISpec
     ).
 
-%% Test that a webhook's schemas land in components/schemas and are shared with
-%% the endpoints, so a type used by both is emitted once.
+%% Test that webhooks and endpoints share components/schemas.
 webhook_schemas_shared_with_endpoints_test() ->
     Endpoint =
         spectra_openapi:add_response(
@@ -1342,8 +1332,6 @@ webhook_schemas_shared_with_endpoints_test() ->
         spectra_openapi:with_request_body(
             spectra_openapi:webhook(<<"userCreated">>, post), ?MODULE, {type, user, 0}
         ),
-    %% Assert against the real serialized JSON: a $ref is what a consumer
-    %% actually resolves, and pre_encoded would leave it as an atom key.
     {ok, Json} =
         spectra_openapi:to_openapi(
             #{title => <<"API">>, version => <<"1.0.0">>},
@@ -1352,7 +1340,6 @@ webhook_schemas_shared_with_endpoints_test() ->
             []
         ),
     OpenAPISpec = json:decode(iolist_to_binary(Json)),
-    %% The type is emitted once, and both sides point at that one component.
     #{<<"components">> := #{<<"schemas">> := Schemas}} = OpenAPISpec,
     ?assertEqual([<<"User0">>], maps:keys(Schemas)),
     Ref = <<"#/components/schemas/User0">>,
@@ -1403,8 +1390,7 @@ webhook_schemas_shared_with_endpoints_test() ->
         OpenAPISpec
     ).
 
-%% Test that one webhook name can carry several operations, since a webhook
-%% value is a Path Item Object just like a paths entry.
+%% Test that one webhook name can carry several operations.
 webhook_multiple_methods_per_name_test() ->
     Created = spectra_openapi:webhook(<<"userChanged">>, post),
     Deleted = spectra_openapi:webhook(<<"userChanged">>, delete),
@@ -1418,8 +1404,7 @@ webhook_multiple_methods_per_name_test() ->
     #{<<"webhooks">> := #{<<"userChanged">> := Operations}} = OpenAPISpec,
     ?assertEqual([<<"delete">>, <<"post">>], lists:sort(maps:keys(Operations))).
 
-%% Test that a header parameter is accepted on a webhook - the consumer can be
-%% told to expect a signature header even though it owns the URL.
+%% Test that a header parameter is accepted on a webhook.
 webhook_header_parameter_test() ->
     Webhook =
         spectra_openapi:with_parameter(
@@ -1458,8 +1443,7 @@ webhook_header_parameter_test() ->
         OpenAPISpec
     ).
 
-%% Test that path and query parameters are rejected on a webhook: the consumer
-%% owns the URL, so there is nothing for this API to template into.
+%% Test that path and query parameters are rejected on a webhook.
 webhook_rejects_path_and_query_parameters_test() ->
     Webhook = spectra_openapi:webhook(<<"userCreated">>, post),
     ?assertError(
@@ -1479,8 +1463,7 @@ webhook_rejects_path_and_query_parameters_test() ->
         )
     ).
 
-%% Test that a webhook needs no responses - OpenAPI 3.1 does not require them,
-%% and "we send this and ignore the reply" is a real case.
+%% Test that a webhook needs no responses.
 webhook_without_responses_test() ->
     Webhook =
         spectra_openapi:with_request_body(
@@ -1493,20 +1476,9 @@ webhook_without_responses_test() ->
     #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := Operation}}} = OpenAPISpec,
     ?assertNot(maps:is_key(<<"responses">>, Operation)),
 
-    %% Assert the omission against the real validator too, not just the shape:
-    %% "responses are optional" is a claim about OpenAPI 3.1 itself, so the
-    %% validator is the thing that can falsify it.
-    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
-        ok ->
-            ok;
-        {skip, Reason} ->
-            {skip, Reason};
-        {error, {validation_failed, Result}} ->
-            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
-    end.
+    assert_valid_openapi(OpenAPISpec).
 
-%% Test that the webhooks key is absent when no webhooks are given, so existing
-%% specs are unchanged.
+%% Test that the webhooks key is absent when no webhooks are given.
 no_webhooks_key_without_webhooks_test() ->
     Endpoint =
         spectra_openapi:add_response(
@@ -1544,18 +1516,9 @@ webhook_spec_validates_test() ->
             [Webhook],
             [pre_encoded]
         ),
-    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
-        ok ->
-            ok;
-        {skip, Reason} ->
-            {skip, Reason};
-        {error, {validation_failed, Result}} ->
-            ?assert(false, io_lib:format("OpenAPI 3.1 validation failed: ~s", [Result]))
-    end.
+    assert_valid_openapi(OpenAPISpec).
 
-%% Test that a webhook can declare its own security requirement, overriding the
-%% API's global default. This is what lets an API authenticate inbound calls one
-%% way and sign its outgoing webhooks another.
+%% Test that a webhook's security overrides the global requirement.
 webhook_security_overrides_global_test() ->
     Webhook =
         spectra_openapi:webhook(<<"userCreated">>, post, #{
@@ -1587,9 +1550,7 @@ webhook_security_overrides_global_test() ->
             [Webhook],
             [pre_encoded]
         ),
-    %% The global default stays as the API's own auth ...
     ?assertMatch(#{<<"security">> := [#{<<"bearer_auth">> := []}]}, OpenAPISpec),
-    %% ... while the webhook operation carries its own instead.
     ?assertMatch(
         #{
             <<"webhooks">> :=
@@ -1600,12 +1561,10 @@ webhook_security_overrides_global_test() ->
         },
         OpenAPISpec
     ),
-    %% The endpoint does not gain one, so it keeps inheriting the global default.
     #{<<"paths">> := #{<<"/health">> := #{<<"get">> := Operation}}} = OpenAPISpec,
     ?assertNot(maps:is_key(<<"security">>, Operation)).
 
-%% Test that an endpoint can override the global security requirement too - this
-%% is a per-operation field, not a webhook-specific one.
+%% Test that an endpoint's security overrides the global requirement.
 endpoint_security_overrides_global_test() ->
     Endpoint =
         spectra_openapi:add_response(
@@ -1630,9 +1589,7 @@ endpoint_security_overrides_global_test() ->
         OpenAPISpec
     ).
 
-%% Test that an empty security list clears the global requirement for a single
-%% webhook. Webhooks inherit the API's global default (per OpenAPI, top-level
-%% security applies to every operation), so this is how a webhook opts out.
+%% Test that an empty security list opts a webhook out.
 webhook_security_empty_list_opts_out_test() ->
     Webhook = spectra_openapi:webhook(<<"userCreated">>, post, #{security => []}),
     {ok, Json} =
@@ -1653,6 +1610,9 @@ webhook_security_empty_list_opts_out_test() ->
         #{<<"webhooks">> := #{<<"userCreated">> := #{<<"post">> := #{<<"security">> := []}}}},
         OpenAPISpec
     ),
+    assert_valid_openapi(OpenAPISpec).
+
+assert_valid_openapi(OpenAPISpec) ->
     case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
         ok ->
             ok;

@@ -648,6 +648,8 @@ For both `with_request_body` and `with_parameter`, `description` and `deprecated
 
 ### Webhooks
 
+> **Note:** The author of this library has not reviewed the webhook support. Treat it as experimental.
+
 OpenAPI 3.1 [webhooks](https://spec.openapis.org/oas/v3.1.0#oasWebhooks) describe requests your API *sends out*, rather than requests it receives. Build them with `webhook/2,3` and pass them to `to_openapi/4`; they are emitted under the spec's top-level `webhooks` key.
 
 A webhook is keyed by an **event name** instead of a URL path, because the consumer owns the URL your API calls. The direction is inverted relative to an endpoint: the request body is the payload your API *sends*, and the responses describe what the consumer is expected to *return*.
@@ -675,16 +677,16 @@ Notes:
 %% The API authenticates callers with a bearer token; its webhooks are signed
 %% with an HMAC header instead.
 Meta = #{
-    title => ~"My API", version => ~"1.0.0",
+    title => <<"My API">>, version => <<"1.0.0">>,
     security_schemes => #{
-        ~"bearer_auth" => #{type => ~"http", scheme => ~"bearer"},
-        ~"webhook_signature" =>
-            #{type => ~"apiKey", in => ~"header", name => ~"x-signature"}
+        <<"bearer_auth">> => #{type => <<"http">>, scheme => <<"bearer">>},
+        <<"webhook_signature">> =>
+            #{type => <<"apiKey">>, in => <<"header">>, name => <<"x-signature">>}
     },
-    security => [#{~"bearer_auth" => []}]
+    security => [#{<<"bearer_auth">> => []}]
 },
-Webhook = spectra_openapi:webhook(~"userCreated", post, #{
-    security => [#{~"webhook_signature" => []}]
+Webhook = spectra_openapi:webhook(<<"userCreated">>, post, #{
+    security => [#{<<"webhook_signature">> => []}]
 }).
 ```
 

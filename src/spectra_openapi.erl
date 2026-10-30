@@ -53,8 +53,7 @@
 -type http_status_code() :: 100..599.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
-%% Operation Object fields set by the caller. Copied verbatim into the emitted
-%% operation, so every key here must also appear in openapi_operation().
+%% Every key here must also appear in openapi_operation().
 -type endpoint_doc() ::
     #{
         summary => binary(),
@@ -134,10 +133,6 @@
         request_body => request_body_spec(),
         doc => endpoint_doc()
     }.
-%% An OpenAPI 3.1 webhook. Keyed by an event name rather than a URL path: the
-%% consumer owns the URL, so there is nothing to template. The direction is
-%% inverted relative to an endpoint - request_body is what this API sends out,
-%% and responses document what the consumer is expected to send back.
 -type webhook_spec() ::
     #{
         name := binary(),
@@ -249,6 +244,7 @@ The Doc map can contain:
 - tags: List of tags for grouping (list of binaries)
 - deprecated: Whether the endpoint is deprecated (boolean)
 - externalDocs: External documentation link (map with url and optional description)
+- security: Security requirements for this operation, overriding the global default ([] opts out)
 
 ### Returns
 Endpoint map with method, path, and documentation set
@@ -297,22 +293,13 @@ webhook(Name, Method) when is_binary(Name) andalso is_atom(Method) ->
 -doc """
 Creates a webhook specification with documentation.
 
-Webhooks are emitted under the OpenAPI 3.1 top-level `webhooks` key. Unlike an
-endpoint, a webhook is keyed by an event name instead of a URL path, because the
-consumer owns the URL that this API calls.
-
-The direction is inverted relative to an endpoint: the request body is the
-payload this API *sends*, and the responses describe what the consumer is
-expected to *return* (for example 200 to acknowledge delivery).
-
-Responses, a request body and header parameters are added with the same
-add_response/2, with_request_body/3-4 and with_parameter/3 functions used for
-endpoints. Path and query parameters are rejected - there is no URL under this
-API's control to put them in.
+Webhooks are keyed by event name and emitted under the OpenAPI 3.1 top-level
+`webhooks` key. The request body is the payload this API sends, and the
+responses describe what the consumer returns. Build them with the same
+with_* functions as endpoints; path and query parameters are rejected.
 
 ### Documentation Fields
-The Doc map takes the same fields as endpoint/3: summary, description,
-operationId, tags, deprecated and externalDocs.
+The Doc map takes the same fields as endpoint/3.
 
 ### Example
 ```erlang
@@ -664,11 +651,7 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
     ParameterWithModule = ParameterSpec#{module => Module},
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
 
-%% A webhook is delivered to a URL the consumer owns, so there is nothing for
-%% this API to template into a path and no query string it controls. Only
-%% header and cookie parameters can be filled in; reject the rest instead of
-%% emitting a parameter that can never be satisfied. A webhook_spec() is told
-%% apart from an endpoint_spec() by its name key (endpoints carry path).
+%% Webhooks are told apart from endpoints by their name key.
 -spec check_parameter_location(
     endpoint_spec() | webhook_spec(),
     parameter_input_spec()
@@ -795,8 +778,6 @@ to_openapi(MetaData, Endpoints, Webhooks, Options) when
         spectra_module_types:clear_local()
     end.
 
-%% Endpoints group by path, webhooks by event name; both produce Path Item
-%% Objects, so the same grouping and operation generation serves both.
 -spec group_by(path | name, [endpoint_spec() | webhook_spec()]) ->
     #{binary() => [endpoint_spec() | webhook_spec()]}.
 group_by(Key, Specs) ->
