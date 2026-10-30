@@ -17,11 +17,11 @@ jobs:
         include:
           # ELP (used by the lint and type_check steps) ships per-OTP builds.
           - otp: "29"
-            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-29.tar.gz"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-10-14/elp-linux-x86_64-unknown-linux-gnu-otp-29.1.tar.gz"
           - otp: "28"
-            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-28.5.tar.gz"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-10-14/elp-linux-x86_64-unknown-linux-gnu-otp-28.5.tar.gz"
           - otp: "27"
-            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-08-10/elp-linux-x86_64-unknown-linux-gnu-otp-27.3.tar.gz"
+            elp_build: "https://github.com/WhatsApp/erlang-language-platform/releases/download/2026-10-14/elp-linux-x86_64-unknown-linux-gnu-otp-27.3.tar.gz"
 
     steps:
       - uses: actions/checkout@v4

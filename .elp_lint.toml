@@ -32,3 +32,9 @@ include_tests = false
 
 [linters.W0056]
 include_tests = false
+
+# The ELP release from 2026-10-14 reports W0083 for a header in the
+# hex_core rebar3 plugin under _build. spectra's own headers define no
+# types, so this only silences third-party code.
+[linters.W0083]
+enabled = false
