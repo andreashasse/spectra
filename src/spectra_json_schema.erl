@@ -411,7 +411,8 @@ process_map_fields(
             erlang:error({type_not_supported, Field});
         true ->
             KeySchema = do_to_schema(TypeInfo, KeyType, Config),
-            ValueSchema = to_schema_for_sp_type(TypeInfo, ValType, Config),
+            Missing = spectra_type:can_be_missing(TypeInfo, ValType),
+            ValueSchema = field_schema(TypeInfo, ValType, Missing, Config),
             process_map_fields(
                 TypeInfo,
                 Rest,

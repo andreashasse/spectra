@@ -785,7 +785,7 @@ The encoder and the schema generator both read this setting, so the schema alway
 | Record or struct field | `null` | — | required, allows `null` |
 | `:=` map field | `null` | `null` | required, allows `null` |
 | `=>` map field | `null` | left out | not required, allows `null` |
-| Typed map value (`#{binary() => T \| undefined}`) | `null` | — | unchanged |
+| Typed map value (`#{binary() => T \| undefined}`) | `null` | — | `additionalProperties` allows `null` |
 
 A schema allows `null` as `"type": ["string", "null"]` when the field has a single plain type, and as `"anyOf": [..., {"type": "null"}]` otherwise. Fields whose type cannot be missing, and values that are not the missing value, encode as before. The default, `omit`, keeps the behaviour described above. Decoding is the same for both settings.
 

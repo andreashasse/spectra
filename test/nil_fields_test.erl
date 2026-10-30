@@ -64,6 +64,7 @@ omit_behaviour() ->
         encode(profile, #{name => <<"Ann">>, nickname => undefined, bio => undefined})
     ),
     ?assertEqual(#{}, encode(labels, #{<<"a">> => undefined})),
+    ?assertMatch(#{additionalProperties := #{type := <<"string">>}}, schema(labels)),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
@@ -100,6 +101,7 @@ null_test_() ->
         fun null_aliased_nullable_type/0,
         fun null_non_simple_schemas_use_any_of/0,
         fun null_typed_map_value_is_encoded_as_null/0,
+        fun null_is_decoded_as_missing_value/0,
         fun null_encoded_data_validates_against_schema/0,
         fun null_openapi_spec_validates/0
     ]).
@@ -221,6 +223,31 @@ null_typed_map_value_is_encoded_as_null() ->
     ?assertEqual(
         #{<<"a">> => null, <<"b">> => <<"x">>},
         encode(labels, #{<<"a">> => undefined, <<"b">> => <<"x">>})
+    ),
+    Schema = schema(labels),
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            additionalProperties => #{type => [<<"string">>, <<"null">>]}
+        },
+        Schema
+    ),
+    json_schema_validator_helper:validate_or_skip(Schema).
+
+null_is_decoded_as_missing_value() ->
+    Json = #{<<"name">> => <<"Ann">>, <<"phone">> => null},
+    ?assertEqual(
+        {ok, #contact{name = <<"Ann">>, phone = undefined}},
+        spectra:decode(json, ?MODULE, contact, Json, [pre_decoded])
+    ),
+    ?assertEqual(
+        {ok, #{phone => undefined}},
+        spectra:decode(json, ?MODULE, aliased_profile, #{<<"phone">> => null}, [pre_decoded])
+    ),
+    ?assertEqual(
+        {ok, #{<<"a">> => undefined}},
+        spectra:decode(json, ?MODULE, labels, #{<<"a">> => null}, [pre_decoded])
     ).
 
 null_encoded_data_validates_against_schema() ->
@@ -233,7 +260,8 @@ null_encoded_data_validates_against_schema() ->
             {contact, #contact{name = <<"Ann">>, phone = undefined}},
             {profile, #{name => <<"Ann">>, nickname => undefined, bio => undefined}},
             {mixed_profile, #{score => undefined, status => undefined, tags => undefined}},
-            {mixed_profile, #{score => 3, status => active, tags => [<<"t">>]}}
+            {mixed_profile, #{score => 3, status => active, tags => [<<"t">>]}},
+            {labels, #{<<"a">> => undefined, <<"b">> => <<"x">>}}
         ]
     ),
     ?assertMatch(
