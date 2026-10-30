@@ -762,6 +762,32 @@ The atoms `undefined` and `nil` have special handling in JSON serialization to r
 **Encoding (Erlang → JSON):**
 - Fields with `undefined` or `nil` values are omitted from the JSON output
 - Example: `#{name => <<"John">>, email => undefined}` encodes to `{"name":"John"}`
+- Set `nil_fields` to `null` to write them as JSON `null` instead (see below)
+
+**Encoding missing values as `null`:**
+
+By default a field whose type can be missing (`binary() | undefined`, or `String.t() | nil` in Elixir) is left out of the JSON when it holds the missing value, and its schema leaves it out of `required`. Some clients want every field present. Set `nil_fields` to `null` in the application environment:
+
+```erlang
+%% sys.config
+{spectra, [{nil_fields, null}]}
+```
+
+```elixir
+# config/config.exs
+config :spectra, :nil_fields, :null
+```
+
+The encoder and the schema generator both read this setting, so the schema always describes what the encoder writes. With `null`:
+
+| Field | Value is the missing value | Value is absent from the map | Schema |
+|---|---|---|---|
+| Record or struct field | `null` | — | required, allows `null` |
+| `:=` map field | `null` | `null` | required, allows `null` |
+| `=>` map field | `null` | left out | not required, allows `null` |
+| Typed map value (`#{binary() => T \| undefined}`) | `null` | — | unchanged |
+
+A schema allows `null` as `"type": ["string", "null"]` when the field has a single plain type, and as `"anyOf": [..., {"type": "null"}]` otherwise. Fields whose type cannot be missing, and values that are not the missing value, encode as before. The default, `omit`, keeps the behaviour described above. Decoding is the same for both settings.
 
 **Decoding (JSON → Erlang):**
 

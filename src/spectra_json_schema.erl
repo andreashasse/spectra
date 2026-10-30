@@ -7,7 +7,7 @@
 -include("../include/spectra_internal.hrl").
 
 -type json_schema_object() :: #{
-    type => binary(),
+    type => binary() | [binary()],
     format => binary(),
     minLength => non_neg_integer(),
     maxLength => non_neg_integer(),
@@ -34,7 +34,7 @@
     description => binary(),
     deprecated => boolean(),
     examples => [json:encode_value()],
-    type => binary(),
+    type => binary() | [binary()],
     format => binary(),
     minLength => non_neg_integer(),
     maxLength => non_neg_integer(),
@@ -384,15 +384,15 @@ process_map_fields(
     ValueSchemas,
     Config
 ) ->
-    FieldSchema = to_schema_for_sp_type(TypeInfo, FieldType, Config),
+    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
+    FieldSchema = field_schema(TypeInfo, FieldType, Missing, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
-    %% A field is required only when it is exact (`:=`) and cannot be missing.
-    %% Optional (`=>`) fields and exact fields whose type can be missing
-    %% (e.g. `field | nil`) are absent-tolerant, matching the decoder.
+    %% Optional (`=>`) fields are never required: the encoder leaves an absent
+    %% key out. Exact (`:=`) fields follow the same rule as record fields.
     NewRequired =
-        case {Kind, spectra_type:can_be_missing(TypeInfo, FieldType)} of
-            {exact, false} -> [BinaryName | Required];
-            _ -> Required
+        case Kind =:= exact andalso is_field_required(Missing, Config) of
+            true -> [BinaryName | Required];
+            false -> Required
         end,
     process_map_fields(
         TypeInfo, Rest, NewProperties, NewRequired, KeySchemas, ValueSchemas, Config
@@ -460,16 +460,43 @@ process_record_fields(
     Required,
     Config
 ) ->
-    FieldSchema = to_schema_for_sp_type(TypeInfo, FieldType, Config),
+    Missing = spectra_type:can_be_missing(TypeInfo, FieldType),
+    FieldSchema = field_schema(TypeInfo, FieldType, Missing, Config),
     NewProperties = Properties#{BinaryName => FieldSchema},
     NewRequired =
-        case spectra_type:can_be_missing(TypeInfo, FieldType) of
-            {true, _} ->
-                Required;
-            false ->
-                [BinaryName | Required]
+        case is_field_required(Missing, Config) of
+            true -> [BinaryName | Required];
+            false -> Required
         end,
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
+
+%% With `nil_fields = omit` a field whose type can be missing is left out of
+%% the encoded object when it holds the missing value, so it is not required
+%% and its schema does not allow null. With `nil_fields = null` it is always
+%% written, as null when missing.
+-spec field_schema(
+    spectra:type_info(),
+    spectra:sp_type(),
+    {true, spectra:missing_value()} | false,
+    spectra:sp_config()
+) -> json_schema_object().
+field_schema(TypeInfo, FieldType, {true, _}, #sp_config{nil_fields = null} = Config) ->
+    allow_null(to_schema_for_sp_type(TypeInfo, FieldType, Config));
+field_schema(TypeInfo, FieldType, _Missing, Config) ->
+    to_schema_for_sp_type(TypeInfo, FieldType, Config).
+
+-spec is_field_required({true, spectra:missing_value()} | false, spectra:sp_config()) ->
+    boolean().
+is_field_required(false, _Config) -> true;
+is_field_required({true, _}, #sp_config{nil_fields = NilFields}) -> NilFields =:= null.
+
+-spec allow_null(json_schema_object()) -> json_schema_object().
+allow_null(#{type := Type} = Schema) when is_binary(Type), not is_map_key(enum, Schema) ->
+    Schema#{type => [Type, <<"null">>]};
+allow_null(#{anyOf := Schemas} = Schema) when map_size(Schema) =:= 1 ->
+    #{anyOf => Schemas ++ [#{type => <<"null">>}]};
+allow_null(Schema) ->
+    #{anyOf => [Schema, #{type => <<"null">>}]}.
 
 generate_anyof_schema(TypeInfo, Types, Config) ->
     any_of_schemas(lists:map(fun(T) -> to_schema_for_sp_type(TypeInfo, T, Config) end, Types)).

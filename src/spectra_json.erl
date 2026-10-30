@@ -27,8 +27,10 @@ Encodes `Data` to a JSON-compatible value according to `Type`.
 
 Walks the type tree recursively, converting each node. Records become maps
 with binary keys, lists stay lists, atoms in unions become their binary
-representations. Optional fields whose value equals the missing sentinel
-(`nil` / `undefined`) are omitted from the output.
+representations. Fields whose type can be missing and whose value equals the
+missing sentinel (`nil` / `undefined`) are omitted from the output, or written
+as `null` when the `nil_fields` application setting is `null` (see
+`t:spectra:nil_fields/0`).
 
 Returns `{ok, Value}` on success or `{error, Errors}` with a list of
 structured `#sp_error{}` values describing every mismatch found.
@@ -327,7 +329,11 @@ map_literal_field_to_json({TypeInfo, Data, Config}, Type, {FieldsAcc, ConsumedKe
         #{FieldName := FieldData} ->
             case {FieldData, Missing} of
                 {MissingValue, {true, MissingValue}} ->
-                    {ok, {FieldsAcc, [FieldName | ConsumedKeys]}};
+                    {ok,
+                        {
+                            add_missing_field(BinaryFieldName, FieldsAcc, Config),
+                            [FieldName | ConsumedKeys]
+                        }};
                 _ ->
                     case to_json(TypeInfo, FieldType, FieldData, Config) of
                         {ok, FieldJson} ->
@@ -345,7 +351,7 @@ map_literal_field_to_json({TypeInfo, Data, Config}, Type, {FieldsAcc, ConsumedKe
                 {assoc, _} ->
                     {ok, {FieldsAcc, ConsumedKeys}};
                 {exact, {true, _}} ->
-                    {ok, {FieldsAcc, ConsumedKeys}};
+                    {ok, {add_missing_field(BinaryFieldName, FieldsAcc, Config), ConsumedKeys}};
                 {exact, false} ->
                     Remainder = maps:without(ConsumedKeys, Data),
                     {error, [sp_error:missing_data(Type, Remainder, [FieldName])]}
@@ -407,7 +413,7 @@ map_typed_field_to_json_list(TypeInfo, KeyType, ValueType, DataList, Config) ->
             {ok, KeyJson} ->
                 case {Value, spectra_type:can_be_missing(TypeInfo, ValueType)} of
                     {MissingValue, {true, MissingValue}} ->
-                        {ok, {FieldsAcc, RemainingAcc}};
+                        {ok, {add_missing_field(KeyJson, FieldsAcc, Config), RemainingAcc}};
                     _ ->
                         case to_json(TypeInfo, ValueType, Value, Config) of
                             {ok, ValueJson} ->
@@ -487,7 +493,7 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
     ) ->
         case {RecordFieldData, spectra_type:can_be_missing(TypeInfo, FieldType)} of
             {MissingValue, {true, MissingValue}} ->
-                {ok, FieldsAcc};
+                {ok, add_missing_field(BinaryFieldName, FieldsAcc, Config)};
             _ ->
                 case to_json(TypeInfo, FieldType, RecordFieldData, Config) of
                     {ok, FieldJson} ->
@@ -507,6 +513,15 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
         {error, _} = Err ->
             Err
     end.
+
+-spec add_missing_field(Key, [{Key, json:encode_value()}], spectra:sp_config()) ->
+    [{Key, json:encode_value()}]
+when
+    Key :: json:encode_value().
+add_missing_field(_Key, Fields, #sp_config{nil_fields = omit}) ->
+    Fields;
+add_missing_field(Key, Fields, #sp_config{nil_fields = null}) ->
+    [{Key, null} | Fields].
 
 -doc """
 Decodes `Json` into an Erlang term according to `Type`.
