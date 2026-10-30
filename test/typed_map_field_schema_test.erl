@@ -156,14 +156,22 @@ schema_float_key_map_exact_test() ->
 %%====================================================================
 
 schema_remote_key_map_test() ->
-    ?assertMatch(
-        #{type := <<"object">>},
+    ?assertEqual(
+        #{
+            '$schema' => ?SCHEMA_VERSION,
+            type => <<"object">>,
+            additionalProperties => #{type => <<"string">>}
+        },
         spectra:schema(json_schema, ?MODULE, {type, local_remote_key_map, 0}, [pre_encoded])
     ).
 
 schema_otp_remote_key_map_test() ->
-    ?assertMatch(
-        #{type := <<"object">>},
+    ?assertEqual(
+        #{
+            '$schema' => ?SCHEMA_VERSION,
+            type => <<"object">>,
+            additionalProperties => #{type => <<"string">>}
+        },
         spectra:schema(json_schema, ?MODULE, {type, otp_remote_key_map, 0}, [pre_encoded])
     ).
 
