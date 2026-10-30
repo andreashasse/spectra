@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-30
+
 ### Added
 - `spectra_openapi:response/2` accepts the OpenAPI 3.1 status code ranges `<<"1XX">>` to `<<"5XX">>` besides integer status codes.
 - `nil_fields` application setting (`{spectra, [{nil_fields, null}]}`, or `config :spectra, :nil_fields, :null` in Elixir). With `null`, a field whose type can be missing (`T | undefined`, `T | nil`) and whose value is the missing value is encoded as JSON `null` instead of being left out, and its schema lists it in `required` and allows `null` (`"type": [T, "null"]` for a plain type, `anyOf` with `{"type": "null"}` otherwise). Optional `=>` map keys that are absent from the data stay absent and stay out of `required`. A typed map value that can be missing, such as in `#{binary() => binary() | undefined}`, is also encoded as `null`, and `additionalProperties` allows `null`. The default, `omit`, leaves encode output and schemas unchanged. An unknown value raises `{invalid_config, nil_fields, Value}`.
