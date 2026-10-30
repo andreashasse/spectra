@@ -17,7 +17,7 @@ hank:
 lint:
 	@output=$$(elp lint --rebar --read-config); \
 	echo "$$output"; \
-	if ! echo "$$output" | grep -q "No diagnostics reported"; then \
+	if [ -n "$$output" ]; then \
 		exit 1; \
 	fi
 
@@ -51,13 +51,7 @@ dialyzer:
 	rebar3 dialyzer
 
 type_check:
-	@output=$$(elp eqwalize-all); \
-	echo "$$output"; \
-	if ! echo "$$output" | grep -q "NO ERRORS"; then \
-		exit 1; \
-	else \
-		exit 0; \
-	fi
+	elp eqwalize-all --bail-on-error
 
 doc:
 	rebar3 ex_doc
