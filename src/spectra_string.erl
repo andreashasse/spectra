@@ -389,7 +389,7 @@ union(Fun, TypeInfo, #sp_union{types = Types} = T, String, Config) ->
     end.
 
 do_first(_Fun, _TypeInfo, [], _String, _Config, Errors) ->
-    {error, Errors};
+    {error, lists:reverse(Errors)};
 do_first(Fun, TypeInfo, [Type | Rest], String, Config, ErrorsAcc) ->
     case Fun(TypeInfo, Type, String, Config) of
         {ok, Result} ->

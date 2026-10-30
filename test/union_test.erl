@@ -4,9 +4,14 @@
 
 -include("../include/spectra.hrl").
 
+-compile(nowarn_unused_type).
+
 -record(address, {street :: string(), city :: string() | undefined}).
 
 -type score() :: #{value := 1..10, comment => #{lang := string(), text := string()}}.
+-type id_or_tags() :: integer() | [binary()].
+-type color() :: red | green | blue.
+-type optional_color() :: red | nil.
 -type weird_union() :: #address{} | #{city => string(), score => score()}.
 
 %% Test function to validate weird_union type
@@ -84,3 +89,70 @@ to_json_weird_union(Data) ->
     {ok, weird_union()} | {error, [spectra:error()]}.
 from_json_weird_union(Json) ->
     spectra:decode(json, ?MODULE, {type, weird_union, 0}, Json, [pre_decoded]).
+
+decode_union_errors_in_declaration_order_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = no_match,
+                ctx = #{
+                    errors := [
+                        {_, [#sp_error{type = type_mismatch, location = [], ctx = #{value := [1]}}]},
+                        {_, [#sp_error{type = type_mismatch, location = [1], ctx = #{value := 1}}]}
+                    ]
+                }
+            }
+        ]},
+        spectra:decode(json, ?MODULE, id_or_tags, [1], [pre_decoded])
+    ).
+
+encode_union_errors_in_declaration_order_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = no_match,
+                ctx = #{
+                    errors := [
+                        {_, [#sp_error{type = type_mismatch, location = [], ctx = #{value := [1]}}]},
+                        {_, [#sp_error{type = type_mismatch, location = [1], ctx = #{value := 1}}]}
+                    ]
+                }
+            }
+        ]},
+        spectra:encode(json, ?MODULE, id_or_tags, [1], [pre_encoded])
+    ).
+
+decode_enum_mismatch_lists_allowed_values_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                location = [],
+                ctx = #{
+                    value := <<"purple">>,
+                    allowed_values := [<<"red">>, <<"green">>, <<"blue">>]
+                }
+            }
+        ]},
+        spectra:decode(json, ?MODULE, color, <<"purple">>, [pre_decoded])
+    ).
+
+encode_enum_mismatch_lists_allowed_values_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = type_mismatch,
+                location = [],
+                ctx = #{value := purple, allowed_values := [<<"red">>, <<"green">>, <<"blue">>]}
+            }
+        ]},
+        spectra:encode(json, ?MODULE, color, purple, [pre_encoded])
+    ).
+
+decode_enum_mismatch_lists_null_for_nil_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{type = type_mismatch, ctx = #{allowed_values := [<<"red">>, null]}}
+        ]},
+        spectra:decode(json, ?MODULE, optional_color, <<"purple">>, [pre_decoded])
+    ).

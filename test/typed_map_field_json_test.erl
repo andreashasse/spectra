@@ -47,6 +47,16 @@ decode_string_key_map_exact_empty_test() ->
         spectra:decode(json, ?MODULE, string_key_map_exact, JsonBinary)
     ).
 
+decode_string_key_map_exact_empty_explains_optional_key_test() ->
+    {error, [#sp_error{type = not_matched_fields, ctx = #{message := Message}}]} =
+        spectra:decode(json, ?MODULE, string_key_map_exact, <<"{}">>),
+    ?assertNotEqual(nomatch, string:find(Message, "optional")).
+
+encode_string_key_map_exact_empty_explains_optional_key_test() ->
+    {error, [#sp_error{type = not_matched_fields, ctx = #{message := Message}}]} =
+        spectra:encode(json, ?MODULE, string_key_map_exact, #{}),
+    ?assertNotEqual(nomatch, string:find(Message, "optional")).
+
 decode_string_key_map_exact_with_entry_test() ->
     JsonBinary = <<"{\"key1\":42}">>,
     {ok, Data} = spectra:decode(json, ?MODULE, string_key_map_exact, JsonBinary),

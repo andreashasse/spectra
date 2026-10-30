@@ -413,7 +413,7 @@ generic_map_types_test() ->
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
             type => <<"object">>,
-            additionalProperties => true
+            additionalProperties => #{type => <<"integer">>}
         },
         GenericMapSchema
     ),
@@ -427,7 +427,7 @@ generic_map_types_test() ->
             type => <<"object">>,
             properties => #{<<"name">> => #{type => <<"string">>}},
             required => [<<"name">>],
-            additionalProperties => true
+            additionalProperties => #{type => <<"integer">>}
         },
         MixedMapSchema
     ),

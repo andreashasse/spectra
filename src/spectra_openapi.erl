@@ -50,7 +50,8 @@
 -define(DEFAULT_CONTENT_TYPE, <<"application/json">>).
 
 -type http_method() :: get | put | post | delete | options | head | patch | trace.
--type http_status_code() :: 100..599.
+%% The binary is an OpenAPI 3.1 status code range: <<"1XX">> to <<"5XX">>.
+-type http_status_code() :: 100..599 | <<_:24>>.
 -type parameter_location() :: path | query | header | cookie.
 -type openapi_schema() :: json:encode_value() | #{'$ref' := binary()}.
 %% Every key here must also appear in openapi_operation().
@@ -354,14 +355,22 @@ Response builder map with status code and description
     params =>
         #{
             "Description" => "Human-readable description of the response",
-            "StatusCode" => "HTTP status code (e.g., 200, 404, 500)"
+            "StatusCode" =>
+                "HTTP status code (e.g., 200, 404, 500), or a status code range "
+                "<<\"1XX\">> to <<\"5XX\">>"
         }
 }.
 
 -spec response(StatusCode :: http_status_code(), Description :: binary()) ->
     response_spec().
 response(StatusCode, Description) when
-    is_integer(StatusCode) andalso is_binary(Description)
+    (is_integer(StatusCode) orelse
+        StatusCode =:= <<"1XX">> orelse
+        StatusCode =:= <<"2XX">> orelse
+        StatusCode =:= <<"3XX">> orelse
+        StatusCode =:= <<"4XX">> orelse
+        StatusCode =:= <<"5XX">>) andalso
+        is_binary(Description)
 ->
     #{status_code => StatusCode, description => Description}.
 
@@ -834,9 +843,11 @@ generate_operation(Endpoint, Config) ->
                     ),
                 OpenAPIResponsesBinary =
                     maps:fold(
-                        fun(K, V, NewAcc) ->
-                            BinaryKey = integer_to_binary(K),
-                            NewAcc#{BinaryKey => V}
+                        fun
+                            (K, V, NewAcc) when is_integer(K) ->
+                                NewAcc#{integer_to_binary(K) => V};
+                            (K, V, NewAcc) when is_binary(K) ->
+                                NewAcc#{K => V}
                         end,
                         #{},
                         OpenAPIResponses
