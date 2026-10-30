@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - The JSON Schema of a typed map, such as `#{binary() => integer()}`, now describes its values: `additionalProperties` holds the value schema instead of `true` (an `anyOf` when the map has several typed fields, still `true` for `term()` values). When the map has no literal fields and its key type is constrained, such as a union of atoms, the key schema is emitted as `propertyNames`.
+- A `not_matched_fields` error, such as an empty map given to `#{binary() := binary()}` (Elixir `%{String.t() => String.t()}`), now has a `message` in its `ctx` explaining that the map needs a matching key and that an optional key (`=>` / `optional(...)`) allows an empty map.
 - JSON Schema generation no longer crashes with `type_not_supported` on a typed map whose key is a remote string type, such as Elixir `%{optional(String.t()) => String.t()}` or Erlang `#{unicode:unicode_binary() => binary()}`.
 
 ## [0.15.0] - 2026-10-30
