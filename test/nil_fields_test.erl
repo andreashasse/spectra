@@ -1,6 +1,7 @@
 -module(nil_fields_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../include/spectra_internal.hrl").
 
 -compile(nowarn_unused_type).
 
@@ -21,6 +22,26 @@
     tags := [binary()] | undefined
 }.
 -type labels() :: #{binary() => binary() | undefined}.
+-spectra(#{description => <<"A count">>}).
+-type maybe_count() :: integer() | undefined.
+-type maybe_status() :: active | inactive | undefined.
+-type maybe_name() :: binary() | nil.
+-type maybe_remote_name() :: unicode:unicode_binary() | nil.
+-record(tally, {count :: maybe_count(), status :: maybe_status(), counts :: [maybe_count()]}).
+-type tally() :: #tally{}.
+-type team() :: #{
+    lead := contact(),
+    members := [profile()],
+    status := active | inactive | undefined,
+    backup => contact() | undefined,
+    labels := labels()
+}.
+
+-type payer() :: #{name := binary(), email := binary() | undefined}.
+-record(payment, {id :: binary(), note :: binary() | undefined, payer :: payer()}).
+-record(payment_nullable, {id :: binary()}).
+-type payment() :: #payment{}.
+-type payment_nullable() :: #payment_nullable{}.
 
 with_nil_fields(Value, Tests) ->
     {setup,
@@ -48,13 +69,99 @@ jesse_validate(Schema, Json) ->
     JesseSchema = json:decode(iolist_to_binary(json:encode(maps:remove('$schema', Schema)))),
     jesse:validate_with_schema(JesseSchema, Json).
 
-omit_test_() ->
+encode(Type, Data, Options) ->
+    {ok, Json} = spectra:encode(json, ?MODULE, Type, Data, Options),
+    json:decode(iolist_to_binary(Json)).
+
+assert_json_schema(Expected, Type) ->
+    ?assertEqual(
+        json:decode(Expected),
+        json:decode(iolist_to_binary(spectra:schema(json_schema, ?MODULE, Type)))
+    ).
+
+team_data() ->
+    #{
+        lead => #contact{name = <<"Ann">>, phone = undefined},
+        members => [#{name => <<"Bo">>, nickname => undefined, bio => undefined}],
+        status => undefined,
+        backup => undefined,
+        labels => #{<<"a">> => undefined, <<"b">> => <<"x">>}
+    }.
+
+default_test_() ->
     [
-        with_nil_fields(unset, fun omit_behaviour/0),
-        with_nil_fields(omit, fun omit_behaviour/0)
+        with_nil_fields(unset, [
+            fun default_schema_allows_null_for_optional_fields/0,
+            fun default_encoding_omits_missing_values/0,
+            fun default_per_call_null_writes_null/0,
+            fun default_per_call_null_writes_null_in_pre_encoded_output/0,
+            fun default_per_call_null_validates_against_schema/0,
+            fun default_per_call_omit_omits_missing_values/0,
+            fun default_per_call_option_with_type_info/0,
+            fun default_openapi_spec_validates/0,
+            fun nullable_top_level_schema_allows_null/0,
+            fun nullable_top_level_value_validates_against_schema/0,
+            fun nullable_alias_field_has_single_null/0,
+            fun parameter_and_header_schemas_exclude_null/0,
+            fun body_allows_null_where_parameter_of_same_type_does_not/0
+        ]),
+        with_nil_fields(omit_or_null, [
+            fun default_schema_allows_null_for_optional_fields/0,
+            fun default_encoding_omits_missing_values/0,
+            fun default_per_call_null_writes_null/0
+        ])
     ].
 
-omit_behaviour() ->
+default_schema_allows_null_for_optional_fields() ->
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => <<"object">>,
+            properties => #{
+                <<"name">> => #{type => <<"string">>},
+                <<"phone">> => #{type => [<<"string">>, <<"null">>]}
+            },
+            required => [<<"name">>]
+        },
+        schema(contact)
+    ),
+    ?assertMatch(
+        #{
+            properties := #{
+                <<"name">> := #{type := <<"string">>},
+                <<"nickname">> := #{type := [<<"string">>, <<"null">>]},
+                <<"bio">> := #{type := [<<"string">>, <<"null">>]}
+            },
+            required := [<<"name">>]
+        },
+        schema(profile)
+    ),
+    ?assertMatch(
+        #{
+            properties := #{
+                <<"score">> := #{
+                    anyOf := [
+                        #{type := <<"integer">>}, #{type := <<"string">>}, #{type := <<"null">>}
+                    ]
+                },
+                <<"status">> := #{
+                    anyOf := [#{enum := [<<"active">>, <<"inactive">>]}, #{type := <<"null">>}]
+                },
+                <<"tags">> := #{type := [<<"array">>, <<"null">>]}
+            }
+        },
+        schema(mixed_profile)
+    ),
+    ?assertNot(maps:is_key(required, schema(mixed_profile))),
+    ?assertMatch(
+        #{additionalProperties := #{type := [<<"string">>, <<"null">>]}}, schema(labels)
+    ),
+    lists:foreach(
+        fun(Type) -> json_schema_validator_helper:validate_or_skip(schema(Type)) end,
+        [contact, profile, mixed_profile, labels, team]
+    ).
+
+default_encoding_omits_missing_values() ->
     ?assertEqual(
         #{<<"name">> => <<"Ann">>},
         encode(contact, #contact{name = <<"Ann">>, phone = undefined})
@@ -64,29 +171,437 @@ omit_behaviour() ->
         encode(profile, #{name => <<"Ann">>, nickname => undefined, bio => undefined})
     ),
     ?assertEqual(#{}, encode(labels, #{<<"a">> => undefined})),
-    ?assertMatch(#{additionalProperties := #{type := <<"string">>}}, schema(labels)),
+    ?assertEqual(
+        #{
+            <<"lead">> => #{<<"name">> => <<"Ann">>},
+            <<"members">> => [#{<<"name">> => <<"Bo">>}],
+            <<"labels">> => #{<<"b">> => <<"x">>}
+        },
+        encode(team, team_data())
+    ).
+
+default_per_call_null_writes_null() ->
+    ?assertEqual(
+        #{<<"name">> => <<"Ann">>, <<"phone">> => null},
+        encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, null}])
+    ),
+    ?assertEqual(
+        #{<<"name">> => <<"Ann">>, <<"nickname">> => null},
+        encode(profile, #{name => <<"Ann">>}, [{nil_fields, null}])
+    ),
+    ?assertEqual(
+        #{
+            <<"lead">> => #{<<"name">> => <<"Ann">>, <<"phone">> => null},
+            <<"members">> => [
+                #{<<"name">> => <<"Bo">>, <<"nickname">> => null, <<"bio">> => null}
+            ],
+            <<"status">> => null,
+            <<"backup">> => null,
+            <<"labels">> => #{<<"a">> => null, <<"b">> => <<"x">>}
+        },
+        encode(team, team_data(), [{nil_fields, null}])
+    ).
+
+default_per_call_null_writes_null_in_pre_encoded_output() ->
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"Ann">>, <<"phone">> => null}},
+        spectra:encode(
+            json,
+            ?MODULE,
+            contact,
+            #contact{name = <<"Ann">>, phone = undefined},
+            [pre_encoded, {nil_fields, null}]
+        )
+    ).
+
+default_per_call_null_validates_against_schema() ->
+    lists:foreach(
+        fun({Type, Data}) ->
+            Schema = schema(Type),
+            ?assertMatch({ok, _}, jesse_validate(Schema, encode(Type, Data))),
+            ?assertMatch({ok, _}, jesse_validate(Schema, encode(Type, Data, [{nil_fields, null}])))
+        end,
+        [
+            {contact, #contact{name = <<"Ann">>, phone = undefined}},
+            {profile, #{name => <<"Ann">>, nickname => undefined, bio => undefined}},
+            {mixed_profile, #{score => undefined, status => undefined, tags => undefined}},
+            {mixed_profile, #{score => 3, status => active, tags => [<<"t">>]}},
+            {labels, #{<<"a">> => undefined, <<"b">> => <<"x">>}},
+            {team, team_data()}
+        ]
+    ).
+
+default_per_call_omit_omits_missing_values() ->
+    ?assertEqual(
+        #{<<"name">> => <<"Ann">>},
+        encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, omit}])
+    ).
+
+default_per_call_option_with_type_info() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Data = #contact{name = <<"Ann">>, phone = undefined},
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"Ann">>, <<"phone">> => null}},
+        spectra:encode(json, TypeInfo, contact, Data, [pre_encoded, {nil_fields, null}])
+    ),
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"Ann">>}},
+        spectra:encode(json, TypeInfo, contact, Data, [pre_encoded, {nil_fields, omit}])
+    ).
+
+nullable_top_level_schema_allows_null() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"object">>,
-            properties => #{
-                <<"name">> => #{type => <<"string">>},
-                <<"phone">> => #{type => <<"string">>}
-            },
-            required => [<<"name">>]
+            type => [<<"integer">>, <<"null">>],
+            description => <<"A count">>
         },
-        schema(contact)
+        schema(maybe_count)
     ),
+    ?assertMatch(
+        #{anyOf := [#{enum := [<<"active">>, <<"inactive">>]}, #{type := <<"null">>}]},
+        schema(maybe_status)
+    ),
+    ?assertMatch(#{type := [<<"string">>, <<"null">>]}, schema(maybe_name)).
+
+nullable_top_level_value_validates_against_schema() ->
+    lists:foreach(
+        fun({Type, Data}) ->
+            Json = encode(Type, Data),
+            ?assertMatch({ok, _}, jesse_validate(schema(Type), Json))
+        end,
+        [
+            {maybe_count, undefined},
+            {maybe_count, 3},
+            {maybe_status, undefined},
+            {maybe_status, active},
+            {maybe_name, nil},
+            {maybe_name, <<"Ann">>}
+        ]
+    ),
+    ?assertEqual(null, encode(maybe_count, undefined)).
+
+nullable_alias_field_has_single_null() ->
+    Schema = schema(tally),
     ?assertMatch(
         #{
             properties := #{
-                <<"nickname">> := #{type := <<"string">>},
-                <<"bio">> := #{type := <<"string">>}
-            },
-            required := [<<"name">>]
+                <<"count">> := #{type := [<<"integer">>, <<"null">>], description := <<"A count">>},
+                <<"status">> := #{
+                    anyOf := [#{enum := [<<"active">>, <<"inactive">>]}, #{type := <<"null">>}]
+                },
+                <<"counts">> := #{items := #{type := [<<"integer">>, <<"null">>]}}
+            }
         },
-        schema(profile)
+        Schema
+    ),
+    ?assertEqual(1, count_nulls(Schema, <<"count">>)),
+    ?assertEqual(1, count_nulls(Schema, <<"status">>)),
+    json_schema_validator_helper:validate_or_skip(Schema),
+    Json = encode(tally, #tally{count = undefined, status = undefined, counts = [1, undefined]}, [
+        {nil_fields, null}
+    ]),
+    ?assertMatch({ok, _}, jesse_validate(Schema, Json)).
+
+count_nulls(#{properties := Properties}, Field) ->
+    length(binary:matches(iolist_to_binary(json:encode(maps:get(Field, Properties))), <<"null">>)).
+
+default_openapi_spec_validates() ->
+    Spec = contacts_openapi_spec(),
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"Contact">> := #{
+                        properties := #{<<"phone">> := #{type := [<<"string">>, <<"null">>]}},
+                        required := [<<"name">>]
+                    },
+                    <<"MaybeCount0">> := #{type := [<<"integer">>, <<"null">>]},
+                    <<"Tally">> := #{
+                        properties := #{<<"count">> := #{type := [<<"integer">>, <<"null">>]}}
+                    }
+                }
+            }
+        },
+        Spec
+    ),
+    validate_openapi(Spec).
+
+omit_test_() ->
+    with_nil_fields(omit, [
+        fun omit_schema_is_unchanged/0,
+        fun omit_encoding_omits_missing_values/0,
+        fun omit_per_call_null_raises_badarg/0,
+        fun omit_top_level_schema_is_unchanged/0,
+        fun parameter_and_header_schemas_exclude_null/0
+    ]).
+
+omit_top_level_schema_is_unchanged() ->
+    assert_json_schema(
+        <<
+            "{\"type\":\"integer\",\"description\":\"A count\","
+            "\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}"
+        >>,
+        maybe_count
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"],"
+            "\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}"
+        >>,
+        maybe_status
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"required\":[\"counts\"],\"properties\":{"
+            "\"count\":{\"type\":\"integer\",\"description\":\"A count\"},"
+            "\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"]},"
+            "\"counts\":{\"type\":\"array\",\"items\":{\"type\":[\"integer\",\"null\"],"
+            "\"description\":\"A count\"}}}}"
+        >>,
+        tally
     ).
+
+omit_schema_is_unchanged() ->
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"required\":[\"name\"],\"properties\":{\"name\":{\"type\":\"string\"},"
+            "\"phone\":{\"type\":\"string\"}}}"
+        >>,
+        contact
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"additionalProperties\":false,\"required\":[\"name\"],\"properties\":{"
+            "\"bio\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
+            "\"nickname\":{\"type\":\"string\"}}}"
+        >>,
+        profile
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"additionalProperties\":{\"type\":\"string\"}}"
+        >>,
+        labels
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"additionalProperties\":false,\"properties\":{"
+            "\"score\":{\"anyOf\":[{\"type\":\"integer\"},{\"type\":\"string\"}]},"
+            "\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"]},"
+            "\"tags\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}}"
+        >>,
+        mixed_profile
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"additionalProperties\":false,\"required\":[\"labels\",\"members\",\"lead\"],"
+            "\"properties\":{\"backup\":{\"type\":\"object\",\"required\":[\"name\"],"
+            "\"properties\":{\"name\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"}}},"
+            "\"labels\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\"}},"
+            "\"lead\":{\"type\":\"object\",\"required\":[\"name\"],"
+            "\"properties\":{\"name\":{\"type\":\"string\"},\"phone\":{\"type\":\"string\"}}},"
+            "\"members\":{\"type\":\"array\",\"items\":{\"type\":\"object\","
+            "\"additionalProperties\":false,\"required\":[\"name\"],\"properties\":{"
+            "\"bio\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
+            "\"nickname\":{\"type\":\"string\"}}}},"
+            "\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"]}}}"
+        >>,
+        team
+    ).
+
+omit_encoding_omits_missing_values() ->
+    ?assertEqual(
+        #{<<"name">> => <<"Ann">>},
+        encode(contact, #contact{name = <<"Ann">>, phone = undefined})
+    ),
+    ?assertEqual(#{}, encode(labels, #{<<"a">> => undefined})),
+    ?assertEqual(
+        #{<<"name">> => <<"Ann">>},
+        encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, omit}])
+    ).
+
+omit_per_call_null_raises_badarg() ->
+    assert_nil_fields_badarg([{nil_fields, null}], <<"the nil_fields setting is omit">>).
+
+assert_nil_fields_badarg(Options, ExpectedMessage) ->
+    Data = #contact{name = <<"Ann">>, phone = <<"secret">>},
+    try spectra:encode(json, ?MODULE, contact, Data, Options) of
+        Result -> erlang:error({expected_badarg, Options, Result})
+    catch
+        error:badarg:Stacktrace ->
+            [TopFrame | _] = Stacktrace,
+            ?assertMatch({spectra, encode, 5, _}, TopFrame),
+            ?assertNot(contains(TopFrame, Data)),
+            #{5 := Message} = spectra:format_error(badarg, Stacktrace),
+            ?assertNotEqual(nomatch, string:find(Message, ExpectedMessage)),
+            Formatted = unicode:characters_to_binary(
+                erl_error:format_exception(error, badarg, Stacktrace)
+            ),
+            ?assertNotEqual(nomatch, string:find(Formatted, ExpectedMessage))
+    end.
+
+contains(Term, Term) ->
+    true;
+contains(Term, Part) when is_tuple(Term) ->
+    contains(tuple_to_list(Term), Part);
+contains([Head | Tail], Part) ->
+    contains(Head, Part) orelse contains(Tail, Part);
+contains(Term, Part) when is_map(Term) ->
+    contains(maps:to_list(Term), Part);
+contains(_Term, _Part) ->
+    false.
+
+null_per_call_test_() ->
+    with_nil_fields(null, [
+        fun() ->
+            assert_nil_fields_badarg([{nil_fields, omit}], <<"the nil_fields setting is null">>)
+        end,
+        fun() ->
+            ?assertEqual(
+                #{<<"name">> => <<"Ann">>, <<"phone">> => null},
+                encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, null}])
+            )
+        end
+    ]).
+
+invalid_option_test_() ->
+    with_nil_fields(unset, fun() ->
+        lists:foreach(
+            fun(Options) ->
+                assert_nil_fields_badarg(Options, <<"must be null or omit">>)
+            end,
+            [[{nil_fields, nothing}], [{nil_fields, omit_or_null}], [nil_fields]]
+        )
+    end).
+
+contacts_openapi_spec() ->
+    Response = spectra_openapi:response_with_body(
+        spectra_openapi:response(200, <<"A profile">>), ?MODULE, {type, mixed_profile, 0}
+    ),
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:with_request_body(
+            spectra_openapi:endpoint(post, <<"/contacts">>), ?MODULE, {record, contact}
+        ),
+        Response
+    ),
+    CountEndpoint = spectra_openapi:add_response(
+        spectra_openapi:with_request_body(
+            spectra_openapi:endpoint(post, <<"/counts">>), ?MODULE, {type, maybe_count, 0}
+        ),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A tally">>), ?MODULE, {record, tally}
+        )
+    ),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"Contacts">>, version => <<"1.0.0">>}, [Endpoint, CountEndpoint], [pre_encoded]
+    ),
+    Spec.
+
+%% A parameter or header value is never JSON null: absence is expressed with
+%% `required: false`, so its schema is the schema of the non-missing type.
+parameter_and_header_schemas_exclude_null() ->
+    Spec = parameters_openapi_spec({record, contact}),
+    String = #{type => <<"string">>},
+    #{
+        <<"paths">> := #{
+            <<"/phones/{id}">> := #{
+                <<"post">> := #{
+                    <<"parameters">> := Parameters,
+                    <<"responses">> := #{<<"204">> := #{<<"headers">> := Headers}}
+                }
+            }
+        },
+        <<"components">> := #{<<"schemas">> := Components}
+    } = Spec,
+    ?assertEqual(
+        [String, String, String, String],
+        [Schema || #{<<"schema">> := Schema} <- Parameters]
+    ),
+    ?assertEqual(
+        #{<<"X-Phone">> => #{<<"schema">> => String}, <<"X-Name">> => #{<<"schema">> => String}},
+        Headers
+    ),
+    ?assertMatch(
+        #{<<"MaybePhone0">> := String, <<"MaybeRemoteName0">> := String},
+        Components
+    ),
+    validate_openapi(Spec).
+
+body_allows_null_where_parameter_of_same_type_does_not() ->
+    Nullable = #{type => [<<"string">>, <<"null">>]},
+    FieldSpec = parameters_openapi_spec({type, aliased_profile, 0}),
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"AliasedProfile0">> := #{properties := #{<<"phone">> := Nullable}}
+                }
+            }
+        },
+        FieldSpec
+    ),
+    BodySpec = parameters_openapi_spec({type, maybe_phone, 0}),
+    ?assertMatch(
+        #{<<"components">> := #{<<"schemas">> := #{<<"MaybePhone0">> := Nullable}}},
+        BodySpec
+    ),
+    lists:foreach(
+        fun(Spec) ->
+            #{
+                <<"paths">> := #{
+                    <<"/phones/{id}">> := #{<<"post">> := #{<<"parameters">> := Parameters}}
+                }
+            } = Spec,
+            ?assertEqual(
+                [#{type => <<"string">>}],
+                lists:usort([Schema || #{<<"schema">> := Schema} <- Parameters])
+            ),
+            validate_openapi(Spec)
+        end,
+        [FieldSpec, BodySpec]
+    ).
+
+parameters_openapi_spec(BodyType) ->
+    Parameters = [
+        #{name => <<"x-phone">>, in => header, schema => {type, maybe_phone, 0}},
+        #{name => <<"phone">>, in => query, schema => {type, maybe_phone, 0}},
+        #{name => <<"id">>, in => path, required => true, schema => {type, maybe_phone, 0}},
+        #{name => <<"name">>, in => query, schema => {type, maybe_remote_name, 0}}
+    ],
+    Response = lists:foldl(
+        fun({Header, Type}, Acc) ->
+            spectra_openapi:response_with_header(Acc, Header, ?MODULE, #{schema => {type, Type, 0}})
+        end,
+        spectra_openapi:response(204, <<"Stored">>),
+        [{<<"X-Phone">>, maybe_phone}, {<<"X-Name">>, maybe_remote_name}]
+    ),
+    Endpoint = lists:foldl(
+        fun(Parameter, Acc) -> spectra_openapi:with_parameter(Acc, ?MODULE, Parameter) end,
+        spectra_openapi:with_request_body(
+            spectra_openapi:endpoint(post, <<"/phones/{id}">>), ?MODULE, BodyType
+        ),
+        Parameters
+    ),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"Phones">>, version => <<"1.0.0">>},
+        [spectra_openapi:add_response(Endpoint, Response)],
+        [pre_encoded]
+    ),
+    Spec.
+
+validate_openapi(Spec) ->
+    case openapi_validator_helper:validate_openapi_3_1(Spec) of
+        ok -> ok;
+        {skip, Reason} -> io:format("Skipping OpenAPI validation: ~ts~n", [Reason]);
+        {error, {validation_failed, Output}} -> erlang:error({openapi_validation_failed, Output})
+    end.
 
 null_test_() ->
     with_nil_fields(null, [
@@ -103,7 +618,12 @@ null_test_() ->
         fun null_typed_map_value_is_encoded_as_null/0,
         fun null_is_decoded_as_missing_value/0,
         fun null_encoded_data_validates_against_schema/0,
-        fun null_openapi_spec_validates/0
+        fun null_openapi_spec_validates/0,
+        fun nullable_top_level_schema_allows_null/0,
+        fun nullable_top_level_value_validates_against_schema/0,
+        fun nullable_alias_field_has_single_null/0,
+        fun parameter_and_header_schemas_exclude_null/0,
+        fun body_allows_null_where_parameter_of_same_type_does_not/0
     ]).
 
 null_record_field_is_encoded_as_null() ->
@@ -270,18 +790,7 @@ null_encoded_data_validates_against_schema() ->
     ).
 
 null_openapi_spec_validates() ->
-    Response = spectra_openapi:response_with_body(
-        spectra_openapi:response(200, <<"A profile">>), ?MODULE, {type, mixed_profile, 0}
-    ),
-    Endpoint = spectra_openapi:add_response(
-        spectra_openapi:with_request_body(
-            spectra_openapi:endpoint(post, <<"/contacts">>), ?MODULE, {record, contact}
-        ),
-        Response
-    ),
-    {ok, Spec} = spectra_openapi:endpoints_to_openapi(
-        #{title => <<"Contacts">>, version => <<"1.0.0">>}, [Endpoint], [pre_encoded]
-    ),
+    Spec = contacts_openapi_spec(),
     ?assertMatch(
         #{
             <<"components">> := #{
@@ -289,17 +798,14 @@ null_openapi_spec_validates() ->
                     <<"Contact">> := #{
                         properties := #{<<"phone">> := #{type := [<<"string">>, <<"null">>]}},
                         required := [<<"name">>, <<"phone">>]
-                    }
+                    },
+                    <<"MaybeCount0">> := #{type := [<<"integer">>, <<"null">>]}
                 }
             }
         },
         Spec
     ),
-    case openapi_validator_helper:validate_openapi_3_1(Spec) of
-        ok -> ok;
-        {skip, Reason} -> io:format("Skipping OpenAPI validation: ~ts~n", [Reason]);
-        {error, {validation_failed, Output}} -> erlang:error({openapi_validation_failed, Output})
-    end.
+    validate_openapi(Spec).
 
 invalid_setting_test_() ->
     with_nil_fields(
@@ -311,3 +817,292 @@ invalid_setting_test_() ->
             )
         end
     ).
+
+%% Webhooks whose payload always writes missing values as null.
+
+webhook_nil_fields_test_() ->
+    [
+        with_nil_fields(unset, [
+            fun null_webhook_payload_requires_nullable_fields/0,
+            fun null_webhook_payload_gets_own_schema_when_type_is_mixed/0,
+            fun null_webhooks_share_plain_schema_name/0,
+            fun null_webhook_headers_exclude_null/0,
+            fun null_webhook_responses_keep_plain_schema/0,
+            fun null_webhook_list_payload_is_inline/0,
+            fun null_webhook_remote_payload_gets_own_schema_when_type_is_mixed/0,
+            fun null_webhook_suffixed_name_clash_raises/0,
+            fun webhook_nil_fields_rejects_other_values/0
+        ]),
+        with_nil_fields(null, [fun null_webhook_under_null_setting_changes_nothing/0]),
+        with_nil_fields(omit, [fun null_webhook_under_omit_setting_raises/0])
+    ].
+
+payment_webhook(Name) ->
+    spectra_openapi:with_nil_fields(
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(Name, post), ?MODULE, {record, payment}
+        ),
+        null
+    ).
+
+payment_endpoint() ->
+    spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/payments">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A payment">>), ?MODULE, {record, payment}
+        )
+    ).
+
+payments_openapi(Endpoints, Webhooks) ->
+    {ok, Spec} = spectra_openapi:to_openapi(
+        #{title => <<"Payments">>, version => <<"1.0.0">>}, Endpoints, Webhooks, [pre_encoded]
+    ),
+    Spec.
+
+webhook_body_ref(Spec, Name) ->
+    #{
+        <<"webhooks">> := #{
+            Name := #{
+                <<"post">> := #{
+                    <<"requestBody">> := #{
+                        <<"content">> := #{
+                            <<"application/json">> := #{<<"schema">> := #{<<"$ref">> := Ref}}
+                        }
+                    }
+                }
+            }
+        }
+    } = Spec,
+    Ref.
+
+components(Spec) ->
+    #{<<"components">> := #{<<"schemas">> := Components}} = Spec,
+    Components.
+
+null_payment_schema() ->
+    Nullable = #{<<"type">> => [<<"string">>, <<"null">>]},
+    #{
+        <<"type">> => <<"object">>,
+        <<"required">> => [<<"id">>, <<"note">>, <<"payer">>],
+        <<"properties">> => #{
+            <<"id">> => #{<<"type">> => <<"string">>},
+            <<"note">> => Nullable,
+            <<"payer">> => #{
+                <<"type">> => <<"object">>,
+                <<"required">> => [<<"email">>, <<"name">>],
+                <<"properties">> => #{
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"email">> => Nullable
+                },
+                <<"additionalProperties">> => false
+            }
+        }
+    }.
+
+sorted_required(#{<<"required">> := Required} = Schema) ->
+    Sorted = maps:map(
+        fun
+            (_Key, Value) when is_map(Value) -> sorted_required(Value);
+            (_Key, Value) -> Value
+        end,
+        Schema
+    ),
+    Sorted#{<<"required">> => lists:sort(Required)};
+sorted_required(Schema) ->
+    maps:map(
+        fun
+            (_Key, Value) when is_map(Value) -> sorted_required(Value);
+            (_Key, Value) -> Value
+        end,
+        Schema
+    ).
+
+json_roundtrip(Term) ->
+    json:decode(iolist_to_binary(json:encode(Term))).
+
+null_webhook_payload_requires_nullable_fields() ->
+    Spec = json_roundtrip(payments_openapi([], [payment_webhook(<<"paymentDone">>)])),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))),
+    ?assertEqual(
+        sorted_required(null_payment_schema()),
+        sorted_required(maps:get(<<"Payment">>, components(Spec)))
+    ),
+    validate_openapi(Spec).
+
+null_webhook_payload_gets_own_schema_when_type_is_mixed() ->
+    PlainWebhook = spectra_openapi:with_request_body(
+        spectra_openapi:webhook(<<"paymentSeen">>, post), ?MODULE, {record, payment}
+    ),
+    Spec = json_roundtrip(
+        payments_openapi([payment_endpoint()], [payment_webhook(<<"paymentDone">>), PlainWebhook])
+    ),
+    ?assertEqual(
+        <<"#/components/schemas/PaymentNullable">>, webhook_body_ref(Spec, <<"paymentDone">>)
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentSeen">>)),
+    #{<<"Payment">> := Plain, <<"PaymentNullable">> := Null} = components(Spec),
+    ?assertEqual([<<"id">>, <<"payer">>], lists:sort(maps:get(<<"required">>, Plain))),
+    ?assertEqual(sorted_required(null_payment_schema()), sorted_required(Null)),
+    validate_openapi(Spec).
+
+null_webhooks_share_plain_schema_name() ->
+    Spec = json_roundtrip(
+        payments_openapi([], [
+            payment_webhook(<<"paymentDone">>), payment_webhook(<<"paymentLost">>)
+        ])
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentLost">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))).
+
+null_webhook_headers_exclude_null() ->
+    Webhook = spectra_openapi:with_parameter(
+        payment_webhook(<<"paymentDone">>),
+        ?MODULE,
+        #{name => <<"x-phone">>, in => header, required => false, schema => {type, maybe_phone, 0}}
+    ),
+    Spec = json_roundtrip(payments_openapi([], [Webhook])),
+    #{
+        <<"webhooks">> := #{
+            <<"paymentDone">> := #{<<"post">> := #{<<"parameters">> := [Parameter]}}
+        }
+    } = Spec,
+    ?assertEqual(#{<<"type">> => <<"string">>}, maps:get(<<"schema">>, Parameter)),
+    validate_openapi(Spec).
+
+null_webhook_responses_keep_plain_schema() ->
+    Webhook = spectra_openapi:add_response(
+        payment_webhook(<<"paymentDone">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"Echo">>), ?MODULE, {record, payment}
+        )
+    ),
+    Spec = json_roundtrip(payments_openapi([], [Webhook])),
+    #{
+        <<"webhooks">> := #{
+            <<"paymentDone">> := #{
+                <<"post">> := #{
+                    <<"responses">> := #{
+                        <<"200">> := #{
+                            <<"content">> := #{
+                                <<"application/json">> := #{
+                                    <<"schema">> := #{<<"$ref">> := ResponseRef}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } = Spec,
+    ?assertEqual(
+        <<"#/components/schemas/PaymentNullable">>, webhook_body_ref(Spec, <<"paymentDone">>)
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, ResponseRef),
+    #{<<"Payment">> := Plain} = components(Spec),
+    ?assertEqual([<<"id">>, <<"payer">>], lists:sort(maps:get(<<"required">>, Plain))),
+    validate_openapi(Spec).
+
+null_webhook_list_payload_is_inline() ->
+    Webhook = spectra_openapi:with_nil_fields(
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(<<"namesDone">>, post),
+            ?MODULE,
+            #sp_list{type = #sp_remote_type{mfargs = {?MODULE, maybe_phone, []}, arity = 0}}
+        ),
+        null
+    ),
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/phone">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A phone">>), ?MODULE, {type, maybe_phone, 0}
+        )
+    ),
+    Spec = json_roundtrip(payments_openapi([Endpoint], [Webhook])),
+    ?assertEqual([<<"MaybePhone0">>], maps:keys(components(Spec))),
+    validate_openapi(Spec).
+
+null_webhook_remote_payload_gets_own_schema_when_type_is_mixed() ->
+    Webhook = spectra_openapi:with_nil_fields(
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(<<"phoneDone">>, post),
+            ?MODULE,
+            #sp_remote_type{mfargs = {?MODULE, maybe_phone, []}, arity = 0}
+        ),
+        null
+    ),
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/phone">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A phone">>), ?MODULE, {type, maybe_phone, 0}
+        )
+    ),
+    Spec = json_roundtrip(payments_openapi([Endpoint], [Webhook])),
+    ?assertEqual(
+        <<"#/components/schemas/MaybePhone0Nullable">>, webhook_body_ref(Spec, <<"phoneDone">>)
+    ),
+    ?assertEqual(
+        [<<"MaybePhone0">>, <<"MaybePhone0Nullable">>], lists:sort(maps:keys(components(Spec)))
+    ),
+    validate_openapi(Spec).
+
+null_webhook_suffixed_name_clash_raises() ->
+    Clashing = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/nullable">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"Clash">>), ?MODULE, {record, payment_nullable}
+        )
+    ),
+    assert_openapi_badarg(
+        fun() ->
+            payments_openapi(
+                [payment_endpoint(), Clashing], [payment_webhook(<<"paymentDone">>)]
+            )
+        end,
+        <<"PaymentNullable">>
+    ).
+
+webhook_nil_fields_rejects_other_values() ->
+    Webhook = spectra_openapi:webhook(<<"paymentDone">>, post),
+    lists:foreach(
+        fun(Value) ->
+            assert_openapi_badarg(
+                fun() -> spectra_openapi:with_nil_fields(Webhook, Value) end,
+                <<"must be null">>
+            )
+        end,
+        [omit, omit_or_null, nothing]
+    ),
+    assert_openapi_badarg(
+        fun() -> spectra_openapi:with_nil_fields(payment_endpoint(), null) end,
+        <<"only on webhooks">>
+    ).
+
+null_webhook_under_null_setting_changes_nothing() ->
+    Spec = json_roundtrip(
+        payments_openapi([payment_endpoint()], [payment_webhook(<<"paymentDone">>)])
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))),
+    ?assertEqual(
+        sorted_required(null_payment_schema()),
+        sorted_required(maps:get(<<"Payment">>, components(Spec)))
+    ).
+
+null_webhook_under_omit_setting_raises() ->
+    assert_openapi_badarg(
+        fun() -> payments_openapi([], [payment_webhook(<<"paymentDone">>)]) end,
+        <<"the nil_fields setting is omit">>
+    ).
+
+assert_openapi_badarg(Fun, ExpectedMessage) ->
+    try Fun() of
+        Result -> erlang:error({expected_badarg, Result})
+    catch
+        error:badarg:Stacktrace ->
+            Formatted = unicode:characters_to_binary(
+                erl_error:format_exception(error, badarg, Stacktrace)
+            ),
+            ?assertNotEqual(nomatch, string:find(Formatted, ExpectedMessage))
+    end.

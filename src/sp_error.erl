@@ -67,9 +67,11 @@ not_matched_fields(Type, Value) ->
             type => Type,
             value => Value,
             message =>
-                "map requires at least one key matching this exact (:=) typed field; "
-                "use an optional key (=> in Erlang, optional(...) in Elixir) "
-                "to allow a map without such keys"
+                <<
+                    "map requires at least one key matching this exact (:=) typed field; "
+                    "use an optional key (=> in Erlang, optional(...) in Elixir) "
+                    "to allow a map without such keys"
+                >>
         }
     }.
 

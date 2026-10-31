@@ -289,12 +289,11 @@ union_types_test() ->
     ),
     validate_with_python(UnionSchema),
 
-    %% Optional type (union with undefined) - now returns just the non-undefined type
     OptionalSchema = spectra:schema(json_schema, ?MODULE, {type, my_optional, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>
+            type => [<<"integer">>, <<"null">>]
         },
         OptionalSchema
     ),
@@ -305,7 +304,7 @@ optional_multi_type_union_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}, #{type => <<"null">>}]
         },
         Schema
     ),
@@ -322,7 +321,7 @@ identical_union_members_collapse_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            type => [<<"string">>, <<"null">>]
         },
         spectra:schema(
             json_schema, ?MODULE, {type, my_optional_binary_or_string, 0}, [pre_encoded]
@@ -334,7 +333,7 @@ record_field_binary_or_string_or_undefined_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            properties := #{<<"street">> := #{type := <<"string">>}},
+            properties := #{<<"street">> := #{type := [<<"string">>, <<"null">>]}},
             required := []
         },
         Schema
@@ -396,7 +395,7 @@ map_with_optional_field_test() ->
             properties =>
                 #{
                     <<"name">> => #{type => <<"string">>},
-                    <<"age">> => #{type => <<"integer">>}
+                    <<"age">> => #{type => [<<"integer">>, <<"null">>]}
                 },
             required => [<<"name">>],
             additionalProperties => false
@@ -476,7 +475,7 @@ record_types_test() ->
 %% Test record with optional field
 record_with_optional_fields_test() ->
     %% Record with optional email field (can be undefined)
-    %% The field appears as simple string type and is excluded from required fields
+    %% The field allows null and is excluded from required fields
     UserWithOptionalSchema = spectra:schema(
         json_schema, ?MODULE, {record, user_with_optional}, [pre_encoded]
     ),
@@ -488,7 +487,7 @@ record_with_optional_fields_test() ->
                 #{
                     <<"id">> => #{type => <<"integer">>},
                     <<"name">> => #{type => <<"string">>},
-                    <<"email">> => #{type => <<"string">>}
+                    <<"email">> => #{type => [<<"string">>, <<"null">>]}
                 },
             required => [<<"id">>, <<"name">>]
         },
@@ -532,7 +531,10 @@ record_with_enum_fields_test() ->
                     <<"id">> => #{type => <<"integer">>},
                     <<"name">> => #{type => <<"string">>},
                     <<"role">> => #{
-                        type => <<"string">>, enum => [<<"admin">>, <<"user">>]
+                        anyOf => [
+                            #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                            #{type => <<"null">>}
+                        ]
                     }
                 },
             required => [<<"id">>, <<"name">>]
@@ -598,8 +600,10 @@ enum_types_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            anyOf => [
+                #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                #{type => <<"null">>}
+            ]
         },
         OptionalEnumSchema
     ),
@@ -612,8 +616,10 @@ enum_types_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            anyOf => [
+                #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                #{type => <<"null">>}
+            ]
         },
         OptionalEnumWithNilSchema
     ),

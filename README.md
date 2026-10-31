@@ -17,7 +17,7 @@ Add spectra to your rebar.config dependencies:
 
 ```erlang
 {deps, [
-    {spectra, "~> 0.16.0"}
+    {spectra, "~> 0.17.0"}
 ]}.
 ```
 
@@ -126,7 +126,7 @@ Where `Format` is `json_schema`. The `Module` and `Type` arguments are the same 
 
 ### Options
 
-All three functions accept an optional `Options` list as the last argument. Two options skip the outer serialization layer — useful when integrating with a web framework that handles JSON encoding/decoding:
+All three functions accept an optional `Options` list as the last argument. `encode` also accepts `{nil_fields, null | omit}` (see [Encoding missing values as `null`](#encoding-missing-values-as-null)). Two options skip the outer serialization layer — useful when integrating with a web framework that handles JSON encoding/decoding:
 
 | Option | Function | Effect |
 |--------|----------|--------|
@@ -595,6 +595,10 @@ spectra_openapi:endpoints_to_openapi(Metadata, Endpoints) ->
 spectra_openapi:endpoints_to_openapi(Metadata, Endpoints, Options) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 
+%% Document a webhook payload that writes every missing value as null
+spectra_openapi:with_nil_fields(Webhook, null) ->
+    webhook_spec().
+
 %% Generate complete OpenAPI spec including webhooks
 spectra_openapi:to_openapi(Metadata, Endpoints, Webhooks, Options) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
@@ -672,6 +676,7 @@ Notes:
 - Responses are optional, matching OpenAPI 3.1.
 - One event name can carry several methods; a webhook value is a Path Item Object, exactly like a `paths` entry.
 - Webhook schemas share `components/schemas` with endpoints, so a type used by both is emitted once.
+- If the code that sends a webhook encodes the payload with `{nil_fields, null}`, call `with_nil_fields(Webhook, null)` so that the payload schema says the same. Every field whose type can be missing is then listed in `required` and allows `null`, nested types included. Headers and responses do not change. The payload type keeps its normal schema name. If the same type is also used somewhere without this option, the webhook gets a second schema with `Nullable` added to the name, such as `PaymentNullable`. If that name is already taken, `to_openapi/4` raises `badarg`. With the `nil_fields` setting `null` the option changes nothing. With the setting `omit`, `to_openapi/4` raises `badarg`, because that setting does not allow `{nil_fields, null}` when encoding.
 - A global `security` requirement (below) is emitted at the top level and therefore applies to webhook operations too, per OpenAPI — even though its meaning is inverted there, since it would describe your API authenticating *to* the consumer. Override it by giving the webhook its own `security` in its `Doc` map, or `security => []` to opt out entirely:
 
 ```erlang
@@ -762,11 +767,17 @@ The atoms `undefined` and `nil` have special handling in JSON serialization to r
 **Encoding (Erlang → JSON):**
 - Fields with `undefined` or `nil` values are omitted from the JSON output
 - Example: `#{name => <<"John">>, email => undefined}` encodes to `{"name":"John"}`
-- Set `nil_fields` to `null` to write them as JSON `null` instead (see below)
+- Pass `{nil_fields, null}` to `spectra:encode/5`, or set `nil_fields` to `null`, to write them as JSON `null` instead (see below)
 
-**Encoding missing values as `null`:**
+#### Encoding missing values as `null`
 
-By default a field whose type can be missing (`binary() | undefined`, or `String.t() | nil` in Elixir) is left out of the JSON when it holds the missing value, and its schema leaves it out of `required`. Some clients want every field present. Set `nil_fields` to `null` in the application environment:
+A field "can be missing" when its type includes `undefined` (or `nil` in Elixir), such as `binary() | undefined` or `String.t() | nil`. The `nil_fields` application setting decides how the schema describes such a field and how the encoder writes it when it holds the missing value:
+
+| `nil_fields` | Schema | Encoding | Allowed `{nil_fields, _}` option |
+|---|---|---|---|
+| `omit_or_null` (default) | not required, allows `null` | left out, or `null` when the call passes `{nil_fields, null}` | `null`, `omit` |
+| `omit` | not required, does not allow `null` | left out | `omit` |
+| `null` | required, allows `null` | `null` | `null` |
 
 ```erlang
 %% sys.config
@@ -778,16 +789,30 @@ By default a field whose type can be missing (`binary() | undefined`, or `String
 config :spectra, :nil_fields, :null
 ```
 
-The encoder and the schema generator both read this setting, so the schema always describes what the encoder writes. With `null`:
+The default schema accepts both forms, so one API can leave the field out for some clients and send `null` to others. Choose per call:
 
-| Field | Value is the missing value | Value is absent from the map | Schema |
-|---|---|---|---|
-| Record or struct field | `null` | — | required, allows `null` |
-| `:=` map field | `null` | `null` | required, allows `null` |
-| `=>` map field | `null` | left out | not required, allows `null` |
-| Typed map value (`#{binary() => T \| undefined}`) | `null` | — | `additionalProperties` allows `null` |
+```erlang
+{ok, Json} = spectra:encode(json, my_module, user, User, [{nil_fields, null}]).
+```
 
-A schema allows `null` as `"type": ["string", "null"]` when the field has a single plain type, and as `"anyOf": [..., {"type": "null"}]` otherwise. Fields whose type cannot be missing, and values that are not the missing value, encode as before. The default, `omit`, keeps the behaviour described above. Decoding is the same for both settings.
+The option applies to the whole value, nested records, maps and lists included. `{nil_fields, omit}` leaves missing values out for that call. The option changes only the encoding: the schema, and the OpenAPI spec, always follow the application setting. So the option must produce output that this schema accepts. Any other combination raises `badarg` (`ArgumentError` in Elixir): `{nil_fields, null}` with the setting `omit` (the schema does not allow `null`), `{nil_fields, omit}` with the setting `null` (the schema requires the field), and an option value other than `null` or `omit`. The error does not include the encoded data.
+
+The OpenAPI spec has one exception: a webhook payload marked with `spectra_openapi:with_nil_fields/2` follows `{nil_fields, null}` instead of the setting (see [Webhooks](#webhooks)). The `badarg` rules above still apply to the `encode/5` call.
+
+To keep the schema spectra 0.16 and earlier generated by default, where a field that can be missing does not allow `null`, set `{spectra, [{nil_fields, omit}]}`.
+
+When `null` applies, either from the setting or from the option:
+
+| Field | Value is the missing value | Value is absent from the map |
+|---|---|---|
+| Record or struct field | `null` | — |
+| `:=` map field | `null` | `null` |
+| `=>` map field | `null` | left out |
+| Typed map value (`#{binary() => T \| undefined}`) | `null` | — |
+
+A whole value whose type can be missing, such as a body of type `integer() | undefined`, encodes the missing value as `null`, and so does a list element. Its schema allows `null` under `omit_or_null` and `null`, except as an OpenAPI parameter or response header: their value is never `null`, and `required: false` says they can be left out.
+
+With the setting `null`, record, struct and `:=` map fields are listed in `required`; `=>` map fields are not. A typed map's `additionalProperties` allows `null` under `omit_or_null` and `null`. A schema allows `null` as `"type": ["string", "null"]` when the field has a single plain type, and as `"anyOf": [..., {"type": "null"}]` otherwise. Fields whose type cannot be missing, and values that are not the missing value, encode as before. Decoding is the same for all settings: a field that can be missing accepts both an absent key and `null`.
 
 **Decoding (JSON → Erlang):**
 

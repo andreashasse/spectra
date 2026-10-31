@@ -217,7 +217,7 @@ union_with_remote_codec_type_encode_test() ->
         )
     ),
     ?assertEqual(
-        {ok, <<"undefined">>},
+        {ok, null},
         spectra:encode(json, codec_geo_module, {type, maybe_point, 0}, undefined, [pre_encoded])
     ).
 
@@ -387,7 +387,7 @@ app_env_local_union_encode_test() ->
             )
         ),
         ?assertEqual(
-            {ok, <<"undefined">>},
+            {ok, null},
             spectra:encode(
                 json,
                 codec_appenv_type_module,

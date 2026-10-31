@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-31
+
+### Added
+- `spectra:encode/5` accepts `{nil_fields, null | omit}`. It sets, for that call only, whether a field whose type can be missing (`T | undefined`, `T | nil`) and whose value is the missing value is written as `null` or left out, nested values included. The schema does not change, so only options whose output the schema accepts are allowed: `null` or `omit` with the default setting `omit_or_null`, and the value that equals the setting otherwise. `{nil_fields, null}` with the setting `omit`, `{nil_fields, omit}` with the setting `null`, and an unknown option value raise `badarg` (`ArgumentError` in Elixir). The error does not include the data being encoded.
+- `spectra_openapi:with_nil_fields(Webhook, null)` marks a webhook whose payload is encoded with `{nil_fields, null}`. Its payload schema lists every field whose type can be missing in `required` and allows `null`, nested types included. The payload type keeps its schema name, unless the same type is also used without the option. Then the webhook gets a second schema with `Nullable` added to the name. `to_openapi/4` raises `badarg` when the `nil_fields` setting is `omit`, or when that second name is already taken. With the setting `null`, the option changes nothing.
+
+### Changed
+- The `nil_fields` application setting has a new default, `omit_or_null`. The JSON Schema and OpenAPI schema of a field whose type can be missing now allow `null` (`"type": [T, "null"]`, or `anyOf` with `{"type": "null"}`), and so does `additionalProperties` of a typed map whose value can be missing. The field stays out of `required`, and encoding still leaves it out unless the call passes `{nil_fields, null}`. To keep the old schema, set `{spectra, [{nil_fields, omit}]}` (`config :spectra, :nil_fields, :omit` in Elixir). The setting `null` is unchanged.
+- The `Options` of `spectra_openapi:endpoints_to_openapi/3` and `spectra_openapi:to_openapi/4` are typed as `spectra:schema_option()`, since `nil_fields` does not apply to the spec.
+
+### Fixed
+- A missing value (`nil` / `undefined`) outside a field, such as an element of `[integer() | nil]` or a whole value of type `integer() | undefined`, is now encoded as JSON `null` instead of the string `"nil"`. The JSON Schema of such a list item allows `null`, and so does the schema of a union with `nil` / `undefined`, such as a body or OpenAPI component of that type, unless `nil_fields` is `omit`. OpenAPI parameters (path, query, header, cookie) and response headers are excluded: their value is never JSON `null`, and `required: false` already says they can be left out, so their schema, and a component that only parameters use, is the same as in 0.16.0.
+- A documented OpenAPI parameter or response header no longer repeats its `description` and `deprecated` inside its `schema`; they appear only on the parameter or header.
+- The `message` in an error's `ctx` is now always a binary instead of sometimes a charlist (struct mismatch, `not_matched_fields`, non-binary input without `pre_decoded`, dict keys, string conversion).
+
 ## [0.16.0] - 2026-10-30
 
 ### Added

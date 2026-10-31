@@ -226,6 +226,13 @@ to_json_non_map_data_returns_error_test() ->
         [<<"a string">>, 42, [1, 2, 3], an_atom]
     ).
 
+struct_mismatch_message_is_binary_test() ->
+    TypeInfo = spectra_type_info:new(?MODULE, false),
+    ?assertMatch(
+        {error, [#sp_error{type = type_mismatch, ctx = #{message := <<"Struct mismatch">>}}]},
+        spectra:encode(json, TypeInfo, struct_type(), #{name => <<"John">>})
+    ).
+
 %% --- Fix #2: apply_only/2 must recurse into #sp_type_with_variables{} ---
 
 schema_only_parameterized_type_test() ->

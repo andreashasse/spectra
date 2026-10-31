@@ -7,8 +7,10 @@
     webhook/2, webhook/3,
     with_request_body/3, with_request_body/4,
     with_parameter/3,
+    with_nil_fields/2,
     endpoints_to_openapi/2, endpoints_to_openapi/3,
     to_openapi/4,
+    format_error/2,
     response/2,
     response_with_body/3, response_with_body/4,
     response_with_header/4,
@@ -23,6 +25,8 @@
     {spectra_openapi, with_request_body, 3},
     {spectra_openapi, with_request_body, 4},
     {spectra_openapi, with_parameter, 3},
+    {spectra_openapi, with_nil_fields, 2},
+    {spectra_openapi, format_error, 2},
     {spectra_openapi, endpoints_to_openapi, 2},
     {spectra_openapi, endpoints_to_openapi, 3},
     {spectra_openapi, to_openapi, 4},
@@ -141,6 +145,7 @@
         responses := #{http_status_code() => response_spec()},
         parameters := [parameter_spec()],
         request_body => request_body_spec(),
+        nil_fields => null,
         doc => endpoint_doc()
     }.
 -type path_operations() :: #{http_method() => openapi_operation()}.
@@ -660,6 +665,76 @@ with_parameter(Endpoint, Module, #{name := Name} = ParameterSpec) when
     ParameterWithModule = ParameterSpec#{module => Module},
     Endpoint#{parameters => [ParameterWithModule | Parameters]}.
 
+-doc """
+Makes the webhook payload write every missing value as `null`.
+
+Use it when the code that sends the webhook encodes the payload with the
+`{nil_fields, null}` option of `spectra:encode/5`. The payload schema then lists
+every field whose type can be missing in `required` and allows `null` for it,
+nested types included. Headers and response schemas do not change.
+
+The payload type keeps its normal schema name. If the same type is also used
+without this option, this webhook gets a second schema with `Nullable` added to
+the name. Under the `nil_fields` setting `null` the option changes nothing, and
+under `omit` `to_openapi/4` raises `badarg`, because that setting does not
+allow the per-call `{nil_fields, null}` option.
+
+### Returns
+Webhook map with nil_fields set
+""".
+-doc #{
+    params =>
+        #{
+            "NilFields" => "Must be `null`",
+            "Webhook" => "Webhook specification created with webhook/2-3"
+        }
+}.
+
+-spec with_nil_fields(Webhook :: webhook_spec(), NilFields :: null) -> webhook_spec().
+with_nil_fields(#{name := _} = Webhook, null) ->
+    Webhook#{nil_fields => null};
+with_nil_fields(#{name := _}, Value) ->
+    raise_badarg({webhook_nil_fields, {invalid_option, Value}});
+with_nil_fields(_Endpoint, _Value) ->
+    raise_badarg({webhook_nil_fields, not_a_webhook}).
+
+%% Leaves the arguments out of the stack trace, as spectra:encode/5 does.
+-spec raise_badarg(term()) -> no_return().
+raise_badarg(Cause) ->
+    erlang:error(badarg, none, [{error_info, #{module => ?MODULE, cause => Cause}}]).
+
+-doc """
+Formats the `badarg` errors raised by with_nil_fields/2 and to_openapi/4.
+Called by `erl_error` and by Elixir to build the error message.
+""".
+-spec format_error(Reason :: term(), StackTrace :: erlang:stacktrace()) ->
+    #{pos_integer() | general => unicode:chardata()}.
+format_error(badarg, [{_M, _F, _As, Info} | _]) ->
+    #{cause := Cause} = proplists:get_value(error_info, Info),
+    format_cause(Cause).
+
+-spec format_cause(term()) -> #{general => unicode:chardata()}.
+format_cause({webhook_nil_fields, {invalid_option, Value}}) ->
+    #{general => io_lib:format("the webhook nil_fields option must be null, got: ~tp", [Value])};
+format_cause({webhook_nil_fields, not_a_webhook}) ->
+    #{general => <<"nil_fields can be set only on webhooks, not on endpoints">>};
+format_cause({webhook_nil_fields, {omit_setting, Name}}) ->
+    #{
+        general => io_lib:format(
+            "webhook ~ts sets nil_fields to null, which is not allowed when the "
+            "nil_fields setting is omit, because that schema does not allow null",
+            [Name]
+        )
+    };
+format_cause({webhook_nil_fields, {name_clash, SchemaName}}) ->
+    #{
+        general => io_lib:format(
+            "the schema name ~ts is needed for a webhook payload with nil_fields null, "
+            "but another type already has that name",
+            [SchemaName]
+        )
+    }.
+
 %% Webhooks are told apart from endpoints by their name key.
 -spec check_parameter_location(
     endpoint_spec() | webhook_spec(),
@@ -702,7 +777,7 @@ endpoints_to_openapi(MetaData, Endpoints) ->
 -spec endpoints_to_openapi(
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()],
-    Options :: [spectra:encode_option()]
+    Options :: [spectra:schema_option()]
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
@@ -730,7 +805,7 @@ or `security => []` to opt it out entirely.
             "Endpoints" =>
                 "List of endpoint specifications created with endpoint/2 and with_* functions",
             "MetaData" => "OpenAPI metadata map with title and version",
-            "Options" => "Encode options passed through to spectra:encode/5",
+            "Options" => "`pre_encoded` to return the spec as a map instead of JSON",
             "Webhooks" =>
                 "List of webhook specifications created with webhook/2-3 and with_* functions"
         }
@@ -740,20 +815,28 @@ or `security => []` to opt it out entirely.
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()],
     Webhooks :: [webhook_spec()],
-    Options :: [spectra:encode_option()]
+    Options :: [spectra:schema_option()]
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 to_openapi(MetaData, Endpoints, Webhooks, Options) when
     is_list(Endpoints) andalso is_list(Webhooks)
 ->
     Config = spectra:get_config(),
+    ok = check_webhook_nil_fields(Webhooks, Config),
     try
-        Paths = generate_path_items(group_by(path, Endpoints), Config),
-        WebhookItems = generate_path_items(group_by(name, Webhooks), Config),
-
-        SchemaRefs = collect_schema_refs(Endpoints ++ Webhooks, Config),
+        {ValueRefs, NullRefs, ParameterRefs} = collect_schema_refs(Endpoints ++ Webhooks, Config),
+        MixedRefs = [Ref || Ref <- NullRefs, lists:member(Ref, ValueRefs)],
+        Paths = generate_path_items(group_by(path, Endpoints), MixedRefs, Config),
+        WebhookItems = generate_path_items(group_by(name, Webhooks), MixedRefs, Config),
         ComponentsResult = add_security_schemes(
-            generate_components(SchemaRefs, Config), MetaData
+            generate_components(
+                ValueRefs,
+                NullRefs -- MixedRefs,
+                MixedRefs,
+                ParameterRefs -- (ValueRefs ++ NullRefs),
+                Config
+            ),
+            MetaData
         ),
         BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
         Info = lists:foldl(
@@ -787,6 +870,25 @@ to_openapi(MetaData, Endpoints, Webhooks, Options) when
         spectra_module_types:clear_local()
     end.
 
+-spec check_webhook_nil_fields([webhook_spec()], spectra:sp_config()) -> ok.
+check_webhook_nil_fields(Webhooks, #sp_config{nil_fields = omit}) ->
+    case [Name || #{name := Name, nil_fields := null} <- Webhooks] of
+        [] -> ok;
+        [Name | _] -> raise_badarg({webhook_nil_fields, {omit_setting, Name}})
+    end;
+check_webhook_nil_fields(_Webhooks, _Config) ->
+    ok.
+
+%% A webhook with nil_fields null needs its own payload schema only while the
+%% setting leaves missing values out when encoding.
+-spec null_payload(endpoint_spec() | webhook_spec(), spectra:sp_config()) -> boolean().
+null_payload(#{nil_fields := null}, #sp_config{nil_fields = omit_or_null}) -> true;
+null_payload(_Spec, _Config) -> false.
+
+-spec null_config(spectra:sp_config()) -> spectra:sp_config().
+null_config(Config) ->
+    Config#sp_config{nil_fields = null}.
+
 -spec group_by(path | name, [endpoint_spec() | webhook_spec()]) ->
     #{binary() => [endpoint_spec() | webhook_spec()]}.
 group_by(Key, Specs) ->
@@ -802,30 +904,36 @@ group_by(Key, Specs) ->
 
 -spec generate_path_items(
     #{binary() => [endpoint_spec() | webhook_spec()]},
+    [{module(), spectra:sp_type_reference()}],
     spectra:sp_config()
 ) ->
     #{binary() => path_operations()}.
-generate_path_items(Groups, Config) ->
-    maps:map(fun(_Key, Specs) -> generate_path_operations(Specs, Config) end, Groups).
+generate_path_items(Groups, MixedRefs, Config) ->
+    maps:map(fun(_Key, Specs) -> generate_path_operations(Specs, MixedRefs, Config) end, Groups).
 
 -spec generate_path_operations(
     [endpoint_spec() | webhook_spec()],
+    [{module(), spectra:sp_type_reference()}],
     spectra:sp_config()
 ) ->
     path_operations().
-generate_path_operations(Endpoints, Config) ->
+generate_path_operations(Endpoints, MixedRefs, Config) ->
     lists:foldl(
         fun(#{method := Method} = Endpoint, Acc) ->
-            Operation = generate_operation(Endpoint, Config),
+            Operation = generate_operation(Endpoint, MixedRefs, Config),
             Acc#{Method => Operation}
         end,
         #{},
         Endpoints
     ).
 
--spec generate_operation(endpoint_spec() | webhook_spec(), spectra:sp_config()) ->
+-spec generate_operation(
+    endpoint_spec() | webhook_spec(),
+    [{module(), spectra:sp_type_reference()}],
+    spectra:sp_config()
+) ->
     openapi_operation().
-generate_operation(Endpoint, Config) ->
+generate_operation(Endpoint, MixedRefs, Config) ->
     %% Start with documentation if present
     Operation = maps:get(doc, Endpoint, #{}),
 
@@ -862,7 +970,13 @@ generate_operation(Endpoint, Config) ->
             undefined ->
                 OperationWithResponses;
             RequestBodyRef ->
-                RequestBody = generate_request_body(RequestBodyRef, Config),
+                RequestBody =
+                    case null_payload(Endpoint, Config) of
+                        true ->
+                            generate_request_body(RequestBodyRef, MixedRefs, null_config(Config));
+                        false ->
+                            generate_request_body(RequestBodyRef, [], Config)
+                    end,
                 OperationWithResponses#{requestBody => RequestBody}
         end,
 
@@ -973,26 +1087,31 @@ add_security_schemes(Components, MetaData) ->
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Config) ->
     ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
-    OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, parameter_config(Config)),
     Base = Doc#{schema => OpenApiSchema},
     copy_if_present(required, HeaderSpec, Base).
 
--spec generate_request_body(request_body_spec(), spectra:sp_config()) -> openapi_request_body().
-generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec, Config) ->
+%% A ref in MixedRefs points to the Nullable copy of its component.
+-spec generate_request_body(
+    request_body_spec(), [{module(), spectra:sp_type_reference()}], spectra:sp_config()
+) -> openapi_request_body().
+generate_request_body(
+    #{schema := Schema, module := Module} = RequestBodySpec, MixedRefs, Config
+) ->
     ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     SchemaContent =
         case NormalizedSchema of
             {type, Name, Arity} ->
-                SchemaName = schema_component_name(Module, {type, Name, Arity}),
+                SchemaName = body_component_name(Module, {type, Name, Arity}, MixedRefs),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             {record, Name} ->
-                SchemaName = schema_component_name(Module, {record, Name}),
+                SchemaName = body_component_name(Module, {record, Name}, MixedRefs),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             #sp_remote_type{mfargs = {RemoteMod, RemoteName, _}, arity = RemoteArity} ->
-                SchemaName = schema_component_name(RemoteMod, {type, RemoteName, RemoteArity}),
+                SchemaName = body_component_name(
+                    RemoteMod, {type, RemoteName, RemoteArity}, MixedRefs
+                ),
                 #{'$ref' => <<"#/components/schemas/", SchemaName/binary>>};
             DirectType ->
                 InlineSchema = spectra_json_schema:to_schema(ModuleTypeInfo, DirectType, Config),
@@ -1004,6 +1123,20 @@ generate_request_body(#{schema := Schema, module := Module} = RequestBodySpec, C
     Doc = maps:with([description], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
     Base = Doc#{required => true, content => #{ContentType => #{schema => SchemaContent}}},
     Base.
+
+-spec body_component_name(
+    module(), spectra:sp_type_reference(), [{module(), spectra:sp_type_reference()}]
+) -> binary().
+body_component_name(Module, TypeRef, MixedRefs) ->
+    SchemaName = schema_component_name(Module, TypeRef),
+    case lists:member({Module, TypeRef}, MixedRefs) of
+        true -> nullable_component_name(SchemaName);
+        false -> SchemaName
+    end.
+
+-spec nullable_component_name(binary()) -> binary().
+nullable_component_name(SchemaName) ->
+    <<SchemaName/binary, "Nullable">>.
 
 -spec generate_parameter(parameter_spec(), spectra:sp_config()) -> openapi_parameter().
 generate_parameter(
@@ -1022,25 +1155,54 @@ generate_parameter(
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
-    OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, parameter_config(Config)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
 
+%% A parameter or header value is never JSON null; `required: false` expresses
+%% that it can be left out.
+-spec parameter_config(spectra:sp_config()) -> spectra:sp_config().
+parameter_config(Config) ->
+    Config#sp_config{missing_value_as_null = false}.
+
+%% Moves description and deprecated from the type's inline schema up to the
+%% parameter or header, so the OpenAPI output does not state them twice.
+-spec lift_doc(spectra:type_info(), spectra:sp_type_or_ref(), spectra:sp_config()) ->
+    {#{description => binary(), deprecated => boolean()}, spectra_json_schema:json_schema()}.
+lift_doc(ModuleTypeInfo, NormalizedSchema, Config) ->
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    OpenApiSchema = maps:without(['$schema' | maps:keys(Doc)], InlineSchema),
+    {Doc, OpenApiSchema}.
+
+%% Returns the refs used by bodies, by null webhook payloads and by parameters
+%% apart: a component that only parameters use gets the parameter schema, and
+%% one that only null payloads use gets the null schema.
 -spec collect_schema_refs([endpoint_spec() | webhook_spec()], spectra:sp_config()) ->
-    [{module(), spectra:sp_type_reference()}].
+    {
+        [{module(), spectra:sp_type_reference()}],
+        [{module(), spectra:sp_type_reference()}],
+        [{module(), spectra:sp_type_reference()}]
+    }.
 collect_schema_refs(Endpoints, Config) ->
     lists:foldl(
-        fun(Endpoint, Acc) ->
-            EndpointRefs = collect_endpoint_schema_refs(Endpoint, Config),
-            lists:usort(EndpointRefs ++ Acc)
+        fun(Endpoint, {ValueAcc, NullAcc, ParameterAcc}) ->
+            {ValueRefs, NullRefs, ParameterRefs} = collect_endpoint_schema_refs(Endpoint, Config),
+            {
+                lists:usort(ValueRefs ++ ValueAcc),
+                lists:usort(NullRefs ++ NullAcc),
+                lists:usort(ParameterRefs ++ ParameterAcc)
+            }
         end,
-        [],
+        {[], [], []},
         Endpoints
     ).
 
 -spec collect_endpoint_schema_refs(endpoint_spec() | webhook_spec(), spectra:sp_config()) ->
-    [{module(), spectra:sp_type_reference()}].
+    {
+        [{module(), spectra:sp_type_reference()}],
+        [{module(), spectra:sp_type_reference()}],
+        [{module(), spectra:sp_type_reference()}]
+    }.
 collect_endpoint_schema_refs(
     #{responses := Responses, parameters := Parameters} =
         Endpoint,
@@ -1061,7 +1223,18 @@ collect_endpoint_schema_refs(
         end,
     ParameterRefs = collect_parameter_refs(Parameters, Config),
 
-    ResponseRefs ++ RequestBodyRefs ++ ParameterRefs.
+    %% A list payload is written inline, so its item type gets no null copy.
+    case null_payload(Endpoint, Config) andalso not list_body(Endpoint, Config) of
+        true -> {ResponseRefs, RequestBodyRefs, ParameterRefs};
+        false -> {ResponseRefs ++ RequestBodyRefs, [], ParameterRefs}
+    end.
+
+-spec list_body(endpoint_spec() | webhook_spec(), spectra:sp_config()) -> boolean().
+list_body(#{request_body := #{schema := Schema, module := Module}}, Config) ->
+    TypeInfo = spectra_module_types:get(Module, Config),
+    is_record(spectra_util:normalize_type_ref(TypeInfo, Schema), sp_list);
+list_body(_Spec, _Config) ->
+    false.
 
 -spec collect_response_refs(#{http_status_code() => response_spec()}, spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
@@ -1121,21 +1294,40 @@ filter_typeref(Schema, Module, Config) ->
             false
     end.
 
--spec generate_components([{module(), spectra:sp_type_reference()}], spectra:sp_config()) ->
+%% NullOnlyRefs get the null schema under their plain name, MixedRefs get it
+%% under the Nullable name next to their plain schema.
+-spec generate_components(
+    [{module(), spectra:sp_type_reference()}],
+    [{module(), spectra:sp_type_reference()}],
+    [{module(), spectra:sp_type_reference()}],
+    [{module(), spectra:sp_type_reference()}],
+    spectra:sp_config()
+) ->
     #{schemas => #{binary() => openapi_schema()}}.
-generate_components(SchemaRefs, Config) ->
-    Schemas = lists:foldl(
-        fun({Module, TypeRef}, Acc) ->
-            ModuleTypeInfo = spectra_module_types:get(
-                Module, Config
-            ),
-            Schema = to_inline_schema(ModuleTypeInfo, TypeRef, Config),
-            SchemaName = schema_component_name(Module, TypeRef),
-            OpenApiSchema = maps:remove('$schema', Schema),
-            Acc#{SchemaName => OpenApiSchema}
+generate_components(ValueRefs, NullOnlyRefs, MixedRefs, ParameterOnlyRefs, Config) ->
+    ToSchema = fun({Module, TypeRef}, RefConfig) ->
+        ModuleTypeInfo = spectra_module_types:get(Module, RefConfig),
+        maps:remove('$schema', to_inline_schema(ModuleTypeInfo, TypeRef, RefConfig))
+    end,
+    Plain = lists:foldl(
+        fun({{Module, TypeRef} = Ref, RefConfig}, Acc) ->
+            Acc#{schema_component_name(Module, TypeRef) => ToSchema(Ref, RefConfig)}
         end,
         #{},
-        SchemaRefs
+        [{Ref, Config} || Ref <- ValueRefs] ++
+            [{Ref, null_config(Config)} || Ref <- NullOnlyRefs] ++
+            [{Ref, parameter_config(Config)} || Ref <- ParameterOnlyRefs]
+    ),
+    Schemas = lists:foldl(
+        fun({Module, TypeRef} = Ref, Acc) ->
+            SchemaName = nullable_component_name(schema_component_name(Module, TypeRef)),
+            case maps:is_key(SchemaName, Acc) of
+                true -> raise_badarg({webhook_nil_fields, {name_clash, SchemaName}});
+                false -> Acc#{SchemaName => ToSchema(Ref, null_config(Config))}
+            end
+        end,
+        Plain,
+        MixedRefs
     ),
     case maps:size(Schemas) > 0 of
         true ->

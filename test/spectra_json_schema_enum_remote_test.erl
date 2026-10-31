@@ -56,12 +56,13 @@ remote_enum_type_in_union_test() ->
 %% Test user type reference that resolves to literals
 user_type_ref_enum_test() ->
     Schema = spectra:schema(json_schema, ?MODULE, {type, optional_local_status, 0}, [pre_encoded]),
-    %% Should resolve local_status() to its literals and handle the union with undefined
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"active">>, <<"inactive">>]
+            anyOf => [
+                #{type => <<"string">>, enum => [<<"active">>, <<"inactive">>]},
+                #{type => <<"null">>}
+            ]
         },
         Schema
     ),

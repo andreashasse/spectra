@@ -747,3 +747,14 @@ get_config_invalid_module_types_cache_test() ->
     after
         application:unset_env(spectra, module_types_cache)
     end.
+
+decode_non_binary_without_pre_decoded_message_is_binary_test() ->
+    ?assertMatch(
+        {error, [
+            #sp_error{
+                type = decode_error,
+                ctx = #{message := <<"expected binary when pre_decoded option is not set">>}
+            }
+        ]},
+        spectra:decode(json, ?MODULE, user_id, 42)
+    ).

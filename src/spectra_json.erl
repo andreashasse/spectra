@@ -29,8 +29,8 @@ Walks the type tree recursively, converting each node. Records become maps
 with binary keys, lists stay lists, atoms in unions become their binary
 representations. Fields whose type can be missing and whose value equals the
 missing sentinel (`nil` / `undefined`) are omitted from the output, or written
-as `null` when the `nil_fields` application setting is `null` (see
-`t:spectra:nil_fields/0`).
+as `null` when `nil_fields` is `null`, either as the application setting or as
+the `spectra:encode/5` option (see `t:spectra:nil_fields/0`).
 
 Returns `{ok, Value}` on success or `{error, Errors}` with a list of
 structured `#sp_error{}` values describing every mismatch found.
@@ -135,6 +135,10 @@ to_json(
     is_integer(Value) andalso Min =< Value, Value =< Max
 ->
     {ok, Value};
+to_json(_TypeInfo, #sp_literal{value = Value}, Value, _Config) when
+    Value =:= nil orelse Value =:= undefined
+->
+    {ok, null};
 to_json(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, Value, _Config) when
     is_atom(Value)
 ->
@@ -159,7 +163,9 @@ to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data, Config) when is
                 StructName ->
                     map_to_json(TypeInfo, Map, Data, Config);
                 _ ->
-                    {error, [sp_error:type_mismatch(Map, Data, #{message => "Struct mismatch"})]}
+                    {error, [
+                        sp_error:type_mismatch(Map, Data, #{message => <<"Struct mismatch">>})
+                    ]}
             end
     end;
 to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data, _Config) ->
@@ -516,10 +522,12 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
 
 -spec add_missing_field(Key, [{Key, json:encode_value()}], spectra:sp_config()) ->
     [{Key, json:encode_value()}].
-add_missing_field(_Key, Fields, #sp_config{nil_fields = omit}) ->
-    Fields;
 add_missing_field(Key, Fields, #sp_config{nil_fields = null}) ->
-    [{Key, null} | Fields].
+    [{Key, null} | Fields];
+add_missing_field(_Key, Fields, #sp_config{nil_fields = NilFields}) when
+    NilFields =:= omit; NilFields =:= omit_or_null
+->
+    Fields.
 
 -doc """
 Decodes `Json` into an Erlang term according to `Type`.
@@ -769,7 +777,7 @@ string_from_json(Type, Json) ->
         _Other ->
             {error, [
                 sp_error:type_mismatch(#sp_simple_type{type = Type}, Json, #{
-                    message => "unicode conversion failed"
+                    message => <<"unicode conversion failed">>
                 })
             ]}
     end.
@@ -850,7 +858,7 @@ do_string_to_json(Type, Json) ->
         {Err, _, _} when Err =:= error orelse Err =:= incomplete ->
             {error, [
                 sp_error:type_mismatch(#sp_simple_type{type = Type}, Json, #{
-                    message => "non printable"
+                    message => <<"non printable">>
                 })
             ]};
         Bin when is_binary(Bin) ->

@@ -22,6 +22,8 @@
 -spectra(#{description => <<"An item">>, deprecated => true}).
 -type deprecated_item() :: #item{}.
 -type item() :: #item{}.
+-spectra(#{description => <<"A documented id">>, deprecated => true}).
+-type documented_id() :: integer().
 
 %% Test basic endpoint creation
 basic_endpoint_test() ->
@@ -1393,3 +1395,56 @@ atom_schema_parameter_test() ->
         spectra_openapi:add_response(EndpointRef, Response)
     ]),
     ?assertEqual(ResultAtom, ResultRef).
+
+documented_parameter_and_header_schema_omits_lifted_doc_test() ->
+    Response =
+        spectra_openapi:response_with_header(
+            spectra_openapi:response(200, <<"OK">>),
+            <<"X-Id">>,
+            ?MODULE,
+            #{schema => {type, documented_id, 0}}
+        ),
+    Endpoint =
+        spectra_openapi:add_response(
+            spectra_openapi:with_parameter(
+                spectra_openapi:endpoint(get, <<"/items/{id}">>),
+                ?MODULE,
+                #{
+                    name => <<"id">>,
+                    in => path,
+                    required => true,
+                    schema => {type, documented_id, 0}
+                }
+            ),
+            Response
+        ),
+    {ok, OpenAPISpec} =
+        spectra_openapi:endpoints_to_openapi(
+            #{title => <<"Test">>, version => <<"1.0.0">>},
+            [Endpoint],
+            [pre_encoded]
+        ),
+    #{
+        <<"paths">> := #{
+            <<"/items/{id}">> := #{
+                <<"get">> := #{
+                    <<"parameters">> := [Parameter],
+                    <<"responses">> := #{<<"200">> := #{<<"headers">> := #{<<"X-Id">> := Header}}}
+                }
+            }
+        }
+    } = OpenAPISpec,
+    Expected = #{
+        <<"description">> => <<"A documented id">>,
+        <<"deprecated">> => true,
+        <<"schema">> => #{type => <<"integer">>}
+    },
+    ?assertEqual(
+        {Expected, Expected},
+        {maps:with([<<"description">>, <<"deprecated">>, <<"schema">>], Parameter), Header}
+    ),
+    case openapi_validator_helper:validate_openapi_3_1(OpenAPISpec) of
+        ok -> ok;
+        {skip, Reason} -> io:format("Skipping OpenAPI validation: ~ts~n", [Reason]);
+        {error, {validation_failed, Output}} -> erlang:error({openapi_validation_failed, Output})
+    end.

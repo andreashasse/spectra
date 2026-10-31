@@ -126,7 +126,7 @@ optional_remote_type_field_test() ->
             properties := #{
                 <<"id">> := _,
                 <<"name">> := _,
-                <<"account">> := #{type := <<"object">>}
+                <<"account">> := #{type := [<<"object">>, <<"null">>]}
             },
             required := _
         },

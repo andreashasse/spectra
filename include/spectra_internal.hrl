@@ -107,7 +107,10 @@
 -record(sp_config, {
     module_types_cache = local :: spectra:module_types_cache(),
     codecs = #{} :: #{spectra:codec_key() => module()},
-    nil_fields = omit :: spectra:nil_fields()
+    nil_fields = omit_or_null :: spectra:nil_fields(),
+    %% false for an OpenAPI parameter or header, whose value is never JSON null:
+    %% a union with the missing value then gets the schema of its other members.
+    missing_value_as_null = true :: boolean()
 }).
 
 %% New structured type information
