@@ -702,7 +702,7 @@ endpoints_to_openapi(MetaData, Endpoints) ->
 -spec endpoints_to_openapi(
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()],
-    Options :: [spectra:encode_option()]
+    Options :: [spectra:schema_option()]
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 endpoints_to_openapi(MetaData, Endpoints, Options) when is_list(Endpoints) ->
@@ -730,7 +730,7 @@ or `security => []` to opt it out entirely.
             "Endpoints" =>
                 "List of endpoint specifications created with endpoint/2 and with_* functions",
             "MetaData" => "OpenAPI metadata map with title and version",
-            "Options" => "Encode options passed through to spectra:encode/5",
+            "Options" => "`pre_encoded` to return the spec as a map instead of JSON",
             "Webhooks" =>
                 "List of webhook specifications created with webhook/2-3 and with_* functions"
         }
@@ -740,7 +740,7 @@ or `security => []` to opt it out entirely.
     MetaData :: openapi_metadata(),
     Endpoints :: [endpoint_spec()],
     Webhooks :: [webhook_spec()],
-    Options :: [spectra:encode_option()]
+    Options :: [spectra:schema_option()]
 ) ->
     {ok, json:encode_value() | iodata()} | {error, [spectra:error()]}.
 to_openapi(MetaData, Endpoints, Webhooks, Options) when

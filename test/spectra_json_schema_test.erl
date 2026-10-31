@@ -334,7 +334,7 @@ record_field_binary_or_string_or_undefined_test() ->
     ?assertMatch(
         #{
             type := <<"object">>,
-            properties := #{<<"street">> := #{type := <<"string">>}},
+            properties := #{<<"street">> := #{type := [<<"string">>, <<"null">>]}},
             required := []
         },
         Schema
@@ -396,7 +396,7 @@ map_with_optional_field_test() ->
             properties =>
                 #{
                     <<"name">> => #{type => <<"string">>},
-                    <<"age">> => #{type => <<"integer">>}
+                    <<"age">> => #{type => [<<"integer">>, <<"null">>]}
                 },
             required => [<<"name">>],
             additionalProperties => false
@@ -476,7 +476,7 @@ record_types_test() ->
 %% Test record with optional field
 record_with_optional_fields_test() ->
     %% Record with optional email field (can be undefined)
-    %% The field appears as simple string type and is excluded from required fields
+    %% The field allows null and is excluded from required fields
     UserWithOptionalSchema = spectra:schema(
         json_schema, ?MODULE, {record, user_with_optional}, [pre_encoded]
     ),
@@ -488,7 +488,7 @@ record_with_optional_fields_test() ->
                 #{
                     <<"id">> => #{type => <<"integer">>},
                     <<"name">> => #{type => <<"string">>},
-                    <<"email">> => #{type => <<"string">>}
+                    <<"email">> => #{type => [<<"string">>, <<"null">>]}
                 },
             required => [<<"id">>, <<"name">>]
         },
@@ -532,7 +532,10 @@ record_with_enum_fields_test() ->
                     <<"id">> => #{type => <<"integer">>},
                     <<"name">> => #{type => <<"string">>},
                     <<"role">> => #{
-                        type => <<"string">>, enum => [<<"admin">>, <<"user">>]
+                        anyOf => [
+                            #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                            #{type => <<"null">>}
+                        ]
                     }
                 },
             required => [<<"id">>, <<"name">>]

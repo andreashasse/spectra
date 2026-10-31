@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `spectra:encode/5` accepts `{nil_fields, null | omit}`. It sets, for that call only, whether a field whose type can be missing (`T | undefined`, `T | nil`) and whose value is the missing value is written as `null` or left out, nested values included. The schema does not change. With the application setting `nil_fields` set to `omit`, `{nil_fields, null}` raises `badarg` (`ArgumentError` in Elixir), because that schema does not allow `null`. An unknown option value also raises `badarg`.
+
+### Changed
+- The `nil_fields` application setting has a new default, `omit_or_null`. The JSON Schema and OpenAPI schema of a field whose type can be missing now allow `null` (`"type": [T, "null"]`, or `anyOf` with `{"type": "null"}`), and so does `additionalProperties` of a typed map whose value can be missing. The field stays out of `required`, and encoding still leaves it out unless the call passes `{nil_fields, null}`. To keep the old schema, set `{spectra, [{nil_fields, omit}]}` (`config :spectra, :nil_fields, :omit` in Elixir). The setting `null` is unchanged.
+- The `Options` of `spectra_openapi:endpoints_to_openapi/3` and `spectra_openapi:to_openapi/4` are typed as `spectra:schema_option()`, since `nil_fields` does not apply to the spec.
+
 ## [0.16.0] - 2026-10-30
 
 ### Added

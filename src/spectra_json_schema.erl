@@ -471,17 +471,18 @@ process_record_fields(
         end,
     process_record_fields(TypeInfo, Rest, NewProperties, NewRequired, Config).
 
-%% With `nil_fields = omit` a field whose type can be missing is left out of
-%% the encoded object when it holds the missing value, so it is not required
-%% and its schema does not allow null. With `nil_fields = null` it is always
-%% written, as null when missing.
+%% A field whose type can be missing is required only with `nil_fields = null`,
+%% where it is always written. Its schema allows null unless `nil_fields = omit`,
+%% where the missing value is always left out.
 -spec field_schema(
     spectra:type_info(),
     spectra:sp_type(),
     {true, spectra:missing_value()} | false,
     spectra:sp_config()
 ) -> json_schema_object().
-field_schema(TypeInfo, FieldType, {true, _}, #sp_config{nil_fields = null} = Config) ->
+field_schema(TypeInfo, FieldType, {true, _}, #sp_config{nil_fields = NilFields} = Config) when
+    NilFields =:= null; NilFields =:= omit_or_null
+->
     allow_null(to_schema_for_sp_type(TypeInfo, FieldType, Config));
 field_schema(TypeInfo, FieldType, _Missing, Config) ->
     to_schema_for_sp_type(TypeInfo, FieldType, Config).

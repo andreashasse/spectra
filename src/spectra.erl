@@ -1,8 +1,12 @@
 -module(spectra).
 
--export([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0]).
+-export([
+    decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0, format_error/2
+]).
 
--ignore_xref([decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0]).
+-ignore_xref([
+    decode/4, decode/5, encode/4, encode/5, schema/3, schema/4, get_config/0, format_error/2
+]).
 
 -include("../include/spectra.hrl").
 -include("../include/spectra_internal.hrl").
@@ -69,18 +73,24 @@
 -type literal_value() :: integer() | atom() | [].
 -type record_field() :: #sp_rec_field{}.
 -type decode_option() :: pre_decoded | {pre_decoded, boolean()}.
--type encode_option() :: pre_encoded | {pre_encoded, boolean()}.
+-type encode_option() :: pre_encoded | {pre_encoded, boolean()} | {nil_fields, omit | null}.
 -type schema_option() :: pre_encoded | {pre_encoded, boolean()}.
 -type codec_key() :: {module(), sp_type_reference()}.
 -type module_types_cache() :: persistent | local | none.
 -doc """
-How a field whose type can be missing (`T | undefined`, `T | nil`) is encoded
-when its value is the missing marker. `omit` (the default) leaves the field out
-of the JSON object and out of the schema's `required` list. `null` writes it as
-JSON `null`, and the schema allows `null` for it. Set it with
-`{spectra, [{nil_fields, null}]}`.
+How a field whose type can be missing (`T | undefined`, `T | nil`) is handled
+when its value is the missing marker. Set it with `{spectra, [{nil_fields, Value}]}`.
+
+- `omit_or_null` (the default): the schema leaves the field out of `required`
+  and allows `null` for it. Encoding leaves the field out, unless the
+  `encode/5` call passes `{nil_fields, null}`, which writes it as `null`.
+- `omit`: the schema leaves the field out of `required` and does not allow
+  `null`. Encoding leaves the field out. Passing `{nil_fields, null}` to
+  `encode/5` raises `badarg`.
+- `null`: the schema lists the field in `required` and allows `null`.
+  Encoding writes the field as `null`.
 """.
--type nil_fields() :: omit | null.
+-type nil_fields() :: omit_or_null | omit | null.
 -type binary_string_decode_opts() :: map().
 -type binary_string_encode_opts() :: map().
 -doc """
@@ -333,6 +343,13 @@ Encodes an Erlang term to the specified format based on type information.
 Accepts an options list. Supported options:
 - `pre_encoded`: Skip the final serialization step and return the intermediate
   term instead of bytes. For JSON, this returns a map/list/scalar instead of a binary.
+- `{nil_fields, null | omit}`: How to encode a field whose type can be missing
+  and whose value is the missing marker, for this call only (nested values
+  included). `null` writes it as JSON `null`, `omit` leaves it out. The schema
+  does not change, it follows the `nil_fields` application setting (see
+  `t:nil_fields/0`). Raises `badarg` when the value is not `null` or `omit`,
+  and for `null` when the application setting is `omit`, since that schema
+  does not allow `null`.
 
 ### Example:
 
@@ -349,20 +366,39 @@ Accepts an options list. Supported options:
     Options :: [encode_option()]
 ) ->
     {ok, dynamic()} | {error, [error()]}.
-encode(Format, Module, TypeOrRef, Data, Options) when is_atom(Module) ->
-    Config = get_config(),
-    TypeInfo = spectra_module_types:get(Module, Config),
+encode(Format, ModuleOrTypeinfo, TypeOrRef, Data, Options) ->
+    Config =
+        case encode_config(get_config(), Options) of
+            {ok, EncodeConfig} ->
+                EncodeConfig;
+            {error, Cause} ->
+                erlang:error(badarg, [Format, ModuleOrTypeinfo, TypeOrRef, Data, Options], [
+                    {error_info, #{module => ?MODULE, cause => Cause}}
+                ])
+        end,
     try
+        TypeInfo =
+            case is_atom(ModuleOrTypeinfo) of
+                true -> spectra_module_types:get(ModuleOrTypeinfo, Config);
+                false -> ModuleOrTypeinfo
+            end,
         do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
     after
         maybe_clear_local_cache(Config)
-    end;
-encode(Format, TypeInfo, TypeOrRef, Data, Options) ->
-    Config = get_config(),
-    try
-        do_encode(Format, TypeInfo, TypeOrRef, Data, Options, Config)
-    after
-        maybe_clear_local_cache(Config)
+    end.
+
+-spec encode_config(sp_config(), [encode_option()]) ->
+    {ok, sp_config()} | {error, {nil_fields, term()}}.
+encode_config(Config, Options) ->
+    case {proplists:get_value(nil_fields, Options), Config#sp_config.nil_fields} of
+        {undefined, _} ->
+            {ok, Config};
+        {null, omit} ->
+            {error, {nil_fields, null_with_omit_setting}};
+        {Value, _} when Value =:= null; Value =:= omit ->
+            {ok, Config#sp_config{nil_fields = Value}};
+        {Value, _} ->
+            {error, {nil_fields, {invalid_option, Value}}}
     end.
 
 -spec do_encode(
@@ -626,7 +662,7 @@ get_config() ->
             application:get_env(spectra, module_types_cache, local)
         ),
         codecs = application:get_env(spectra, codecs, #{}),
-        nil_fields = valid_nil_fields(application:get_env(spectra, nil_fields, omit))
+        nil_fields = valid_nil_fields(application:get_env(spectra, nil_fields, omit_or_null))
     }.
 
 -spec valid_module_types_cache(term()) -> module_types_cache().
@@ -636,9 +672,29 @@ valid_module_types_cache(none) -> none;
 valid_module_types_cache(Value) -> erlang:error({invalid_config, module_types_cache, Value}).
 
 -spec valid_nil_fields(term()) -> nil_fields().
+valid_nil_fields(omit_or_null) -> omit_or_null;
 valid_nil_fields(omit) -> omit;
 valid_nil_fields(null) -> null;
 valid_nil_fields(Value) -> erlang:error({invalid_config, nil_fields, Value}).
+
+-doc """
+Formats the `badarg` errors raised by `encode/5` for an invalid `nil_fields`
+option. Called by `erl_error` and by Elixir to build the error message.
+""".
+-spec format_error(Reason :: term(), StackTrace :: erlang:stacktrace()) ->
+    #{pos_integer() | general => unicode:chardata()}.
+format_error(badarg, [{_M, _F, _As, Info} | _]) ->
+    #{cause := Cause} = proplists:get_value(error_info, Info),
+    #{5 => format_cause(Cause)}.
+
+-spec format_cause({nil_fields, term()}) -> unicode:chardata().
+format_cause({nil_fields, null_with_omit_setting}) ->
+    <<
+        "{nil_fields, null} needs the nil_fields application setting to be omit_or_null "
+        "or null, but the global nil_fields is omit, so the schema would not allow null"
+    >>;
+format_cause({nil_fields, {invalid_option, Value}}) ->
+    io_lib:format("the nil_fields option must be null or omit, got: ~tp", [Value]).
 
 -spec maybe_clear_local_cache(sp_config()) -> ok.
 maybe_clear_local_cache(#sp_config{module_types_cache = local}) ->

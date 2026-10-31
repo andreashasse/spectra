@@ -29,8 +29,8 @@ Walks the type tree recursively, converting each node. Records become maps
 with binary keys, lists stay lists, atoms in unions become their binary
 representations. Fields whose type can be missing and whose value equals the
 missing sentinel (`nil` / `undefined`) are omitted from the output, or written
-as `null` when the `nil_fields` application setting is `null` (see
-`t:spectra:nil_fields/0`).
+as `null` when `nil_fields` is `null`, either as the application setting or as
+the `spectra:encode/5` option (see `t:spectra:nil_fields/0`).
 
 Returns `{ok, Value}` on success or `{error, Errors}` with a list of
 structured `#sp_error{}` values describing every mismatch found.
@@ -516,10 +516,12 @@ do_record_to_json(TypeInfo, RecFieldTypesWithData, Config) ->
 
 -spec add_missing_field(Key, [{Key, json:encode_value()}], spectra:sp_config()) ->
     [{Key, json:encode_value()}].
-add_missing_field(_Key, Fields, #sp_config{nil_fields = omit}) ->
-    Fields;
 add_missing_field(Key, Fields, #sp_config{nil_fields = null}) ->
-    [{Key, null} | Fields].
+    [{Key, null} | Fields];
+add_missing_field(_Key, Fields, #sp_config{nil_fields = NilFields}) when
+    NilFields =:= omit; NilFields =:= omit_or_null
+->
+    Fields.
 
 -doc """
 Decodes `Json` into an Erlang term according to `Type`.
