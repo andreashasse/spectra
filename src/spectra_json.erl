@@ -135,6 +135,10 @@ to_json(
     is_integer(Value) andalso Min =< Value, Value =< Max
 ->
     {ok, Value};
+to_json(_TypeInfo, #sp_literal{value = Value}, Value, _Config) when
+    Value =:= nil orelse Value =:= undefined
+->
+    {ok, null};
 to_json(_TypeInfo, #sp_literal{value = Value, binary_value = BinaryValue}, Value, _Config) when
     is_atom(Value)
 ->

@@ -211,10 +211,10 @@ do_to_schema(_TypeInfo, #sp_literal{} = Type, _Config) ->
     erlang:error({type_not_supported, Type});
 %% List types
 do_to_schema(TypeInfo, #sp_list{type = ItemType}, Config) ->
-    ItemSchema = to_schema_for_sp_type(TypeInfo, ItemType, Config),
+    ItemSchema = list_item_schema(TypeInfo, ItemType, Config),
     #{type => <<"array">>, items => ItemSchema};
 do_to_schema(TypeInfo, #sp_nonempty_list{type = ItemType}, Config) ->
-    ItemSchema = to_schema_for_sp_type(TypeInfo, ItemType, Config),
+    ItemSchema = list_item_schema(TypeInfo, ItemType, Config),
     #{
         type => <<"array">>,
         items => ItemSchema,
@@ -276,6 +276,17 @@ do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Config) ->
     erlang:error({type_not_supported, Type}).
 
 %% Helper functions
+
+%% A list item that holds the missing value is encoded as null, since a list
+%% has no key to leave out.
+-spec list_item_schema(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) ->
+    json_schema_object().
+list_item_schema(TypeInfo, ItemType, Config) ->
+    ItemSchema = to_schema_for_sp_type(TypeInfo, ItemType, Config),
+    case spectra_type:can_be_missing(TypeInfo, ItemType) of
+        {true, _} -> allow_null(ItemSchema);
+        false -> ItemSchema
+    end.
 
 %% Check if a type can be used as a JSON object key (must be string-like)
 -spec can_be_json_key(spectra:type_info(), spectra:sp_type(), spectra:sp_config()) -> boolean().

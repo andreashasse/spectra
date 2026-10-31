@@ -42,6 +42,9 @@
 
 %% List types
 -type list_with_nil_elements() :: [maybe_nil_string()].
+-type list_with_nil_integers() :: [integer() | nil].
+-type list_with_undef_integers() :: [integer() | undefined].
+-type list_with_enum_atoms() :: [foo | bar].
 
 %% Multiple types union
 -type multi_union_nil() :: integer() | binary() | nil.
@@ -195,3 +198,49 @@ integer_or_undefined_integer_test() ->
     Json = <<"99">>,
     {ok, Result} = spectra:decode(json, ?MODULE, {type, maybe_undef_integer, 0}, Json),
     ?assertEqual(99, Result).
+
+list_with_nil_element_encodes_null_test() ->
+    ?assertMatch(
+        {{ok, [1, null]}, {ok, Iodata}} when Iodata =/= error,
+        {
+            spectra:encode(
+                json, ?MODULE, {type, list_with_nil_integers, 0}, [1, nil], [pre_encoded]
+            ),
+            spectra:encode(json, ?MODULE, {type, list_with_nil_integers, 0}, [1, nil])
+        }
+    ),
+    {ok, Iodata} = spectra:encode(json, ?MODULE, {type, list_with_nil_integers, 0}, [1, nil]),
+    ?assertEqual(<<"[1,null]">>, iolist_to_binary(Iodata)).
+
+list_with_undefined_element_encodes_null_test() ->
+    {ok, Iodata} =
+        spectra:encode(json, ?MODULE, {type, list_with_undef_integers, 0}, [1, undefined]),
+    ?assertMatch(
+        {<<"[1,null]">>, {ok, [1, null]}},
+        {
+            iolist_to_binary(Iodata),
+            spectra:encode(
+                json, ?MODULE, {type, list_with_undef_integers, 0}, [1, undefined], [pre_encoded]
+            )
+        }
+    ).
+
+list_with_missing_marker_element_roundtrip_test() ->
+    ?assertMatch(
+        {{ok, [1, nil]}, {ok, [1, undefined]}},
+        {
+            spectra:decode(json, ?MODULE, {type, list_with_nil_integers, 0}, <<"[1,null]">>),
+            spectra:decode(json, ?MODULE, {type, list_with_undef_integers, 0}, <<"[1,null]">>)
+        }
+    ).
+
+list_with_missing_marker_element_schema_allows_null_test() ->
+    Schema = spectra:schema(json_schema, ?MODULE, {type, list_with_nil_integers, 0}, [pre_encoded]),
+    ?assertMatch(
+        #{type := <<"array">>, items := #{type := [<<"integer">>, <<"null">>]}},
+        Schema
+    ).
+
+list_with_enum_atoms_encodes_strings_test() ->
+    {ok, Iodata} = spectra:encode(json, ?MODULE, {type, list_with_enum_atoms, 0}, [foo, bar]),
+    ?assertEqual(<<"[\"foo\",\"bar\"]">>, iolist_to_binary(Iodata)).
