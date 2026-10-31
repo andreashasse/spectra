@@ -288,7 +288,7 @@ default_decode(json, Typeinfo, Type, Data, Options, Config) ->
                     type = decode_error,
                     ctx = #{
                         value => Data,
-                        message => "expected binary when pre_decoded option is not set"
+                        message => <<"expected binary when pre_decoded option is not set">>
                     }
                 }
             ]};

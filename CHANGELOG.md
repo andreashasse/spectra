@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A missing value (`nil` / `undefined`) outside a field, such as an element of `[integer() | nil]`, is now encoded as JSON `null` instead of the string `"nil"`, and the JSON Schema of such a list item allows `null`.
 - A documented OpenAPI parameter or response header no longer repeats its `description` and `deprecated` inside its `schema`; they appear only on the parameter or header.
+- The `message` in an error's `ctx` is now always a binary instead of sometimes a charlist (struct mismatch, `not_matched_fields`, non-binary input without `pre_decoded`, dict keys, string conversion).
 
 ## [0.16.0] - 2026-10-30
 

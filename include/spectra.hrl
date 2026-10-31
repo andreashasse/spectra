@@ -5,7 +5,7 @@
         type => spectra:sp_type_or_ref() | spectra:map_field() | spectra:record_field(),
         value => dynamic(),
         errors => [{spectra:sp_type(), [#sp_error{}]}],
-        message => string(),
+        message => binary(),
         allowed_values => [term()],
         type_args => [{atom(), spectra:sp_type()}],
         err_type => atom(),

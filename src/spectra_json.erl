@@ -163,7 +163,9 @@ to_json(TypeInfo, #sp_map{struct_name = StructName} = Map, Data, Config) when is
                 StructName ->
                     map_to_json(TypeInfo, Map, Data, Config);
                 _ ->
-                    {error, [sp_error:type_mismatch(Map, Data, #{message => "Struct mismatch"})]}
+                    {error, [
+                        sp_error:type_mismatch(Map, Data, #{message => <<"Struct mismatch">>})
+                    ]}
             end
     end;
 to_json(_TypeInfo, #sp_maybe_improper_list{} = Type, _Data, _Config) ->
@@ -775,7 +777,7 @@ string_from_json(Type, Json) ->
         _Other ->
             {error, [
                 sp_error:type_mismatch(#sp_simple_type{type = Type}, Json, #{
-                    message => "unicode conversion failed"
+                    message => <<"unicode conversion failed">>
                 })
             ]}
     end.
@@ -856,7 +858,7 @@ do_string_to_json(Type, Json) ->
         {Err, _, _} when Err =:= error orelse Err =:= incomplete ->
             {error, [
                 sp_error:type_mismatch(#sp_simple_type{type = Type}, Json, #{
-                    message => "non printable"
+                    message => <<"non printable">>
                 })
             ]};
         Bin when is_binary(Bin) ->

@@ -100,7 +100,7 @@ encode_pairs(TypeInfo, KeyType, ValueType, [{Key, Value} | Rest], Acc, Config) -
         {ok, _KeyJson} ->
             {error, [
                 sp_error:type_mismatch({type, dict, 2}, Key, #{
-                    message => "dict key must encode to binary string for JSON"
+                    message => <<"dict key must encode to binary string for JSON">>
                 })
             ]};
         {error, _} = Err ->
