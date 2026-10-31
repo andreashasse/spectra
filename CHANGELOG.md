@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-31
+
 ### Added
 - `spectra:encode/5` accepts `{nil_fields, null | omit}`. It sets, for that call only, whether a field whose type can be missing (`T | undefined`, `T | nil`) and whose value is the missing value is written as `null` or left out, nested values included. The schema does not change, so only options whose output the schema accepts are allowed: `null` or `omit` with the default setting `omit_or_null`, and the value that equals the setting otherwise. `{nil_fields, null}` with the setting `omit`, `{nil_fields, omit}` with the setting `null`, and an unknown option value raise `badarg` (`ArgumentError` in Elixir). The error does not include the data being encoded.
 - `spectra_openapi:with_nil_fields(Webhook, null)` marks a webhook whose payload is encoded with `{nil_fields, null}`. Its payload schema lists every field whose type can be missing in `required` and allows `null`, nested types included. The payload type keeps its schema name, unless the same type is also used without the option. Then the webhook gets a second schema with `Nullable` added to the name. `to_openapi/4` raises `badarg` when the `nil_fields` setting is `omit`, or when that second name is already taken. With the setting `null`, the option changes nothing.
