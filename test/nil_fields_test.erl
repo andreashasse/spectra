@@ -36,6 +36,12 @@
     labels := labels()
 }.
 
+-type payer() :: #{name := binary(), email := binary() | undefined}.
+-record(payment, {id :: binary(), note :: binary() | undefined, payer :: payer()}).
+-record(payment_nullable, {id :: binary()}).
+-type payment() :: #payment{}.
+-type payment_nullable() :: #payment_nullable{}.
+
 with_nil_fields(Value, Tests) ->
     {setup,
         fun() ->
@@ -810,3 +816,213 @@ invalid_setting_test_() ->
             )
         end
     ).
+
+%% Webhooks whose payload always writes missing values as null.
+
+webhook_nil_fields_test_() ->
+    [
+        with_nil_fields(unset, [
+            fun null_webhook_payload_requires_nullable_fields/0,
+            fun null_webhook_payload_gets_own_schema_when_type_is_mixed/0,
+            fun null_webhooks_share_plain_schema_name/0,
+            fun null_webhook_headers_exclude_null/0,
+            fun null_webhook_suffixed_name_clash_raises/0,
+            fun webhook_nil_fields_rejects_other_values/0
+        ]),
+        with_nil_fields(null, [fun null_webhook_under_null_setting_changes_nothing/0]),
+        with_nil_fields(omit, [fun null_webhook_under_omit_setting_raises/0])
+    ].
+
+payment_webhook(Name) ->
+    spectra_openapi:with_nil_fields(
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(Name, post), ?MODULE, {record, payment}
+        ),
+        null
+    ).
+
+payment_endpoint() ->
+    spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/payments">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A payment">>), ?MODULE, {record, payment}
+        )
+    ).
+
+payments_openapi(Endpoints, Webhooks) ->
+    {ok, Spec} = spectra_openapi:to_openapi(
+        #{title => <<"Payments">>, version => <<"1.0.0">>}, Endpoints, Webhooks, [pre_encoded]
+    ),
+    Spec.
+
+webhook_body_ref(Spec, Name) ->
+    #{
+        <<"webhooks">> := #{
+            Name := #{
+                <<"post">> := #{
+                    <<"requestBody">> := #{
+                        <<"content">> := #{
+                            <<"application/json">> := #{<<"schema">> := #{<<"$ref">> := Ref}}
+                        }
+                    }
+                }
+            }
+        }
+    } = Spec,
+    Ref.
+
+components(Spec) ->
+    #{<<"components">> := #{<<"schemas">> := Components}} = Spec,
+    Components.
+
+null_payment_schema() ->
+    Nullable = #{<<"type">> => [<<"string">>, <<"null">>]},
+    #{
+        <<"type">> => <<"object">>,
+        <<"required">> => [<<"id">>, <<"note">>, <<"payer">>],
+        <<"properties">> => #{
+            <<"id">> => #{<<"type">> => <<"string">>},
+            <<"note">> => Nullable,
+            <<"payer">> => #{
+                <<"type">> => <<"object">>,
+                <<"required">> => [<<"email">>, <<"name">>],
+                <<"properties">> => #{
+                    <<"name">> => #{<<"type">> => <<"string">>},
+                    <<"email">> => Nullable
+                },
+                <<"additionalProperties">> => false
+            }
+        }
+    }.
+
+sorted_required(#{<<"required">> := Required} = Schema) ->
+    Sorted = maps:map(
+        fun
+            (_Key, Value) when is_map(Value) -> sorted_required(Value);
+            (_Key, Value) -> Value
+        end,
+        Schema
+    ),
+    Sorted#{<<"required">> => lists:sort(Required)};
+sorted_required(Schema) ->
+    maps:map(
+        fun
+            (_Key, Value) when is_map(Value) -> sorted_required(Value);
+            (_Key, Value) -> Value
+        end,
+        Schema
+    ).
+
+json_roundtrip(Term) ->
+    json:decode(iolist_to_binary(json:encode(Term))).
+
+null_webhook_payload_requires_nullable_fields() ->
+    Spec = json_roundtrip(payments_openapi([], [payment_webhook(<<"paymentDone">>)])),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))),
+    ?assertEqual(
+        sorted_required(null_payment_schema()),
+        sorted_required(maps:get(<<"Payment">>, components(Spec)))
+    ),
+    validate_openapi(Spec).
+
+null_webhook_payload_gets_own_schema_when_type_is_mixed() ->
+    PlainWebhook = spectra_openapi:with_request_body(
+        spectra_openapi:webhook(<<"paymentSeen">>, post), ?MODULE, {record, payment}
+    ),
+    Spec = json_roundtrip(
+        payments_openapi([payment_endpoint()], [payment_webhook(<<"paymentDone">>), PlainWebhook])
+    ),
+    ?assertEqual(
+        <<"#/components/schemas/PaymentNullable">>, webhook_body_ref(Spec, <<"paymentDone">>)
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentSeen">>)),
+    #{<<"Payment">> := Plain, <<"PaymentNullable">> := Null} = components(Spec),
+    ?assertEqual([<<"id">>, <<"payer">>], lists:sort(maps:get(<<"required">>, Plain))),
+    ?assertEqual(sorted_required(null_payment_schema()), sorted_required(Null)),
+    validate_openapi(Spec).
+
+null_webhooks_share_plain_schema_name() ->
+    Spec = json_roundtrip(
+        payments_openapi([], [
+            payment_webhook(<<"paymentDone">>), payment_webhook(<<"paymentLost">>)
+        ])
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentLost">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))).
+
+null_webhook_headers_exclude_null() ->
+    Webhook = spectra_openapi:with_parameter(
+        payment_webhook(<<"paymentDone">>),
+        ?MODULE,
+        #{name => <<"x-phone">>, in => header, required => false, schema => {type, maybe_phone, 0}}
+    ),
+    Spec = json_roundtrip(payments_openapi([], [Webhook])),
+    #{
+        <<"webhooks">> := #{
+            <<"paymentDone">> := #{<<"post">> := #{<<"parameters">> := [Parameter]}}
+        }
+    } = Spec,
+    ?assertEqual(#{<<"type">> => <<"string">>}, maps:get(<<"schema">>, Parameter)),
+    validate_openapi(Spec).
+
+null_webhook_suffixed_name_clash_raises() ->
+    Clashing = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/nullable">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"Clash">>), ?MODULE, {record, payment_nullable}
+        )
+    ),
+    assert_openapi_badarg(
+        fun() ->
+            payments_openapi(
+                [payment_endpoint(), Clashing], [payment_webhook(<<"paymentDone">>)]
+            )
+        end,
+        <<"PaymentNullable">>
+    ).
+
+webhook_nil_fields_rejects_other_values() ->
+    Webhook = spectra_openapi:webhook(<<"paymentDone">>, post),
+    lists:foreach(
+        fun(Value) ->
+            assert_openapi_badarg(
+                fun() -> spectra_openapi:with_nil_fields(Webhook, Value) end,
+                <<"must be null">>
+            )
+        end,
+        [omit, omit_or_null, nothing]
+    ),
+    assert_openapi_badarg(
+        fun() -> spectra_openapi:with_nil_fields(payment_endpoint(), null) end,
+        <<"only on webhooks">>
+    ).
+
+null_webhook_under_null_setting_changes_nothing() ->
+    Spec = json_roundtrip(
+        payments_openapi([payment_endpoint()], [payment_webhook(<<"paymentDone">>)])
+    ),
+    ?assertEqual(<<"#/components/schemas/Payment">>, webhook_body_ref(Spec, <<"paymentDone">>)),
+    ?assertEqual([<<"Payment">>], maps:keys(components(Spec))),
+    ?assertEqual(
+        sorted_required(null_payment_schema()),
+        sorted_required(maps:get(<<"Payment">>, components(Spec)))
+    ).
+
+null_webhook_under_omit_setting_raises() ->
+    assert_openapi_badarg(
+        fun() -> payments_openapi([], [payment_webhook(<<"paymentDone">>)]) end,
+        <<"the nil_fields setting is omit">>
+    ).
+
+assert_openapi_badarg(Fun, ExpectedMessage) ->
+    try Fun() of
+        Result -> erlang:error({expected_badarg, Result})
+    catch
+        error:badarg:Stacktrace ->
+            Formatted = unicode:characters_to_binary(
+                erl_error:format_exception(error, badarg, Stacktrace)
+            ),
+            ?assertNotEqual(nomatch, string:find(Formatted, ExpectedMessage))
+    end.
