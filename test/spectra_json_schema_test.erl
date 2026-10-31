@@ -289,12 +289,11 @@ union_types_test() ->
     ),
     validate_with_python(UnionSchema),
 
-    %% Optional type (union with undefined) - now returns just the non-undefined type
     OptionalSchema = spectra:schema(json_schema, ?MODULE, {type, my_optional, 0}, [pre_encoded]),
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"integer">>
+            type => [<<"integer">>, <<"null">>]
         },
         OptionalSchema
     ),
@@ -305,7 +304,7 @@ optional_multi_type_union_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}]
+            anyOf => [#{type => <<"integer">>}, #{type => <<"string">>}, #{type => <<"null">>}]
         },
         Schema
     ),
@@ -322,7 +321,7 @@ identical_union_members_collapse_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>
+            type => [<<"string">>, <<"null">>]
         },
         spectra:schema(
             json_schema, ?MODULE, {type, my_optional_binary_or_string, 0}, [pre_encoded]
@@ -601,8 +600,10 @@ enum_types_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            anyOf => [
+                #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                #{type => <<"null">>}
+            ]
         },
         OptionalEnumSchema
     ),
@@ -615,8 +616,10 @@ enum_types_test() ->
     ?assertEqual(
         #{
             '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
-            type => <<"string">>,
-            enum => [<<"admin">>, <<"user">>]
+            anyOf => [
+                #{type => <<"string">>, enum => [<<"admin">>, <<"user">>]},
+                #{type => <<"null">>}
+            ]
         },
         OptionalEnumWithNilSchema
     ),

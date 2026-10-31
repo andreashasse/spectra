@@ -21,6 +21,12 @@
     tags := [binary()] | undefined
 }.
 -type labels() :: #{binary() => binary() | undefined}.
+-spectra(#{description => <<"A count">>}).
+-type maybe_count() :: integer() | undefined.
+-type maybe_status() :: active | inactive | undefined.
+-type maybe_name() :: binary() | nil.
+-record(tally, {count :: maybe_count(), status :: maybe_status(), counts :: [maybe_count()]}).
+-type tally() :: #tally{}.
 -type team() :: #{
     lead := contact(),
     members := [profile()],
@@ -83,7 +89,11 @@ default_test_() ->
             fun default_per_call_null_writes_null_in_pre_encoded_output/0,
             fun default_per_call_null_validates_against_schema/0,
             fun default_per_call_omit_omits_missing_values/0,
-            fun default_openapi_spec_validates/0
+            fun default_per_call_option_with_type_info/0,
+            fun default_openapi_spec_validates/0,
+            fun nullable_top_level_schema_allows_null/0,
+            fun nullable_top_level_value_validates_against_schema/0,
+            fun nullable_alias_field_has_single_null/0
         ]),
         with_nil_fields(omit_or_null, [
             fun default_schema_allows_null_for_optional_fields/0,
@@ -217,6 +227,75 @@ default_per_call_omit_omits_missing_values() ->
         encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, omit}])
     ).
 
+default_per_call_option_with_type_info() ->
+    TypeInfo = spectra_abstract_code:types_in_module(?MODULE),
+    Data = #contact{name = <<"Ann">>, phone = undefined},
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"Ann">>, <<"phone">> => null}},
+        spectra:encode(json, TypeInfo, contact, Data, [pre_encoded, {nil_fields, null}])
+    ),
+    ?assertEqual(
+        {ok, #{<<"name">> => <<"Ann">>}},
+        spectra:encode(json, TypeInfo, contact, Data, [pre_encoded, {nil_fields, omit}])
+    ).
+
+nullable_top_level_schema_allows_null() ->
+    ?assertEqual(
+        #{
+            '$schema' => <<"https://json-schema.org/draft/2020-12/schema">>,
+            type => [<<"integer">>, <<"null">>],
+            description => <<"A count">>
+        },
+        schema(maybe_count)
+    ),
+    ?assertMatch(
+        #{anyOf := [#{enum := [<<"active">>, <<"inactive">>]}, #{type := <<"null">>}]},
+        schema(maybe_status)
+    ),
+    ?assertMatch(#{type := [<<"string">>, <<"null">>]}, schema(maybe_name)).
+
+nullable_top_level_value_validates_against_schema() ->
+    lists:foreach(
+        fun({Type, Data}) ->
+            Json = encode(Type, Data),
+            ?assertMatch({ok, _}, jesse_validate(schema(Type), Json))
+        end,
+        [
+            {maybe_count, undefined},
+            {maybe_count, 3},
+            {maybe_status, undefined},
+            {maybe_status, active},
+            {maybe_name, nil},
+            {maybe_name, <<"Ann">>}
+        ]
+    ),
+    ?assertEqual(null, encode(maybe_count, undefined)).
+
+nullable_alias_field_has_single_null() ->
+    Schema = schema(tally),
+    ?assertMatch(
+        #{
+            properties := #{
+                <<"count">> := #{type := [<<"integer">>, <<"null">>], description := <<"A count">>},
+                <<"status">> := #{
+                    anyOf := [#{enum := [<<"active">>, <<"inactive">>]}, #{type := <<"null">>}]
+                },
+                <<"counts">> := #{items := #{type := [<<"integer">>, <<"null">>]}}
+            }
+        },
+        Schema
+    ),
+    ?assertEqual(1, count_nulls(Schema, <<"count">>)),
+    ?assertEqual(1, count_nulls(Schema, <<"status">>)),
+    json_schema_validator_helper:validate_or_skip(Schema),
+    Json = encode(tally, #tally{count = undefined, status = undefined, counts = [1, undefined]}, [
+        {nil_fields, null}
+    ]),
+    ?assertMatch({ok, _}, jesse_validate(Schema, Json)).
+
+count_nulls(#{properties := Properties}, Field) ->
+    length(binary:matches(iolist_to_binary(json:encode(maps:get(Field, Properties))), <<"null">>)).
+
 default_openapi_spec_validates() ->
     Spec = contacts_openapi_spec(),
     ?assertMatch(
@@ -226,6 +305,10 @@ default_openapi_spec_validates() ->
                     <<"Contact">> := #{
                         properties := #{<<"phone">> := #{type := [<<"string">>, <<"null">>]}},
                         required := [<<"name">>]
+                    },
+                    <<"MaybeCount0">> := #{type := [<<"integer">>, <<"null">>]},
+                    <<"Tally">> := #{
+                        properties := #{<<"count">> := #{type := [<<"integer">>, <<"null">>]}}
                     }
                 }
             }
@@ -238,8 +321,36 @@ omit_test_() ->
     with_nil_fields(omit, [
         fun omit_schema_is_unchanged/0,
         fun omit_encoding_omits_missing_values/0,
-        fun omit_per_call_null_raises_badarg/0
+        fun omit_per_call_null_raises_badarg/0,
+        fun omit_top_level_schema_is_unchanged/0
     ]).
+
+omit_top_level_schema_is_unchanged() ->
+    assert_json_schema(
+        <<
+            "{\"type\":\"integer\",\"description\":\"A count\","
+            "\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}"
+        >>,
+        maybe_count
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"],"
+            "\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}"
+        >>,
+        maybe_status
+    ),
+    assert_json_schema(
+        <<
+            "{\"type\":\"object\",\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+            "\"required\":[\"counts\"],\"properties\":{"
+            "\"count\":{\"type\":\"integer\",\"description\":\"A count\"},"
+            "\"status\":{\"type\":\"string\",\"enum\":[\"active\",\"inactive\"]},"
+            "\"counts\":{\"type\":\"array\",\"items\":{\"type\":[\"integer\",\"null\"],"
+            "\"description\":\"A count\"}}}}"
+        >>,
+        tally
+    ).
 
 omit_schema_is_unchanged() ->
     assert_json_schema(
@@ -306,38 +417,54 @@ omit_encoding_omits_missing_values() ->
     ).
 
 omit_per_call_null_raises_badarg() ->
-    Data = #contact{name = <<"Ann">>, phone = undefined},
-    try spectra:encode(json, ?MODULE, contact, Data, [{nil_fields, null}]) of
-        Result -> erlang:error({expected_badarg, Result})
+    assert_nil_fields_badarg([{nil_fields, null}], <<"the nil_fields setting is omit">>).
+
+assert_nil_fields_badarg(Options, ExpectedMessage) ->
+    Data = #contact{name = <<"Ann">>, phone = <<"secret">>},
+    try spectra:encode(json, ?MODULE, contact, Data, Options) of
+        Result -> erlang:error({expected_badarg, Options, Result})
     catch
         error:badarg:Stacktrace ->
-            ?assertMatch(
-                #{5 := Message} when is_binary(Message),
-                spectra:format_error(badarg, Stacktrace)
-            ),
+            [TopFrame | _] = Stacktrace,
+            ?assertMatch({spectra, encode, 5, _}, TopFrame),
+            ?assertNot(contains(TopFrame, Data)),
             #{5 := Message} = spectra:format_error(badarg, Stacktrace),
-            ?assertNotEqual(nomatch, binary:match(Message, <<"nil_fields is omit">>))
+            ?assertNotEqual(nomatch, string:find(Message, ExpectedMessage)),
+            Formatted = unicode:characters_to_binary(
+                erl_error:format_exception(error, badarg, Stacktrace)
+            ),
+            ?assertNotEqual(nomatch, string:find(Formatted, ExpectedMessage))
     end.
 
-null_per_call_omit_test_() ->
-    with_nil_fields(null, fun() ->
-        ?assertEqual(
-            #{<<"name">> => <<"Ann">>},
-            encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, omit}])
-        )
-    end).
+contains(Term, Term) ->
+    true;
+contains(Term, Part) when is_tuple(Term) ->
+    contains(tuple_to_list(Term), Part);
+contains([Head | Tail], Part) ->
+    contains(Head, Part) orelse contains(Tail, Part);
+contains(Term, Part) when is_map(Term) ->
+    contains(maps:to_list(Term), Part);
+contains(_Term, _Part) ->
+    false.
+
+null_per_call_test_() ->
+    with_nil_fields(null, [
+        fun() ->
+            assert_nil_fields_badarg([{nil_fields, omit}], <<"the nil_fields setting is null">>)
+        end,
+        fun() ->
+            ?assertEqual(
+                #{<<"name">> => <<"Ann">>, <<"phone">> => null},
+                encode(contact, #contact{name = <<"Ann">>, phone = undefined}, [{nil_fields, null}])
+            )
+        end
+    ]).
 
 invalid_option_test_() ->
     with_nil_fields(unset, fun() ->
-        Data = #contact{name = <<"Ann">>},
         lists:foreach(
             fun(Options) ->
-                try spectra:encode(json, ?MODULE, contact, Data, Options) of
-                    Result -> erlang:error({expected_badarg, Options, Result})
-                catch
-                    error:badarg:Stacktrace ->
-                        ?assertMatch(#{5 := _}, spectra:format_error(badarg, Stacktrace))
-                end
+                assert_nil_fields_badarg(Options, <<"must be null or omit">>)
             end,
             [[{nil_fields, nothing}], [{nil_fields, omit_or_null}], [nil_fields]]
         )
@@ -353,8 +480,16 @@ contacts_openapi_spec() ->
         ),
         Response
     ),
+    CountEndpoint = spectra_openapi:add_response(
+        spectra_openapi:with_request_body(
+            spectra_openapi:endpoint(post, <<"/counts">>), ?MODULE, {type, maybe_count, 0}
+        ),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A tally">>), ?MODULE, {record, tally}
+        )
+    ),
     {ok, Spec} = spectra_openapi:endpoints_to_openapi(
-        #{title => <<"Contacts">>, version => <<"1.0.0">>}, [Endpoint], [pre_encoded]
+        #{title => <<"Contacts">>, version => <<"1.0.0">>}, [Endpoint, CountEndpoint], [pre_encoded]
     ),
     Spec.
 
@@ -380,7 +515,10 @@ null_test_() ->
         fun null_typed_map_value_is_encoded_as_null/0,
         fun null_is_decoded_as_missing_value/0,
         fun null_encoded_data_validates_against_schema/0,
-        fun null_openapi_spec_validates/0
+        fun null_openapi_spec_validates/0,
+        fun nullable_top_level_schema_allows_null/0,
+        fun nullable_top_level_value_validates_against_schema/0,
+        fun nullable_alias_field_has_single_null/0
     ]).
 
 null_record_field_is_encoded_as_null() ->
@@ -555,7 +693,8 @@ null_openapi_spec_validates() ->
                     <<"Contact">> := #{
                         properties := #{<<"phone">> := #{type := [<<"string">>, <<"null">>]}},
                         required := [<<"name">>, <<"phone">>]
-                    }
+                    },
+                    <<"MaybeCount0">> := #{type := [<<"integer">>, <<"null">>]}
                 }
             }
         },

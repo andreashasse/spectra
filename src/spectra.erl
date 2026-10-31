@@ -88,7 +88,12 @@ when its value is the missing marker. Set it with `{spectra, [{nil_fields, Value
   `null`. Encoding leaves the field out. Passing `{nil_fields, null}` to
   `encode/5` raises `badarg`.
 - `null`: the schema lists the field in `required` and allows `null`.
-  Encoding writes the field as `null`.
+  Encoding writes the field as `null`. Passing `{nil_fields, omit}` to
+  `encode/5` raises `badarg`.
+
+A per-call `{nil_fields, Value}` that equals the setting is always allowed.
+A whole value whose type can be missing encodes the missing value as `null`;
+its schema allows `null` unless the setting is `omit`.
 """.
 -type nil_fields() :: omit_or_null | omit | null.
 -type binary_string_decode_opts() :: map().
@@ -347,9 +352,11 @@ Accepts an options list. Supported options:
   and whose value is the missing marker, for this call only (nested values
   included). `null` writes it as JSON `null`, `omit` leaves it out. The schema
   does not change, it follows the `nil_fields` application setting (see
-  `t:nil_fields/0`). Raises `badarg` when the value is not `null` or `omit`,
-  and for `null` when the application setting is `omit`, since that schema
-  does not allow `null`.
+  `t:nil_fields/0`), so the option must give output that schema accepts.
+  Raises `badarg` when the value is not `null` or `omit`, for `null` when the
+  setting is `omit` (the schema does not allow `null`), and for `omit` when
+  the setting is `null` (the schema requires the field). The error's stack
+  frame holds the arity instead of the arguments, so `Data` is not logged.
 
 ### Example:
 
@@ -372,9 +379,9 @@ encode(Format, ModuleOrTypeinfo, TypeOrRef, Data, Options) ->
             {ok, EncodeConfig} ->
                 EncodeConfig;
             {error, Cause} ->
-                erlang:error(badarg, [Format, ModuleOrTypeinfo, TypeOrRef, Data, Options], [
-                    {error_info, #{module => ?MODULE, cause => Cause}}
-                ])
+                %% The arity stands in for the arguments, so that Data, which
+                %% can hold personal data, does not end up in logged stack traces.
+                erlang:error(badarg, none, [{error_info, #{module => ?MODULE, cause => Cause}}])
         end,
     try
         TypeInfo =
@@ -395,6 +402,8 @@ encode_config(Config, Options) ->
             {ok, Config};
         {null, omit} ->
             {error, {nil_fields, null_with_omit_setting}};
+        {omit, null} ->
+            {error, {nil_fields, omit_with_null_setting}};
         {Value, _} when Value =:= null; Value =:= omit ->
             {ok, Config#sp_config{nil_fields = Value}};
         {Value, _} ->
@@ -690,8 +699,13 @@ format_error(badarg, [{_M, _F, _As, Info} | _]) ->
 -spec format_cause({nil_fields, term()}) -> unicode:chardata().
 format_cause({nil_fields, null_with_omit_setting}) ->
     <<
-        "{nil_fields, null} needs the nil_fields application setting to be omit_or_null "
-        "or null, but the global nil_fields is omit, so the schema would not allow null"
+        "{nil_fields, null} is not allowed when the nil_fields setting is omit, "
+        "because that schema does not allow null"
+    >>;
+format_cause({nil_fields, omit_with_null_setting}) ->
+    <<
+        "{nil_fields, omit} is not allowed when the nil_fields setting is null, "
+        "because that schema requires the fields that would be left out"
     >>;
 format_cause({nil_fields, {invalid_option, Value}}) ->
     io_lib:format("the nil_fields option must be null or omit, got: ~tp", [Value]).

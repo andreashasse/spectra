@@ -234,21 +234,11 @@ do_to_schema(TypeInfo, #sp_union{types = Types}, Config) ->
         )
     of
         {[_MissingLiteral], [SingleType]} ->
-            to_schema_for_sp_type(TypeInfo, SingleType, Config);
+            missing_value_schema(to_schema_for_sp_type(TypeInfo, SingleType, Config), Config);
         {[], NonMissingTypes} ->
-            case try_generate_enum_schema(NonMissingTypes, TypeInfo, Config) of
-                not_all_literals ->
-                    generate_anyof_schema(TypeInfo, NonMissingTypes, Config);
-                EnumSchema ->
-                    EnumSchema
-            end;
+            union_schema(TypeInfo, NonMissingTypes, Config);
         {[_MissingLiteral], OtherTypes} when length(OtherTypes) > 1 ->
-            case try_generate_enum_schema(OtherTypes, TypeInfo, Config) of
-                not_all_literals ->
-                    generate_anyof_schema(TypeInfo, OtherTypes, Config);
-                EnumSchema ->
-                    EnumSchema
-            end
+            missing_value_schema(union_schema(TypeInfo, OtherTypes, Config), Config)
     end;
 %% Map types
 do_to_schema(TypeInfo, #sp_map{fields = Fields}, Config) ->
@@ -276,6 +266,27 @@ do_to_schema(_TypeInfo, #sp_nonempty_improper_list{} = Type, _Config) ->
     erlang:error({type_not_supported, Type}).
 
 %% Helper functions
+
+-spec union_schema(spectra:type_info(), [spectra:sp_type()], spectra:sp_config()) ->
+    json_schema_object().
+union_schema(TypeInfo, Types, Config) ->
+    case try_generate_enum_schema(Types, TypeInfo, Config) of
+        not_all_literals ->
+            generate_anyof_schema(TypeInfo, Types, Config);
+        EnumSchema ->
+            EnumSchema
+    end.
+
+%% A union with the missing value is encoded as null when it is not a field,
+%% for example as a whole body. With `nil_fields = omit` the schema stays as it
+%% was before null was allowed.
+-spec missing_value_schema(json_schema_object(), spectra:sp_config()) -> json_schema_object().
+missing_value_schema(Schema, #sp_config{nil_fields = omit}) ->
+    Schema;
+missing_value_schema(Schema, #sp_config{nil_fields = NilFields}) when
+    NilFields =:= null; NilFields =:= omit_or_null
+->
+    allow_null(Schema).
 
 %% A list item that holds the missing value is encoded as null, since a list
 %% has no key to leave out.
@@ -504,11 +515,30 @@ is_field_required(false, _Config) -> true;
 is_field_required({true, _}, #sp_config{nil_fields = NilFields}) -> NilFields =:= null.
 
 -spec allow_null(json_schema_object()) -> json_schema_object().
-allow_null(#{type := Type} = Schema) when is_binary(Type), not is_map_key(enum, Schema) ->
-    Schema#{type => [Type, <<"null">>]};
-allow_null(#{anyOf := Schemas} = Schema) when map_size(Schema) =:= 1 ->
-    #{anyOf => Schemas ++ [#{type => <<"null">>}]};
 allow_null(Schema) ->
+    case allows_null(Schema) of
+        true -> Schema;
+        false -> add_null(Schema)
+    end.
+
+-spec allows_null(json_schema_object()) -> boolean().
+allows_null(#{type := Types}) when is_list(Types) ->
+    lists:member(<<"null">>, Types);
+allows_null(#{enum := Values}) ->
+    lists:member(null, Values);
+allows_null(#{anyOf := Schemas}) ->
+    lists:any(fun allows_null/1, Schemas);
+allows_null(#{type := <<"null">>}) ->
+    true;
+allows_null(_Schema) ->
+    false.
+
+-spec add_null(json_schema_object()) -> json_schema_object().
+add_null(#{type := Type} = Schema) when is_binary(Type), not is_map_key(enum, Schema) ->
+    Schema#{type => [Type, <<"null">>]};
+add_null(#{anyOf := Schemas} = Schema) when map_size(Schema) =:= 1 ->
+    #{anyOf => Schemas ++ [#{type => <<"null">>}]};
+add_null(Schema) ->
     #{anyOf => [Schema, #{type => <<"null">>}]}.
 
 generate_anyof_schema(TypeInfo, Types, Config) ->
