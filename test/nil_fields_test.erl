@@ -829,6 +829,7 @@ webhook_nil_fields_test_() ->
             fun null_webhook_headers_exclude_null/0,
             fun null_webhook_responses_keep_plain_schema/0,
             fun null_webhook_list_payload_is_inline/0,
+            fun null_webhook_remote_payload_gets_own_schema_when_type_is_mixed/0,
             fun null_webhook_suffixed_name_clash_raises/0,
             fun webhook_nil_fields_rejects_other_values/0
         ]),
@@ -1020,6 +1021,30 @@ null_webhook_list_payload_is_inline() ->
     ),
     Spec = json_roundtrip(payments_openapi([Endpoint], [Webhook])),
     ?assertEqual([<<"MaybePhone0">>], maps:keys(components(Spec))),
+    validate_openapi(Spec).
+
+null_webhook_remote_payload_gets_own_schema_when_type_is_mixed() ->
+    Webhook = spectra_openapi:with_nil_fields(
+        spectra_openapi:with_request_body(
+            spectra_openapi:webhook(<<"phoneDone">>, post),
+            ?MODULE,
+            #sp_remote_type{mfargs = {?MODULE, maybe_phone, []}, arity = 0}
+        ),
+        null
+    ),
+    Endpoint = spectra_openapi:add_response(
+        spectra_openapi:endpoint(get, <<"/phone">>),
+        spectra_openapi:response_with_body(
+            spectra_openapi:response(200, <<"A phone">>), ?MODULE, {type, maybe_phone, 0}
+        )
+    ),
+    Spec = json_roundtrip(payments_openapi([Endpoint], [Webhook])),
+    ?assertEqual(
+        <<"#/components/schemas/MaybePhone0Nullable">>, webhook_body_ref(Spec, <<"phoneDone">>)
+    ),
+    ?assertEqual(
+        [<<"MaybePhone0">>, <<"MaybePhone0Nullable">>], lists:sort(maps:keys(components(Spec)))
+    ),
     validate_openapi(Spec).
 
 null_webhook_suffixed_name_clash_raises() ->
