@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `Options` of `spectra_openapi:endpoints_to_openapi/3` and `spectra_openapi:to_openapi/4` are typed as `spectra:schema_option()`, since `nil_fields` does not apply to the spec.
 ### Fixed
 - A missing value (`nil` / `undefined`) outside a field, such as an element of `[integer() | nil]`, is now encoded as JSON `null` instead of the string `"nil"`, and the JSON Schema of such a list item allows `null`.
+- A documented OpenAPI parameter or response header no longer repeats its `description` and `deprecated` inside its `schema`; they appear only on the parameter or header.
 
 ## [0.16.0] - 2026-10-30
 

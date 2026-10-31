@@ -973,9 +973,7 @@ add_security_schemes(Components, MetaData) ->
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Config) ->
     ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
-    OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, Config),
     Base = Doc#{schema => OpenApiSchema},
     copy_if_present(required, HeaderSpec, Base).
 
@@ -1022,10 +1020,18 @@ generate_parameter(
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
-    OpenApiSchema = maps:remove('$schema', InlineSchema),
-    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, Config),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
+
+%% Moves description and deprecated from the type's inline schema up to the
+%% parameter or header, so the OpenAPI output does not state them twice.
+-spec lift_doc(spectra:type_info(), spectra:sp_type_or_ref(), spectra:sp_config()) ->
+    {#{description => binary(), deprecated => boolean()}, spectra_json_schema:json_schema()}.
+lift_doc(ModuleTypeInfo, NormalizedSchema, Config) ->
+    InlineSchema = to_inline_schema(ModuleTypeInfo, NormalizedSchema, Config),
+    Doc = maps:with([description, deprecated], type_doc(ModuleTypeInfo, NormalizedSchema, Config)),
+    OpenApiSchema = maps:without(['$schema' | maps:keys(Doc)], InlineSchema),
+    {Doc, OpenApiSchema}.
 
 -spec collect_schema_refs([endpoint_spec() | webhook_spec()], spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
