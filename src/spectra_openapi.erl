@@ -718,7 +718,7 @@ format_cause({webhook_nil_fields, {invalid_option, Value}}) ->
     #{general => io_lib:format("the webhook nil_fields option must be null, got: ~tp", [Value])};
 format_cause({webhook_nil_fields, not_a_webhook}) ->
     #{general => <<"nil_fields can be set only on webhooks, not on endpoints">>};
-format_cause({webhook_nil_fields, omit_setting, Name}) ->
+format_cause({webhook_nil_fields, {omit_setting, Name}}) ->
     #{
         general => io_lib:format(
             "webhook ~ts sets nil_fields to null, which is not allowed when the "
@@ -726,7 +726,7 @@ format_cause({webhook_nil_fields, omit_setting, Name}) ->
             [Name]
         )
     };
-format_cause({webhook_nil_fields, name_clash, SchemaName}) ->
+format_cause({webhook_nil_fields, {name_clash, SchemaName}}) ->
     #{
         general => io_lib:format(
             "the schema name ~ts is needed for a webhook payload with nil_fields null, "
@@ -831,7 +831,8 @@ to_openapi(MetaData, Endpoints, Webhooks, Options) when
         ComponentsResult = add_security_schemes(
             generate_components(
                 ValueRefs,
-                NullRefs,
+                NullRefs -- MixedRefs,
+                MixedRefs,
                 ParameterRefs -- (ValueRefs ++ NullRefs),
                 Config
             ),
@@ -873,7 +874,7 @@ to_openapi(MetaData, Endpoints, Webhooks, Options) when
 check_webhook_nil_fields(Webhooks, #sp_config{nil_fields = omit}) ->
     case [Name || #{name := Name, nil_fields := null} <- Webhooks] of
         [] -> ok;
-        [Name | _] -> raise_badarg({webhook_nil_fields, omit_setting, Name})
+        [Name | _] -> raise_badarg({webhook_nil_fields, {omit_setting, Name}})
     end;
 check_webhook_nil_fields(_Webhooks, _Config) ->
     ok.
@@ -1222,10 +1223,18 @@ collect_endpoint_schema_refs(
         end,
     ParameterRefs = collect_parameter_refs(Parameters, Config),
 
-    case null_payload(Endpoint, Config) of
+    %% A list payload is written inline, so its item type gets no null copy.
+    case null_payload(Endpoint, Config) andalso not list_body(Endpoint, Config) of
         true -> {ResponseRefs, RequestBodyRefs, ParameterRefs};
         false -> {ResponseRefs ++ RequestBodyRefs, [], ParameterRefs}
     end.
+
+-spec list_body(endpoint_spec() | webhook_spec(), spectra:sp_config()) -> boolean().
+list_body(#{request_body := #{schema := Schema, module := Module}}, Config) ->
+    TypeInfo = spectra_module_types:get(Module, Config),
+    is_record(spectra_util:normalize_type_ref(TypeInfo, Schema), sp_list);
+list_body(_Spec, _Config) ->
+    false.
 
 -spec collect_response_refs(#{http_status_code() => response_spec()}, spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
@@ -1285,14 +1294,17 @@ filter_typeref(Schema, Module, Config) ->
             false
     end.
 
+%% NullOnlyRefs get the null schema under their plain name, MixedRefs get it
+%% under the Nullable name next to their plain schema.
 -spec generate_components(
+    [{module(), spectra:sp_type_reference()}],
     [{module(), spectra:sp_type_reference()}],
     [{module(), spectra:sp_type_reference()}],
     [{module(), spectra:sp_type_reference()}],
     spectra:sp_config()
 ) ->
     #{schemas => #{binary() => openapi_schema()}}.
-generate_components(ValueRefs, NullRefs, ParameterOnlyRefs, Config) ->
+generate_components(ValueRefs, NullOnlyRefs, MixedRefs, ParameterOnlyRefs, Config) ->
     ToSchema = fun({Module, TypeRef}, RefConfig) ->
         ModuleTypeInfo = spectra_module_types:get(Module, RefConfig),
         maps:remove('$schema', to_inline_schema(ModuleTypeInfo, TypeRef, RefConfig))
@@ -1303,19 +1315,19 @@ generate_components(ValueRefs, NullRefs, ParameterOnlyRefs, Config) ->
         end,
         #{},
         [{Ref, Config} || Ref <- ValueRefs] ++
-            [{Ref, null_config(Config)} || Ref <- NullRefs, not lists:member(Ref, ValueRefs)] ++
+            [{Ref, null_config(Config)} || Ref <- NullOnlyRefs] ++
             [{Ref, parameter_config(Config)} || Ref <- ParameterOnlyRefs]
     ),
     Schemas = lists:foldl(
         fun({Module, TypeRef} = Ref, Acc) ->
             SchemaName = nullable_component_name(schema_component_name(Module, TypeRef)),
             case maps:is_key(SchemaName, Acc) of
-                true -> raise_badarg({webhook_nil_fields, name_clash, SchemaName});
+                true -> raise_badarg({webhook_nil_fields, {name_clash, SchemaName}});
                 false -> Acc#{SchemaName => ToSchema(Ref, null_config(Config))}
             end
         end,
         Plain,
-        [Ref || Ref <- NullRefs, lists:member(Ref, ValueRefs)]
+        MixedRefs
     ),
     case maps:size(Schemas) > 0 of
         true ->
