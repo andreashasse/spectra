@@ -751,9 +751,9 @@ to_openapi(MetaData, Endpoints, Webhooks, Options) when
         Paths = generate_path_items(group_by(path, Endpoints), Config),
         WebhookItems = generate_path_items(group_by(name, Webhooks), Config),
 
-        SchemaRefs = collect_schema_refs(Endpoints ++ Webhooks, Config),
+        {ValueRefs, ParameterRefs} = collect_schema_refs(Endpoints ++ Webhooks, Config),
         ComponentsResult = add_security_schemes(
-            generate_components(SchemaRefs, Config), MetaData
+            generate_components(ValueRefs, ParameterRefs -- ValueRefs, Config), MetaData
         ),
         BaseInfo = #{title => maps:get(title, MetaData), version => maps:get(version, MetaData)},
         Info = lists:foldl(
@@ -973,7 +973,7 @@ add_security_schemes(Components, MetaData) ->
 generate_response_header(#{schema := Schema, module := Module} = HeaderSpec, Config) ->
     ModuleTypeInfo = spectra_module_types:get(Module, Config),
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
-    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, Config),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, parameter_config(Config)),
     Base = Doc#{schema => OpenApiSchema},
     copy_if_present(required, HeaderSpec, Base).
 
@@ -1020,8 +1020,14 @@ generate_parameter(
     NormalizedSchema = spectra_util:normalize_type_ref(ModuleTypeInfo, Schema),
     Required = maps:get(required, ParameterSpec, false),
 
-    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, Config),
+    {Doc, OpenApiSchema} = lift_doc(ModuleTypeInfo, NormalizedSchema, parameter_config(Config)),
     Doc#{name => Name, in => In, required => Required, schema => OpenApiSchema}.
+
+%% A parameter or header value is never JSON null; `required: false` expresses
+%% that it can be left out.
+-spec parameter_config(spectra:sp_config()) -> spectra:sp_config().
+parameter_config(Config) ->
+    Config#sp_config{missing_value_as_null = false}.
 
 %% Moves description and deprecated from the type's inline schema up to the
 %% parameter or header, so the OpenAPI output does not state them twice.
@@ -1033,20 +1039,22 @@ lift_doc(ModuleTypeInfo, NormalizedSchema, Config) ->
     OpenApiSchema = maps:without(['$schema' | maps:keys(Doc)], InlineSchema),
     {Doc, OpenApiSchema}.
 
+%% Returns the refs used by bodies and the refs used by parameters apart, since
+%% a component that only parameters use gets the parameter schema.
 -spec collect_schema_refs([endpoint_spec() | webhook_spec()], spectra:sp_config()) ->
-    [{module(), spectra:sp_type_reference()}].
+    {[{module(), spectra:sp_type_reference()}], [{module(), spectra:sp_type_reference()}]}.
 collect_schema_refs(Endpoints, Config) ->
     lists:foldl(
-        fun(Endpoint, Acc) ->
-            EndpointRefs = collect_endpoint_schema_refs(Endpoint, Config),
-            lists:usort(EndpointRefs ++ Acc)
+        fun(Endpoint, {ValueAcc, ParameterAcc}) ->
+            {ValueRefs, ParameterRefs} = collect_endpoint_schema_refs(Endpoint, Config),
+            {lists:usort(ValueRefs ++ ValueAcc), lists:usort(ParameterRefs ++ ParameterAcc)}
         end,
-        [],
+        {[], []},
         Endpoints
     ).
 
 -spec collect_endpoint_schema_refs(endpoint_spec() | webhook_spec(), spectra:sp_config()) ->
-    [{module(), spectra:sp_type_reference()}].
+    {[{module(), spectra:sp_type_reference()}], [{module(), spectra:sp_type_reference()}]}.
 collect_endpoint_schema_refs(
     #{responses := Responses, parameters := Parameters} =
         Endpoint,
@@ -1067,7 +1075,7 @@ collect_endpoint_schema_refs(
         end,
     ParameterRefs = collect_parameter_refs(Parameters, Config),
 
-    ResponseRefs ++ RequestBodyRefs ++ ParameterRefs.
+    {ResponseRefs ++ RequestBodyRefs, ParameterRefs}.
 
 -spec collect_response_refs(#{http_status_code() => response_spec()}, spectra:sp_config()) ->
     [{module(), spectra:sp_type_reference()}].
@@ -1127,21 +1135,26 @@ filter_typeref(Schema, Module, Config) ->
             false
     end.
 
--spec generate_components([{module(), spectra:sp_type_reference()}], spectra:sp_config()) ->
+-spec generate_components(
+    [{module(), spectra:sp_type_reference()}],
+    [{module(), spectra:sp_type_reference()}],
+    spectra:sp_config()
+) ->
     #{schemas => #{binary() => openapi_schema()}}.
-generate_components(SchemaRefs, Config) ->
+generate_components(ValueRefs, ParameterOnlyRefs, Config) ->
     Schemas = lists:foldl(
-        fun({Module, TypeRef}, Acc) ->
+        fun({{Module, TypeRef}, RefConfig}, Acc) ->
             ModuleTypeInfo = spectra_module_types:get(
-                Module, Config
+                Module, RefConfig
             ),
-            Schema = to_inline_schema(ModuleTypeInfo, TypeRef, Config),
+            Schema = to_inline_schema(ModuleTypeInfo, TypeRef, RefConfig),
             SchemaName = schema_component_name(Module, TypeRef),
             OpenApiSchema = maps:remove('$schema', Schema),
             Acc#{SchemaName => OpenApiSchema}
         end,
         #{},
-        SchemaRefs
+        [{Ref, Config} || Ref <- ValueRefs] ++
+            [{Ref, parameter_config(Config)} || Ref <- ParameterOnlyRefs]
     ),
     case maps:size(Schemas) > 0 of
         true ->

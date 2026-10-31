@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `Options` of `spectra_openapi:endpoints_to_openapi/3` and `spectra_openapi:to_openapi/4` are typed as `spectra:schema_option()`, since `nil_fields` does not apply to the spec.
 
 ### Fixed
-- A missing value (`nil` / `undefined`) outside a field, such as an element of `[integer() | nil]` or a whole value of type `integer() | undefined`, is now encoded as JSON `null` instead of the string `"nil"`. The JSON Schema of such a list item allows `null`, and so does the schema of a union with `nil` / `undefined`, such as a body or OpenAPI component of that type, unless `nil_fields` is `omit`.
+- A missing value (`nil` / `undefined`) outside a field, such as an element of `[integer() | nil]` or a whole value of type `integer() | undefined`, is now encoded as JSON `null` instead of the string `"nil"`. The JSON Schema of such a list item allows `null`, and so does the schema of a union with `nil` / `undefined`, such as a body or OpenAPI component of that type, unless `nil_fields` is `omit`. OpenAPI parameters (path, query, header, cookie) and response headers are excluded: their value is never JSON `null`, and `required: false` already says they can be left out, so their schema, and a component that only parameters use, is the same as in 0.16.0.
 - A documented OpenAPI parameter or response header no longer repeats its `description` and `deprecated` inside its `schema`; they appear only on the parameter or header.
 - The `message` in an error's `ctx` is now always a binary instead of sometimes a charlist (struct mismatch, `not_matched_fields`, non-binary input without `pre_decoded`, dict keys, string conversion).
 

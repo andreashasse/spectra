@@ -803,7 +803,7 @@ When `null` applies, either from the setting or from the option:
 | `=>` map field | `null` | left out |
 | Typed map value (`#{binary() => T \| undefined}`) | `null` | — |
 
-A whole value whose type can be missing, such as a body of type `integer() | undefined`, encodes the missing value as `null`, and so does a list element. Its schema allows `null` under `omit_or_null` and `null`.
+A whole value whose type can be missing, such as a body of type `integer() | undefined`, encodes the missing value as `null`, and so does a list element. Its schema allows `null` under `omit_or_null` and `null`, except as an OpenAPI parameter or response header: their value is never `null`, and `required: false` says they can be left out.
 
 With the setting `null`, record, struct and `:=` map fields are listed in `required`; `=>` map fields are not. A typed map's `additionalProperties` allows `null` under `omit_or_null` and `null`. A schema allows `null` as `"type": ["string", "null"]` when the field has a single plain type, and as `"anyOf": [..., {"type": "null"}]` otherwise. Fields whose type cannot be missing, and values that are not the missing value, encode as before. Decoding is the same for all settings: a field that can be missing accepts both an absent key and `null`.
 

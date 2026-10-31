@@ -278,9 +278,11 @@ union_schema(TypeInfo, Types, Config) ->
     end.
 
 %% A union with the missing value is encoded as null when it is not a field,
-%% for example as a whole body. With `nil_fields = omit` the schema stays as it
-%% was before null was allowed.
+%% for example as a whole body. With `nil_fields = omit`, and for an OpenAPI
+%% parameter or header, the schema stays as it was before null was allowed.
 -spec missing_value_schema(json_schema_object(), spectra:sp_config()) -> json_schema_object().
+missing_value_schema(Schema, #sp_config{missing_value_as_null = false}) ->
+    Schema;
 missing_value_schema(Schema, #sp_config{nil_fields = omit}) ->
     Schema;
 missing_value_schema(Schema, #sp_config{nil_fields = NilFields}) when

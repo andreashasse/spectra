@@ -25,6 +25,7 @@
 -type maybe_count() :: integer() | undefined.
 -type maybe_status() :: active | inactive | undefined.
 -type maybe_name() :: binary() | nil.
+-type maybe_remote_name() :: unicode:unicode_binary() | nil.
 -record(tally, {count :: maybe_count(), status :: maybe_status(), counts :: [maybe_count()]}).
 -type tally() :: #tally{}.
 -type team() :: #{
@@ -93,7 +94,9 @@ default_test_() ->
             fun default_openapi_spec_validates/0,
             fun nullable_top_level_schema_allows_null/0,
             fun nullable_top_level_value_validates_against_schema/0,
-            fun nullable_alias_field_has_single_null/0
+            fun nullable_alias_field_has_single_null/0,
+            fun parameter_and_header_schemas_exclude_null/0,
+            fun body_allows_null_where_parameter_of_same_type_does_not/0
         ]),
         with_nil_fields(omit_or_null, [
             fun default_schema_allows_null_for_optional_fields/0,
@@ -322,7 +325,8 @@ omit_test_() ->
         fun omit_schema_is_unchanged/0,
         fun omit_encoding_omits_missing_values/0,
         fun omit_per_call_null_raises_badarg/0,
-        fun omit_top_level_schema_is_unchanged/0
+        fun omit_top_level_schema_is_unchanged/0,
+        fun parameter_and_header_schemas_exclude_null/0
     ]).
 
 omit_top_level_schema_is_unchanged() ->
@@ -493,6 +497,98 @@ contacts_openapi_spec() ->
     ),
     Spec.
 
+%% A parameter or header value is never JSON null: absence is expressed with
+%% `required: false`, so its schema is the schema of the non-missing type.
+parameter_and_header_schemas_exclude_null() ->
+    Spec = parameters_openapi_spec({record, contact}),
+    String = #{type => <<"string">>},
+    #{
+        <<"paths">> := #{
+            <<"/phones/{id}">> := #{
+                <<"post">> := #{
+                    <<"parameters">> := Parameters,
+                    <<"responses">> := #{<<"204">> := #{<<"headers">> := Headers}}
+                }
+            }
+        },
+        <<"components">> := #{<<"schemas">> := Components}
+    } = Spec,
+    ?assertEqual(
+        [String, String, String, String],
+        [Schema || #{<<"schema">> := Schema} <- Parameters]
+    ),
+    ?assertEqual(
+        #{<<"X-Phone">> => #{<<"schema">> => String}, <<"X-Name">> => #{<<"schema">> => String}},
+        Headers
+    ),
+    ?assertMatch(
+        #{<<"MaybePhone0">> := String, <<"MaybeRemoteName0">> := String},
+        Components
+    ),
+    validate_openapi(Spec).
+
+body_allows_null_where_parameter_of_same_type_does_not() ->
+    Nullable = #{type => [<<"string">>, <<"null">>]},
+    FieldSpec = parameters_openapi_spec({type, aliased_profile, 0}),
+    ?assertMatch(
+        #{
+            <<"components">> := #{
+                <<"schemas">> := #{
+                    <<"AliasedProfile0">> := #{properties := #{<<"phone">> := Nullable}}
+                }
+            }
+        },
+        FieldSpec
+    ),
+    BodySpec = parameters_openapi_spec({type, maybe_phone, 0}),
+    ?assertMatch(
+        #{<<"components">> := #{<<"schemas">> := #{<<"MaybePhone0">> := Nullable}}},
+        BodySpec
+    ),
+    lists:foreach(
+        fun(Spec) ->
+            #{
+                <<"paths">> := #{
+                    <<"/phones/{id}">> := #{<<"post">> := #{<<"parameters">> := Parameters}}
+                }
+            } = Spec,
+            ?assertEqual(
+                [#{type => <<"string">>}],
+                lists:usort([Schema || #{<<"schema">> := Schema} <- Parameters])
+            ),
+            validate_openapi(Spec)
+        end,
+        [FieldSpec, BodySpec]
+    ).
+
+parameters_openapi_spec(BodyType) ->
+    Parameters = [
+        #{name => <<"x-phone">>, in => header, schema => {type, maybe_phone, 0}},
+        #{name => <<"phone">>, in => query, schema => {type, maybe_phone, 0}},
+        #{name => <<"id">>, in => path, required => true, schema => {type, maybe_phone, 0}},
+        #{name => <<"name">>, in => query, schema => {type, maybe_remote_name, 0}}
+    ],
+    Response = lists:foldl(
+        fun({Header, Type}, Acc) ->
+            spectra_openapi:response_with_header(Acc, Header, ?MODULE, #{schema => {type, Type, 0}})
+        end,
+        spectra_openapi:response(204, <<"Stored">>),
+        [{<<"X-Phone">>, maybe_phone}, {<<"X-Name">>, maybe_remote_name}]
+    ),
+    Endpoint = lists:foldl(
+        fun(Parameter, Acc) -> spectra_openapi:with_parameter(Acc, ?MODULE, Parameter) end,
+        spectra_openapi:with_request_body(
+            spectra_openapi:endpoint(post, <<"/phones/{id}">>), ?MODULE, BodyType
+        ),
+        Parameters
+    ),
+    {ok, Spec} = spectra_openapi:endpoints_to_openapi(
+        #{title => <<"Phones">>, version => <<"1.0.0">>},
+        [spectra_openapi:add_response(Endpoint, Response)],
+        [pre_encoded]
+    ),
+    Spec.
+
 validate_openapi(Spec) ->
     case openapi_validator_helper:validate_openapi_3_1(Spec) of
         ok -> ok;
@@ -518,7 +614,9 @@ null_test_() ->
         fun null_openapi_spec_validates/0,
         fun nullable_top_level_schema_allows_null/0,
         fun nullable_top_level_value_validates_against_schema/0,
-        fun nullable_alias_field_has_single_null/0
+        fun nullable_alias_field_has_single_null/0,
+        fun parameter_and_header_schemas_exclude_null/0,
+        fun body_allows_null_where_parameter_of_same_type_does_not/0
     ]).
 
 null_record_field_is_encoded_as_null() ->
