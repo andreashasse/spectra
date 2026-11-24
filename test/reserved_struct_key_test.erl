@@ -28,5 +28,17 @@ struct_key_rejected_alongside_literal_fields_test() ->
         decode(atom_key_with_literal, <<"{\"name\":\"x\",\"__struct__\":\"Elixir.Foo\"}">>)
     ).
 
+exception_key_rejected_test() ->
+    ?assertMatch(
+        {error, [_]},
+        decode(atom_to_term, <<"{\"__exception__\":true}">>)
+    ).
+
+meta_key_rejected_test() ->
+    ?assertMatch(
+        {error, [_]},
+        decode(atom_to_term, <<"{\"__meta__\":{}}">>)
+    ).
+
 other_atom_keys_still_decode_test() ->
     ?assertEqual({ok, #{a => 1}}, decode(atom_to_term, <<"{\"a\":1}">>)).
