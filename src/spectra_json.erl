@@ -1150,6 +1150,12 @@ map_field_type_from_json_list(TypeInfo, KeyType, ValueType, JsonList, Config) ->
     spectra_util:fold_until_error(
         fun({Key, Value}, {FieldsAcc, RemainingAcc}) ->
             case do_from_json(TypeInfo, KeyType, Key, Config) of
+                %% `__struct__` makes an Elixir map a struct. Untrusted JSON must never be
+                %% able to inject it through an atom key type.
+                {ok, '__struct__'} ->
+                    {error, [
+                        sp_error:type_mismatch(KeyType, Key, #{message => <<"reserved key">>})
+                    ]};
                 {ok, KeyJson} ->
                     case do_from_json(TypeInfo, ValueType, Value, Config) of
                         {ok, ValueJson} ->
