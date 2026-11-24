@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-24
+
+### Security
+- Decoding JSON into a map type with an atom key type (`#{atom() => V}`) now rejects the keys `__struct__`, `__exception__` and `__meta__` with a type mismatch whose `message` is `<<"reserved key">>`. Elixir uses these keys to mark structs, exceptions and Ecto metadata. Before, untrusted JSON could produce a map carrying them: `{"__struct__": "Elixir.Foo"}` decoded with `#{atom() => atom()}` gave `#{'__struct__' => 'Elixir.Foo'}`, which Elixir code treats as a `Foo` struct. Atoms that already exist in the VM are accepted, and these three always do on Elixir, so `binary_to_existing_atom` was no protection. Spectra itself never acts on such a map, and no exploitation is known, but code that decodes untrusted JSON into such types and then handles the result as a struct, or inspects or enumerates it, should upgrade. Records, maps with fixed field names and struct types were not affected. A struct type's own `__struct__` field still comes from the type, never from the JSON.
+
 ## [0.17.0] - 2026-10-31
 
 ### Added

@@ -1150,6 +1150,16 @@ map_field_type_from_json_list(TypeInfo, KeyType, ValueType, JsonList, Config) ->
     spectra_util:fold_until_error(
         fun({Key, Value}, {FieldsAcc, RemainingAcc}) ->
             case do_from_json(TypeInfo, KeyType, Key, Config) of
+                %% Untrusted JSON must never be able to inject keys that Elixir uses to
+                %% mark structs, exceptions and Ecto metadata through an atom key type.
+                {ok, ReservedKey} when
+                    ReservedKey =:= '__struct__';
+                    ReservedKey =:= '__exception__';
+                    ReservedKey =:= '__meta__'
+                ->
+                    {error, [
+                        sp_error:type_mismatch(KeyType, Key, #{message => <<"reserved key">>})
+                    ]};
                 {ok, KeyJson} ->
                     case do_from_json(TypeInfo, ValueType, Value, Config) of
                         {ok, ValueJson} ->
